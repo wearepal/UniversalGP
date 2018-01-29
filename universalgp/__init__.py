@@ -12,4 +12,4 @@ from . import mean
 from . import lik
 from . import inf
 from . import util
-
+from . import datasets

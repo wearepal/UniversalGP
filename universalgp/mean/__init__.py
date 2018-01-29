@@ -6,5 +6,5 @@ Created on Tue Jan 23 18:08:14 2018
 @author: zc223
 """
 
-from .mean_zero import mean_func
+from .mean_zero import ZeroOffset
 
