@@ -62,7 +62,6 @@ class Variational:
                       for i in range(self.num_latent)]
         kernel_chol = tf.stack([tf.cholesky(k) for k in kernel_mat], 0)
 
-
         # Now build the objective function.
         entropy = self._build_entropy(weights, means, covars)
         cross_ent = self._build_cross_ent(weights, means, covars, kernel_chol)
