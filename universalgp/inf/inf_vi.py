@@ -12,7 +12,7 @@ from .. import lik
 from .. import util
 
 
-class VariationalInference:
+class Variational:
 
     def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100):
 
@@ -56,14 +56,12 @@ class VariationalInference:
         # Both inducing inputs and the posterior means can vary freely so don't change them.
         means = raw_means
         inducing_inputs = raw_inducing_inputs
-        num_inducing_inputs = inducing_inputs.shape[1].value
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = [self.cov[i].cov_func(inducing_inputs[i, :, :], inducing_inputs[i, :, :])
+        kernel_mat = [self.cov[i].cov_func(inducing_inputs[i, :, :])
                       for i in range(self.num_latent)]
+        kernel_chol = tf.stack([tf.cholesky(k) for k in kernel_mat], 0)
 
-        kernel_chol = tf.stack([tf.cholesky(k + 1e-4 * tf.eye(num_inducing_inputs))
-                                for k in kernel_mat], 0)
 
         # Now build the objective function.
         entropy = self._build_entropy(weights, means, covars)

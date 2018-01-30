@@ -72,7 +72,7 @@ class GaussianProcess:
         # Define all parameters that get optimized directly in raw form. Some parameters get
         # transformed internally to maintain certain pre-conditions.
 
-        if inf.VariationalInference:
+        if inf.Variational:
             self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
             self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
                                                    self.num_inducing]))
@@ -129,7 +129,7 @@ class GaussianProcess:
         if self.optimizer != optimizer:
             self.optimizer = optimizer
 
-            if inf.VariationalInference(self.cov, self.lik):
+            if inf.Variational(self.cov, self.lik):
                 var_param = [self.raw_means, self.raw_covars, self.raw_weights]  # variational parameters
                 self.train_step = optimizer.minimize(self.obj_func, var_list=var_param + hyper_param)
             else:

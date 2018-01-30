@@ -15,7 +15,7 @@ import tensorflow as tf
 N_all = 200
 N = 50
 inputs = 5 * np.linspace(0, 1, num=N_all)[:, np.newaxis]
-outputs = np.sin(inputs)
+outputs = np.cos(inputs)
 
 # selects training and test
 idx = np.arange(N_all)
@@ -30,7 +30,7 @@ ytest = outputs[idx[N:]]
 lik = universalgp.lik.LikelihoodGaussian()
 cov = [universalgp.cov.SquaredExponential(1)]
 # mean = universalgp.mean.ZeroOffset()
-inf = universalgp.inf.VariationalInference(cov, lik)
+inf = universalgp.inf.Variational(cov, lik)
 
 
 inducing_inputs= xtrain
@@ -46,3 +46,4 @@ plt.plot(xtrain, ytrain, '.', mew=2)
 plt.plot(xtest, ytest, 'o', mew=2)
 plt.plot(xtest, ypred, 'x', mew=2)
 plt.show()
+
