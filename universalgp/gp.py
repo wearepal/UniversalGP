@@ -29,41 +29,32 @@ class GaussianProcess:
     """
     def __init__(self,
                  inducing_inputs,
-                 num_components=1,
-                 inf_func=inf.ExactInference,
-                 cov_func=cov.SquaredExponential,
+                 cov_func,
+                 inf_func,
                  # mean_func=mean.ZeroOffset(),
-                 lik_func=lik.LikelihoodGaussian):
+                 lik_func,
+                 num_components=1,
+                 diag_post=False):
 
         self.cov = cov_func
         # self.mean = mean_func
         self.inf = inf_func
         self.lik = lik_func
 
-        # Repeat the inducing inputs for all latent processes if we haven't been given individually
-        # specified inputs per process.
-        if inducing_inputs.ndim == 2:
-            inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [len(self.cov), 1, 1])
+        # Save whether our posterior is diagonal or not.
+        self.diag_post = diag_post
 
         # Initialize all model dimension constants.
         self.num_components = num_components
         self.num_latent = len(self.cov)
+
+        # Repeat the inducing inputs for all latent processes if we haven't been given individually
+        # specified inputs per process.
+        if inducing_inputs.ndim == 2:
+            inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [self.num_latent, 1, 1])
+
         self.num_inducing = inducing_inputs.shape[1]
         self.input_dim = inducing_inputs.shape[2]
-
-        # Define all parameters that get optimized directly in raw form. Some parameters get
-        # transformed internally to maintain certain pre-conditions.
-
-        self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
-        self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
-                                               self.num_inducing]))
-        if self.diag_post:
-            self.raw_covars = tf.Variable(tf.ones([self.num_components, self.num_latent,
-                                                   self.num_inducing]))
-        else:
-            init_vec = np.zeros([self.num_components, self.num_latent] +
-                                util.tri_vec_shape(self.num_inducing), dtype=np.float32)
-            self.raw_covars = tf.Variable(init_vec)
 
         self.raw_inducing_inputs = tf.Variable(inducing_inputs, dtype=tf.float32)
         self.raw_likelihood_params = self.lik.get_params()
@@ -78,17 +69,35 @@ class GaussianProcess:
         self.test_inputs = tf.placeholder(tf.float32, shape=[None, self.input_dim],
                                           name="test_inputs")
 
-        # if the inference is VI, the obj_func is elbo
-        # else obj_func is negative log marginal likelihood
-        self.cov_chol, self.obj_func = self.inf(self.mean, self.cov, self.lik,
-                                                self.train_inputs,
-                                                self.train_outputs)
+        # Define all parameters that get optimized directly in raw form. Some parameters get
+        # transformed internally to maintain certain pre-conditions.
 
-        self.predictions = self._build_predict(self.raw_weights,
-                                               self.raw_covars,
-                                               self.raw_inducing_inputs,
-                                               self.cov_chol,
-                                               self.test_inputs)
+        if inf.VariationalInference:
+            self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
+            self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
+                                                   self.num_inducing]))
+            if self.diag_post:
+                self.raw_covars = tf.Variable(tf.ones([self.num_components, self.num_latent,
+                                                       self.num_inducing]))
+            else:
+                init_vec = np.zeros([self.num_components, self.num_latent] +
+                                    util.tri_vec_shape(self.num_inducing), dtype=np.float32)
+                self.raw_covars = tf.Variable(init_vec)
+            # if the inference is VI, the obj_func is elbo
+            # else obj_func is negative log marginal likelihood
+            self.obj_func, self.predictions = self.inf.variation_inference(self.raw_weights,
+                                                                           self.raw_means,
+                                                                           self.raw_covars,
+                                                                           self.raw_inducing_inputs,
+                                                                           self.train_inputs,
+                                                                           self.train_outputs,
+                                                                           self.num_train,
+                                                                           self.test_inputs)
+
+        """ 
+        if inf is inf.ExactInference:
+            self.inf_method = self.inf
+        """
 
         # config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
         # Do all the tensorflow bookkeeping.
@@ -119,7 +128,8 @@ class GaussianProcess:
 
         if self.optimizer != optimizer:
             self.optimizer = optimizer
-            if self.inf is inf.VariationalInference:
+
+            if inf.VariationalInference(self.cov, self.lik):
                 var_param = [self.raw_means, self.raw_covars, self.raw_weights]  # variational parameters
                 self.train_step = optimizer.minimize(self.obj_func, var_list=var_param + hyper_param)
             else:
@@ -175,38 +185,12 @@ class GaussianProcess:
 
         return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
 
-    def _build_predict(self, weights, means, covars, inducing_inputs,
-                       cov_chol, test_inputs):
-
-        if self.inf is inf.ExactInference
-
-
-        kern_prods, kern_sums = self._build_interim_vals(cov_chol, inducing_inputs, test_inputs)
-        pred_means = util.init_list(0.0, [self.num_components])
-        pred_vars = util.init_list(0.0, [self.num_components])
-        for i in range(self.num_components):
-            covar_input = covars[i, :, :] if self.diag_post else covars[i, :, :, :]
-            sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums,
-                                                                means[i, :, :], covar_input)
-            pred_means[i], pred_vars[i] = self.lik.predict(sample_means, sample_vars)
-
-        pred_means = tf.stack(pred_means, 0)
-        pred_vars = tf.stack(pred_vars, 0)
-
-        # Compute the mean and variance of the gaussian mixture from their components.
-        # weights = tf.expand_dims(tf.expand_dims(weights, 1), 1)
-        weights = weights[:, tf.newaxis, tf.newaxis]
-        weighted_means = tf.reduce_sum(weights * pred_means, 0)
-        weighted_vars = (tf.reduce_sum(weights * (pred_means ** 2 + pred_vars), 0) -
-                         tf.reduce_sum(weights * pred_means, 0) ** 2)
-        return weighted_means, weighted_vars
-
     def _print_state(self, data, test, num_train, iter_num):
         if num_train <= 100000:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
-            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] obj_func={obj_func!r}", end=" ")
+            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] obj_func={obj_func!r}")
 
     def _build_interim_vals(self, kernel_chol, inducing_inputs, train_inputs):
         kern_prods = util.init_list(0.0, [self.num_latent])
@@ -246,8 +230,3 @@ class GaussianProcess:
         sample_means = tf.concat(sample_means, 1)
         sample_vars = tf.concat(sample_vars, 1)
         return sample_means, sample_vars
-
-    def rmse(self, pred_means, test_outputs):
-        num_test = len(pred_means)
-        mse = util.sq_dist(pred_means, test_outputs) / num_test
-        return tf.sqrt(mse)
