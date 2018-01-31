@@ -39,6 +39,7 @@ class Exact:
         return nlml, predictions
 
     def _build_prediction(self, train_inputs, test_inputs, chol, alpha):
+
         # kxx_star (num_latent, num_train, num_test)
         kxx_star = self.cov[0].cov_func(train_inputs, test_inputs)
         # f_star_mean (num_latent, num_test, 1)
@@ -51,9 +52,9 @@ class Exact:
         var_f_star = kx_star_x_star - tf.reduce_sum(v**2, -2)
         return tf.transpose(tf.squeeze(f_star_mean, -1)), tf.transpose(var_f_star)
 
-    def _build_log_marginal_likelihood(self, train_outputs, chol, alpha, num_train):
+    @staticmethod
+    def _build_log_marginal_likelihood(train_outputs, chol, alpha, num_train):
 
-        # num_train = tf.to_float(tf.shape(train_outputs)[0])
         # contract the batch dimension, quad_form (num_latent,)
         quad_form = tf.matmul(train_outputs, alpha, transpose_a=True)
         log_trace = util.log_cholesky_det(chol)

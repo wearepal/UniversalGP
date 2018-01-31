@@ -13,8 +13,10 @@ class ZeroOffset:
     def __init__(self):
         pass
 
-    def mean_func(self, point=1):
+    @staticmethod
+    def mean_func(point=1):
         return tf.zeros(tf.shape(point))
 
-    def get_params(self):
+    @staticmethod
+    def get_params():
         return []
