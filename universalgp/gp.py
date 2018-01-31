@@ -22,10 +22,17 @@ class GaussianProcess:
     Parameters
     ----------
     cov_func : prior covariance function (kernel).
-    mean_func : prior mean function.
+    # mean_func : prior mean function.
     lik_func : likelihood function p(y|f).
     inf_func : function specifying the inference method.
-
+    inducing_inputs : ndarray
+        An array of initial inducing input locations. Dimensions: num_inducing * input_dim.
+        Default: inducing_input = train inputs (for exact inference)
+    num_components : int
+        The number of mixture of Gaussian components (It can be considered except exact inference).
+        For standard GP, num_components = 1
+    diag_post : bool
+        True if the mixture of Gaussians uses a diagonal covariance, False otherwise.
     """
     def __init__(self,
                  inducing_inputs,
@@ -72,7 +79,8 @@ class GaussianProcess:
         # Define all parameters that get optimized directly in raw form. Some parameters get
         # transformed internally to maintain certain pre-conditions.
 
-        if inf.Variational:
+        if isinstance(self.inf, inf.Variational):
+
             self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
             self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
                                                    self.num_inducing]))
@@ -93,11 +101,11 @@ class GaussianProcess:
                                                                            self.train_outputs,
                                                                            self.num_train,
                                                                            self.test_inputs)
-
-        """ 
-        if inf is inf.ExactInference:
-            self.inf_method = self.inf
-        """
+        if isinstance(self.inf, inf.Exact):
+            self.obj_func, self.predictions = self.inf.exact_inference(self.train_inputs,
+                                                                       self.train_outputs,
+                                                                       self.num_train,
+                                                                       self.test_inputs)
 
         # config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
         # Do all the tensorflow bookkeeping.
@@ -129,7 +137,7 @@ class GaussianProcess:
         if self.optimizer != optimizer:
             self.optimizer = optimizer
 
-            if inf.Variational(self.cov, self.lik):
+            if isinstance(self.inf, inf.Variational):
                 var_param = [self.raw_means, self.raw_covars, self.raw_weights]  # variational parameters
                 self.train_step = optimizer.minimize(self.obj_func, var_list=var_param + hyper_param)
             else:
@@ -150,12 +158,14 @@ class GaussianProcess:
                 var_iter += 1
                 iter_num += 1
 
-    def predict(self, test_inputs, batch_size=None):
+    def predict(self, data, test_inputs, batch_size=None):
         """
         Predict outputs given inputs.
 
         Parameters
         ----------
+        data : subclass of datasets.DataSet
+            The train inputs and outputs.
         test_inputs : ndarray
             Points on which we wish to make predictions. Dimensions: num_test * input_dim.
         batch_size : int
@@ -169,7 +179,6 @@ class GaussianProcess:
         ndarray
             The predicted variance of the test inputs. Dimensions: num_test * output_dim.
         """
-
         if batch_size is None:
             num_batches = 1
         else:
@@ -181,7 +190,10 @@ class GaussianProcess:
 
         for i in range(num_batches):
             pred_means[i], pred_vars[i] = self.session.run(
-                self.predictions, feed_dict={self.test_inputs: test_inputs[i]})
+                self.predictions, feed_dict={self.test_inputs: test_inputs[i],
+                                             self.train_inputs: data.X,
+                                             self.train_outputs: data.Y,
+                                             self.num_train: data.num_examples})
 
         return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
 

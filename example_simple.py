@@ -29,11 +29,12 @@ ytest = outputs[idx[N:]]
 # Initialize the Gaussian process.
 lik = universalgp.lik.LikelihoodGaussian()
 cov = [universalgp.cov.SquaredExponential(1)]
+
 # mean = universalgp.mean.ZeroOffset()
-inf = universalgp.inf.Variational(cov, lik)
+# inf = universalgp.inf.Variational(cov, lik)
+inf = universalgp.inf.Exact(cov, lik)
 
-
-inducing_inputs= xtrain
+inducing_inputs = xtrain
 model = universalgp.GaussianProcess(inducing_inputs, cov, inf, lik)
 
 # Train the model.
@@ -41,7 +42,7 @@ optimizer = tf.train.RMSPropOptimizer(0.005)
 model.fit(train_data, optimizer, batch_size=1, var_steps=10, epochs=100)
 
 # Predict new inputs.
-ypred, _ = model.predict(xtest)
+ypred, _ = model.predict(train_data, xtest)
 plt.plot(xtrain, ytrain, '.', mew=2)
 plt.plot(xtest, ytest, 'o', mew=2)
 plt.plot(xtest, ypred, 'x', mew=2)
