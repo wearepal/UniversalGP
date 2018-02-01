@@ -8,9 +8,6 @@ Created on Sun Jan 28 18:56:08 2018
 import numpy as np
 import tensorflow as tf
 
-from . import cov
-from . import mean
-from . import lik
 from . import inf
 from . import util
 
@@ -53,7 +50,7 @@ class GaussianProcess:
 
         # Initialize all model dimension constants.
         self.num_components = num_components
-        self.num_latent = len(self.cov)
+        self.num_latent = self.cov.num_latent_functions()
 
         # Repeat the inducing inputs for all latent processes if we haven't been given individually
         # specified inputs per process.
@@ -63,9 +60,10 @@ class GaussianProcess:
         self.num_inducing = inducing_inputs.shape[1]
         self.input_dim = inducing_inputs.shape[2]
 
-        self.raw_inducing_inputs = tf.Variable(inducing_inputs, dtype=tf.float32)
+        self.raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
+                                                   initializer=tf.constant(inducing_inputs, dtype=tf.float32))
         self.raw_likelihood_params = self.lik.get_params()
-        self.raw_kernel_params = sum([k.get_params() for k in self.cov], [])
+        self.raw_kernel_params = self.cov.get_params()
 
         # Define placeholder variables for training and predicting.
         self.num_train = tf.placeholder(tf.float32, shape=[], name="num_train")
@@ -81,16 +79,17 @@ class GaussianProcess:
 
         if isinstance(self.inf, inf.Variational):
 
-            self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
-            self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
-                                                   self.num_inducing]))
+            zeros = tf.zeros_initializer(dtype=tf.float32)
+            self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
+            self.raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, self.num_inducing],
+                                             initializer=zeros)
             if self.diag_post:
-                self.raw_covars = tf.Variable(tf.ones([self.num_components, self.num_latent,
-                                                       self.num_inducing]))
+                self.raw_covars = tf.get_variable("raw_covars",
+                                                  [self.num_components, self.num_latent, self.num_inducing],
+                                                  initializer=tf.ones_initializer())
             else:
-                init_vec = np.zeros([self.num_components, self.num_latent] +
-                                    util.tri_vec_shape(self.num_inducing), dtype=np.float32)
-                self.raw_covars = tf.Variable(init_vec)
+                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent] +
+                                                  util.tri_vec_shape(self.num_inducing), initializer=zeros)
             # if the inference is VI, the obj_func is elbo
             # else obj_func is negative log marginal likelihood
             self.obj_func, self.predictions = self.inf.variation_inference(self.raw_weights,
@@ -185,8 +184,8 @@ class GaussianProcess:
             num_batches = util.ceil_divide(test_inputs.shape[0], batch_size)
 
         test_inputs = np.array_split(test_inputs, num_batches)
-        pred_means = util.init_list(0.0, [num_batches])
-        pred_vars = util.init_list(0.0, [num_batches])
+        pred_means = [0.0] * num_batches
+        pred_vars = [0.0] * num_batches
 
         for i in range(num_batches):
             pred_means[i], pred_vars[i] = self.session.run(
@@ -198,47 +197,9 @@ class GaussianProcess:
         return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
 
     def _print_state(self, data, test, num_train, iter_num):
+        """Print the current state."""
         if num_train <= 100000:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
             print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] obj_func={obj_func!r}")
-
-    def _build_interim_vals(self, kernel_chol, inducing_inputs, train_inputs):
-        kern_prods = util.init_list(0.0, [self.num_latent])
-        kern_sums = util.init_list(0.0, [self.num_latent])
-        for i in range(self.num_latent):
-            ind_train_kern = self.cov[i].kernel(inducing_inputs[i, :, :], train_inputs)
-            # Compute A = Kxz.Kzz^(-1) = (Kzz^(-1).Kzx)^T.
-            kern_prods[i] = tf.transpose(tf.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
-            # We only need the diagonal components.
-            kern_sums[i] = (self.cov[i].diag_kernel(train_inputs) -
-                            util.diag_mul(kern_prods[i], ind_train_kern))
-
-        kern_prods = tf.stack(kern_prods, 0)
-        kern_sums = tf.stack(kern_sums, 0)
-        return kern_prods, kern_sums
-
-    def _build_samples(self, kern_prods, kern_sums, means, covars):
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, covars)
-        batch_size = tf.shape(sample_means)[0]
-        return (sample_means + tf.sqrt(sample_vars) *
-                tf.random_normal([self.num_samples, batch_size, self.num_latent]))
-
-    def _build_sample_info(self, kern_prods, kern_sums, means, covars):
-        sample_means = util.init_list(0.0, [self.num_latent])
-        sample_vars = util.init_list(0.0, [self.num_latent])
-        for i in range(self.num_latent):
-            if self.diag_post:
-                quad_form = util.diag_mul(kern_prods[i, :, :] * covars[i, :],
-                                          tf.transpose(kern_prods[i, :, :]))
-            else:
-                full_covar = covars[i, :, :] @ tf.transpose(covars[i, :, :])
-                quad_form = util.diag_mul(kern_prods[i, :, :] @ full_covar,
-                                          tf.transpose(kern_prods[i, :, :]))
-            sample_means[i] = kern_prods[i, :, :] @ means[i, :, tf.newaxis]
-            sample_vars[i] = (kern_sums[i, :] + quad_form)[:, tf.newaxis]
-
-        sample_means = tf.concat(sample_means, 1)
-        sample_vars = tf.concat(sample_vars, 1)
-        return sample_means, sample_vars

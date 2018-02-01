@@ -15,6 +15,7 @@ from .util import ceil_divide
 from .util import get_flags
 from .util import log_cholesky_det
 from .util import diag_mul
-from .util import init_list
-from .util import logsumexp
 from .util import mat_square
+from .util import matmul_br
+from .util import cholesky_solve_br
+from .util import broadcast

@@ -11,7 +11,7 @@ import tensorflow as tf
 
 class LikelihoodGaussian:
     def __init__(self, sn=1.0):
-        self.sn = tf.Variable(sn)
+        self.sn = tf.get_variable("signal_noise", initializer=tf.constant(sn))
 
     def log_cond_prob(self, y, mu):
         var = self.sn ** 2
