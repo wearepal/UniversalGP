@@ -67,7 +67,7 @@ class Variational:
         # Finally, build the prediction function.
         predictions = self._build_predict(weights, means, covars, inducing_inputs,
                                           kernel_chol, test_inputs)
-        return nelbo, predictions
+        return tf.squeeze(nelbo), predictions
 
     def _build_predict(self, weights, means, covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution

@@ -24,7 +24,7 @@ class Exact:
         """
 
         # kxx (num_train, num_train)
-        kxx = self.cov[0].cov_func(train_inputs)  # + std_dev**2 * tf.eye(num_train)
+        kxx = self.cov.cov_func(train_inputs)[0]  # + std_dev**2 * tf.eye(num_train)
 
         # chol (same size as kxx)
         chol = tf.cholesky(kxx)
@@ -34,18 +34,18 @@ class Exact:
         # negative log marginal likelihood
         nlml = - self._build_log_marginal_likelihood(train_outputs, chol, alpha, num_train)
         
-        predictions = self._build_prediction(train_inputs, test_inputs, chol, alpha)
+        predictions = self._build_predict(train_inputs, test_inputs, chol, alpha)
 
         return nlml, predictions
 
-    def _build_prediction(self, train_inputs, test_inputs, chol, alpha):
+    def _build_predict(self, train_inputs, test_inputs, chol, alpha):
 
         # kxx_star (num_latent, num_train, num_test)
-        kxx_star = self.cov[0].cov_func(train_inputs, test_inputs)
+        kxx_star = self.cov.cov_func(train_inputs, test_inputs)[0]
         # f_star_mean (num_latent, num_test, 1)
         f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
-        kx_star_x_star= self.cov[0].cov_func(test_inputs)
+        kx_star_x_star= self.cov.cov_func(test_inputs)[0]
         # v (num_latent, num_train, num_test)
         v = tf.cholesky_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
