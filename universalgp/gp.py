@@ -60,7 +60,8 @@ class GaussianProcess:
         self.num_inducing = inducing_inputs.shape[1]
         self.input_dim = inducing_inputs.shape[2]
 
-        self.raw_inducing_inputs = tf.Variable(inducing_inputs, dtype=tf.float32)
+        self.raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
+                                                   initializer=tf.constant(inducing_inputs, dtype=tf.float32))
         self.raw_likelihood_params = self.lik.get_params()
         self.raw_kernel_params = self.cov.get_params()
 
@@ -78,16 +79,17 @@ class GaussianProcess:
 
         if isinstance(self.inf, inf.Variational):
 
-            self.raw_weights = tf.Variable(tf.zeros([self.num_components]))
-            self.raw_means = tf.Variable(tf.zeros([self.num_components, self.num_latent,
-                                                   self.num_inducing]))
+            zeros = tf.zeros_initializer(dtype=tf.float32)
+            self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
+            self.raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, self.num_inducing],
+                                             initializer=zeros)
             if self.diag_post:
-                self.raw_covars = tf.Variable(tf.ones([self.num_components, self.num_latent,
-                                                       self.num_inducing]))
+                self.raw_covars = tf.get_variable("raw_covars",
+                                                  [self.num_components, self.num_latent, self.num_inducing],
+                                                  initializer=tf.ones_initializer())
             else:
-                init_vec = np.zeros([self.num_components, self.num_latent] +
-                                    util.tri_vec_shape(self.num_inducing), dtype=np.float32)
-                self.raw_covars = tf.Variable(init_vec)
+                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent] +
+                                                  util.tri_vec_shape(self.num_inducing), initializer=zeros)
             # if the inference is VI, the obj_func is elbo
             # else obj_func is negative log marginal likelihood
             self.obj_func, self.predictions = self.inf.variation_inference(self.raw_weights,
