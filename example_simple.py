@@ -28,7 +28,7 @@ ytest = outputs[idx[N:]]
 
 # Initialize the Gaussian process.
 lik = universalgp.lik.LikelihoodGaussian()
-cov = [universalgp.cov.SquaredExponential(1)]
+cov = universalgp.cov.SquaredExponential(1)
 
 # mean = universalgp.mean.ZeroOffset()
 inf = universalgp.inf.Variational(cov, lik)
@@ -47,4 +47,3 @@ plt.plot(xtrain, ytrain, '.', mew=2)
 plt.plot(xtest, ytest, 'o', mew=2)
 plt.plot(xtest, ypred, 'x', mew=2)
 plt.show()
-
