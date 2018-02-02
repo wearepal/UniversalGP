@@ -2,6 +2,8 @@
 Created on Mon Jan 29 12:41:54 2018
 
 @author: zc223
+
+Usage: make variational inference for generic Gaussian process models
 """
 import tensorflow as tf
 from .. import util
