@@ -19,6 +19,7 @@ class Exact:
             train_inputs: inputs
             train_outputs: targets
             test_inputs: test inputs
+            num_train: the number of trainings
         Returns:
             negative log marginal likelihood and predictive mean and variance
         """

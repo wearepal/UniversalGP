@@ -78,7 +78,7 @@ class GaussianProcess:
         # transformed internally to maintain certain pre-conditions.
 
         if isinstance(self.inf, inf.Variational):
-
+            self.obj_name = "ELBO"
             zeros = tf.zeros_initializer(dtype=tf.float32)
             self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
             self.raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, self.num_inducing],
@@ -101,6 +101,7 @@ class GaussianProcess:
                                                                            self.num_train,
                                                                            self.test_inputs)
         if isinstance(self.inf, inf.Exact):
+            self.obj_name = "NLML"
             self.obj_func, self.predictions = self.inf.exact_inference(self.train_inputs,
                                                                        self.train_outputs,
                                                                        self.num_train,
@@ -113,7 +114,7 @@ class GaussianProcess:
         self.train_step = None
 
     def fit(self, data, optimizer, var_steps=10, epochs=200, batch_size=None,
-            display_step=1, test=None):
+            display_step=1):
         """
         Fit the Gaussian process model to the given data.
 
@@ -123,6 +124,15 @@ class GaussianProcess:
             The train inputs and outputs.
         optimizer : TensorFlow optimizer
             The optimizer to use in the fitting process.
+        var_steps : int
+            Number of steps to update    variational parameters using variational objective (elbo).
+        epochs : int
+            The number of epochs to optimize the model for.
+        batch_size : int
+            The number of datapoints to use per mini-batch when training. If batch_size is None,
+            then we perform batch gradient descent.
+        display_step : int
+            The frequency at which the objective values are printed out.
         """
 
         num_train = data.num_examples
@@ -153,7 +163,7 @@ class GaussianProcess:
                                                              self.train_outputs: batch[1],
                                                              self.num_train: num_train})
                 if var_iter % display_step == 0:
-                    self._print_state(data, test, num_train, iter_num)
+                    self._print_state(data, num_train, iter_num)
                 var_iter += 1
                 iter_num += 1
 
@@ -196,10 +206,12 @@ class GaussianProcess:
 
         return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
 
-    def _print_state(self, data, test, num_train, iter_num):
+    def _print_state(self, data, num_train, iter_num):
         """Print the current state."""
         if num_train <= 100000:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
-            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] obj_func={obj_func!r}")
+            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] "
+                  f"obj_func={self.obj_name, obj_func!r}")
+

@@ -6,5 +6,5 @@ Created on Tue Jan 23 18:08:14 2018
 @author: zc223
 """
 
-from .lik_Gaussian import LikelihoodGaussian
+from .lik_gaussian import LikelihoodGaussian
 
