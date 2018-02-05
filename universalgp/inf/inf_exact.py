@@ -6,11 +6,16 @@ import numpy as np
 import tensorflow as tf
 from .. import util
 
+# A jitter (diagonal) has to be added in the training covariance matrix in order to make Cholesky decomposition
+# successfully
+JITTER = 1e-2
+
 
 class Exact:
     def __init__(self, cov_func, lik_func):
         self.cov = cov_func
         self.lik = lik_func
+        self.sn = self.lik.get_params()[0]
 
     def exact_inference(self, train_inputs, train_outputs, num_train, test_inputs):
         """Build graph for computing predictive mean and variance and negative log marginal likelihood.
@@ -25,16 +30,14 @@ class Exact:
         """
 
         # kxx (num_train, num_train)
-        kxx = self.cov.cov_func(train_inputs)[0]  # + std_dev**2 * tf.eye(num_train)
-
-        # chol (same size as kxx)
-        chol = tf.cholesky(kxx)
+        kxx = self.cov.cov_func(train_inputs)[0] + self.sn ** 2 * tf.eye(tf.shape(train_inputs)[-2])
+        jitter = JITTER * tf.eye(tf.shape(train_inputs)[-2])
+        # chol (same size as kxx), add jitter has to be added
+        chol = tf.cholesky(kxx + jitter)
         # alpha = chol.T \ (chol \ train_outputs)
         alpha = tf.cholesky_solve(chol, train_outputs)
-
         # negative log marginal likelihood
         nlml = - self._build_log_marginal_likelihood(train_outputs, chol, alpha, num_train)
-        
         predictions = self._build_predict(train_inputs, test_inputs, chol, alpha)
 
         return nlml, predictions
@@ -46,12 +49,14 @@ class Exact:
         # f_star_mean (num_latent, num_test, 1)
         f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
-        kx_star_x_star= self.cov.cov_func(test_inputs)[0]
+        kx_star_x_star = self.cov.cov_func(test_inputs)[0]
         # v (num_latent, num_train, num_test)
-        v = tf.cholesky_solve(chol, kxx_star)
+        v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
-        var_f_star = kx_star_x_star - tf.reduce_sum(v**2, -2)
-        return tf.transpose(tf.squeeze(f_star_mean, -1)), tf.transpose(var_f_star)
+        var_f_star = tf.diag_part(kx_star_x_star - tf.reduce_sum(v ** 2, -2))
+        pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
+
+        return pred_means, pred_vars
 
     @staticmethod
     def _build_log_marginal_likelihood(train_outputs, chol, alpha, num_train):
