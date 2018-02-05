@@ -23,8 +23,8 @@ np.random.shuffle(idx)
 xtrain = inputs[idx[:N]]
 ytrain = outputs[idx[:N]]
 train_data = universalgp.datasets.DataSet(xtrain, ytrain)
-xtest = inputs[idx[N:]]
-ytest = outputs[idx[N:]]
+xtest = inputs[np.sort(idx[N:])]
+ytest = outputs[np.sort(idx[N:])]
 
 # Initialize the Gaussian process.
 lik = universalgp.lik.LikelihoodGaussian()
@@ -39,11 +39,20 @@ model = universalgp.GaussianProcess(inducing_inputs, cov, inf, lik)
 
 # Train the model.
 optimizer = tf.train.RMSPropOptimizer(0.005)
-model.fit(train_data, optimizer, batch_size=1, var_steps=10, epochs=100, display_step=10)
+model.fit(train_data, optimizer, var_steps=1, epochs=500, display_step=10)
 
 # Predict new inputs.
-ypred, _ = model.predict(train_data, xtest)
-plt.plot(xtrain, ytrain, '.', mew=2)
-plt.plot(xtest, ytest, 'o', mew=2)
-plt.plot(xtest, ypred, 'x', mew=2)
+pred_mean, pred_var = model.predict(train_data, xtest)
+plt.plot(xtrain, ytrain, '.', mew=2, label='trainings')
+plt.plot(xtest, ytest, 'o', mew=2, label='tests')
+plt.plot(xtest, pred_mean, 'x', mew=2, label='predictions')
+
+upper_bound = pred_mean + 1.96 * np.sqrt(pred_var)
+lower_bound = pred_mean - 1.96 * np.sqrt(pred_var)
+
+plt.fill_between(np.squeeze(xtest), lower_bound, upper_bound, color='gray', alpha=0.25,
+                 label='95% CI')
+plt.legend(loc='lower left')
+# plt.plot(xtest, upper_bound, '--', c='gray', lw=0.5)
+# plt.plot(xtest, lower_bound, '--', c='gray', lw=0.5)
 plt.show()
