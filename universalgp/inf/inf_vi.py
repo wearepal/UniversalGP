@@ -8,6 +8,8 @@ Usage: make variational inference for generic Gaussian process models
 import tensorflow as tf
 from .. import util
 
+JITTER = 1e-2
+
 
 class Variational:
 
@@ -56,7 +58,9 @@ class Variational:
 
         # Build the matrices of covariances between inducing inputs.
         kernel_mat = self.cov.cov_func(inducing_inputs)
-        kernel_chol = tf.cholesky(kernel_mat)
+        jitter = JITTER * tf.eye(tf.shape(inducing_inputs)[-2])
+
+        kernel_chol = tf.cholesky(kernel_mat + jitter)
 
         # Now build the objective function.
         entropy = self._build_entropy(weights, means, covars)
@@ -95,7 +99,7 @@ class Variational:
         weighted_means = tf.reduce_sum(weights * pred_means, 0)
         weighted_vars = (tf.reduce_sum(weights * (pred_means ** 2 + pred_vars), 0) -
                          tf.reduce_sum(weights * pred_means, 0) ** 2)
-        return weighted_means, weighted_vars
+        return tf.squeeze(weighted_means), tf.squeeze(weighted_vars)
 
     def _build_entropy(self, weights, means, covars):
         """Construct entropy.
