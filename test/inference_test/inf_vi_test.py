@@ -258,7 +258,7 @@ class TestMultiFull(TestVariationalInference):
                                                  [[1.0, 0.0],
                                                   [1.1, 1.2]]]])
         n11_1 = scipy.stats.multivariate_normal.logpdf([1.0, 2.0], [1.0, 2.0], [[0.02, 0.04],
-                                                                                [0.02, 0.26]])
+                                                                                [0.04, 0.26]])
         n11_2 = scipy.stats.multivariate_normal.logpdf([3.0, 4.0], [3.0, 4.0], [[0.32, 0.40],
                                                                                 [0.40, 1.22]])
         n12_1 = scipy.stats.multivariate_normal.logpdf([1.0, 2.0], [5.0, 6.0], [[0.50, 0.58],
@@ -276,7 +276,7 @@ class TestMultiFull(TestVariationalInference):
         true_ent = -(
             0.7 * scipy.misc.logsumexp([np.log(0.7) + n11_1 + n11_2, np.log(0.3) + n12_1 + n12_2]) +
             0.3 * scipy.misc.logsumexp([np.log(0.7) + n21_1 + n21_2, np.log(0.3) + n22_1 + n22_2]))
-        self.assertAlmostEqual(entropy, true_ent, SIG_FIGS - 4)
+        self.assertAlmostEqual(entropy, true_ent, SIG_FIGS)
 
     def test_cross_ent(self):
         cross_ent = TestMultiFull.cross_ent(weights=[0.3, 0.7],
