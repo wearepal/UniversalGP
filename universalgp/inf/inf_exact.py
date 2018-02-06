@@ -51,7 +51,8 @@ class Exact:
         # Kx_star_x_star (num_latent, num_test)
         kx_star_x_star = self.cov.cov_func(test_inputs)[0]
         # v (num_latent, num_train, num_test)
-        v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
+        # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
+        v = tf.matrix_triangular_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
         var_f_star = tf.diag_part(kx_star_x_star - tf.reduce_sum(v ** 2, -2))
         pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
