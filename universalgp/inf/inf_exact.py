@@ -30,7 +30,8 @@ class Exact:
         """
 
         # kxx (num_train, num_train)
-        kxx = self.cov.cov_func(train_inputs)[0] + self.sn ** 2 * tf.eye(tf.shape(train_inputs)[-2])
+        kxx = self.cov[0].cov_func(train_inputs) + self.sn ** 2 * tf.eye(tf.shape(train_inputs)[-2])
+
         jitter = JITTER * tf.eye(tf.shape(train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added
         chol = tf.cholesky(kxx + jitter)
@@ -45,11 +46,11 @@ class Exact:
     def _build_predict(self, train_inputs, test_inputs, chol, alpha):
 
         # kxx_star (num_latent, num_train, num_test)
-        kxx_star = self.cov.cov_func(train_inputs, test_inputs)[0]
+        kxx_star = self.cov[0].cov_func(train_inputs, test_inputs)
         # f_star_mean (num_latent, num_test, 1)
         f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
-        kx_star_x_star = self.cov.cov_func(test_inputs)[0]
+        kx_star_x_star = self.cov[0].cov_func(test_inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
         v = tf.matrix_triangular_solve(chol, kxx_star)

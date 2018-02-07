@@ -20,7 +20,7 @@ class Variational:
         self.lik = lik_func
 
         self.num_components = num_components
-        self.num_latent = self.cov.num_latent_functions()
+        self.num_latent = len(self.cov)
         # Save whether our posterior is diagonal or not.
         self.diag_post = diag_post
         self.num_samples = num_samples
@@ -57,10 +57,11 @@ class Variational:
         inducing_inputs = raw_inducing_inputs
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = self.cov.cov_func(inducing_inputs)
+        kernel_mat = [self.cov[i].cov_func(inducing_inputs[i, :, :])
+                      for i in range(self.num_latent)]
         jitter = JITTER * tf.eye(tf.shape(inducing_inputs)[-2])
 
-        kernel_chol = tf.cholesky(kernel_mat + jitter)
+        kernel_chol = tf.stack([tf.cholesky(k + jitter) for k in kernel_mat], 0)
 
         # Now build the objective function.
         entropy = self._build_entropy(weights, means, covars)
@@ -194,11 +195,20 @@ class Variational:
             `kern_prods` (num_latent, batch_size, num_inducing) and `kern_sums` (num_latent, batch_size)
         """
         # shape of ind_train_kern: (num_latent, num_inducing, batch_size)
-        ind_train_kern = self.cov.cov_func(inducing_inputs, train_inputs)
-        # Compute A = Kxz.Kzz^(-1) = (Kzz^(-1).Kzx)^T.
-        kern_prods = tf.matrix_transpose(tf.cholesky_solve(kernel_chol, ind_train_kern))
-        # We only need the diagonal components.
-        kern_sums = (self.cov.diag_cov_func(train_inputs) - util.diag_mul(kern_prods, ind_train_kern))
+
+        kern_prods = [0.0 for _ in range(self.num_latent)]
+        kern_sums = [0.0 for _ in range(self.num_latent)]
+
+        for i in range(self.num_latent):
+            ind_train_kern = self.cov[i].cov_func(inducing_inputs[i, :, :], train_inputs)
+            # Compute A = Kxz.Kzz^(-1) = (Kzz^(-1).Kzx)^T.
+            kern_prods[i] = tf.transpose(tf.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
+            # We only need the diagonal components.
+            kern_sums[i] = (self.cov[i].diag_cov_func(train_inputs) -
+                            util.diag_mul(kern_prods[i], ind_train_kern))
+
+        kern_prods = tf.stack(kern_prods, 0)
+        kern_sums = tf.stack(kern_sums, 0)
 
         return kern_prods, kern_sums
 

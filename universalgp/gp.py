@@ -10,6 +10,7 @@ import tensorflow as tf
 
 from . import inf
 from . import util
+from . import cov
 
 
 class GaussianProcess:
@@ -50,7 +51,7 @@ class GaussianProcess:
 
         # Initialize all model dimension constants.
         self.num_components = num_components
-        self.num_latent = self.cov.num_latent_functions()
+        self.num_latent = len(self.cov)
 
         # Repeat the inducing inputs for all latent processes if we haven't been given individually
         # specified inputs per process.
@@ -63,7 +64,7 @@ class GaussianProcess:
         self.raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
                                                    initializer=tf.constant(inducing_inputs, dtype=tf.float32))
         self.raw_likelihood_params = self.lik.get_params()
-        self.raw_kernel_params = self.cov.get_params()
+        self.raw_kernel_params = sum([k.get_params() for k in self.cov], [])
 
         # Define placeholder variables for training and predicting.
         self.num_train = tf.placeholder(tf.float32, shape=[], name="num_train")
@@ -90,8 +91,8 @@ class GaussianProcess:
             else:
                 self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent] +
                                                   util.tri_vec_shape(self.num_inducing), initializer=zeros)
-            # if the inference is VI, the obj_func is elbo
-            # else obj_func is negative log marginal likelihood
+        # if the inference is VI, the obj_func is elbo
+        # else obj_func is negative log marginal likelihood
             self.obj_func, self.predictions = self.inf.variation_inference(self.raw_weights,
                                                                            self.raw_means,
                                                                            self.raw_covars,
