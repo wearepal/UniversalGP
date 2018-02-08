@@ -57,4 +57,3 @@ class SquaredExponential:
 
     def get_params(self):
         return [self.length_scale, self.sf]
-

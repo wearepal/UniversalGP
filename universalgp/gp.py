@@ -10,7 +10,6 @@ import tensorflow as tf
 
 from . import inf
 from . import util
-from . import cov
 
 
 class GaussianProcess:
@@ -26,43 +25,20 @@ class GaussianProcess:
     inducing_inputs : ndarray
         An array of initial inducing input locations. Dimensions: num_inducing * input_dim.
         Default: inducing_input = train inputs (for exact inference)
-    num_components : int
-        The number of mixture of Gaussian components (It can be considered except exact inference).
-        For standard GP, num_components = 1
-    diag_post : bool
-        True if the mixture of Gaussians uses a diagonal covariance, False otherwise.
     """
     def __init__(self,
                  inducing_inputs,
                  cov_func,
                  inf_func,
                  # mean_func=mean.ZeroOffset(),
-                 lik_func,
-                 num_components=1,
-                 diag_post=False):
+                 lik_func):
 
         self.cov = cov_func
         # self.mean = mean_func
         self.inf = inf_func
         self.lik = lik_func
 
-        # Save whether our posterior is diagonal or not.
-        self.diag_post = diag_post
-
-        # Initialize all model dimension constants.
-        self.num_components = num_components
-        self.num_latent = len(self.cov)
-
-        # Repeat the inducing inputs for all latent processes if we haven't been given individually
-        # specified inputs per process.
-        if inducing_inputs.ndim == 2:
-            inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [self.num_latent, 1, 1])
-
-        self.num_inducing = inducing_inputs.shape[1]
-        self.input_dim = inducing_inputs.shape[2]
-
-        self.raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
-                                                   initializer=tf.constant(inducing_inputs, dtype=tf.float32))
+        self.input_dim = inducing_inputs.shape[-1]
         self.raw_likelihood_params = self.lik.get_params()
         self.raw_kernel_params = sum([k.get_params() for k in self.cov], [])
 
@@ -79,34 +55,16 @@ class GaussianProcess:
         # transformed internally to maintain certain pre-conditions.
 
         if isinstance(self.inf, inf.Variational):
-            self.obj_name = "ELBO"
-            zeros = tf.zeros_initializer(dtype=tf.float32)
-            self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
-            self.raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, self.num_inducing],
-                                             initializer=zeros)
-            if self.diag_post:
-                self.raw_covars = tf.get_variable("raw_covars",
-                                                  [self.num_components, self.num_latent, self.num_inducing],
-                                                  initializer=tf.ones_initializer())
-            else:
-                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent] +
-                                                  util.tri_vec_shape(self.num_inducing), initializer=zeros)
-        # if the inference is VI, the obj_func is elbo
-        # else obj_func is negative log marginal likelihood
-            self.obj_func, self.predictions = self.inf.variation_inference(self.raw_weights,
-                                                                           self.raw_means,
-                                                                           self.raw_covars,
-                                                                           self.raw_inducing_inputs,
-                                                                           self.train_inputs,
-                                                                           self.train_outputs,
-                                                                           self.num_train,
-                                                                           self.test_inputs)
+            self.obj_func, self.predictions, self.var_param = self.inf.variation_inference(self.train_inputs,
+                                                                                           self.train_outputs,
+                                                                                           self.num_train,
+                                                                                           self.test_inputs,
+                                                                                           inducing_inputs)
         if isinstance(self.inf, inf.Exact):
-            self.obj_name = "NLML"
-            self.obj_func, self.predictions = self.inf.exact_inference(self.train_inputs,
-                                                                       self.train_outputs,
-                                                                       self.num_train,
-                                                                       self.test_inputs)
+            self.obj_func, self.predictions, self.var_param = self.inf.exact_inference(self.train_inputs,
+                                                                                       self.train_outputs,
+                                                                                       self.num_train,
+                                                                                       self.test_inputs)
 
         # config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
         # Do all the tensorflow bookkeeping.
@@ -142,16 +100,14 @@ class GaussianProcess:
             batch_size = num_train
 
         hyper_param = self.raw_kernel_params + self.raw_likelihood_params  # hyperparameters
-        hyper_param = hyper_param + [self.raw_inducing_inputs]
 
         if self.optimizer != optimizer:
             self.optimizer = optimizer
 
             if isinstance(self.inf, inf.Variational):
-                var_param = [self.raw_means, self.raw_covars, self.raw_weights]  # variational parameters
-                self.train_step = optimizer.minimize(self.obj_func, var_list=var_param + hyper_param)
+                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=self.var_param + hyper_param)
             else:
-                self.train_step = optimizer.minimize(self.obj_func, var_list=hyper_param)
+                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=hyper_param)
 
             self.session.run(tf.global_variables_initializer())
 
@@ -213,6 +169,7 @@ class GaussianProcess:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
-            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] "
-                  f"obj_func={self.obj_name, obj_func!r}")
+            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}]", end=" ")
 
+            for k in obj_func:
+                print(f"obj_func={k}, {obj_func[k]!r}")

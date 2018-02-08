@@ -48,7 +48,7 @@ class Loo:
 
         predictions = self._build_predict(train_inputs, test_inputs, chol, alpha)
 
-        return nlp, predictions
+        return {'NLP': nlp}, predictions, []
 
     def _build_predict(self, train_inputs, test_inputs, chol, alpha):
         # kxx_star (num_latent, num_train, num_test)
