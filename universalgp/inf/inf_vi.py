@@ -42,7 +42,8 @@ class Variational:
 
         num_inducing = inducing_inputs.shape[1]
 
-        # create variables
+        # Define all parameters that get optimized directly in raw form. Some parameters get
+        # transformed internally to maintain certain pre-conditions.
         raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
                                               initializer=tf.constant(inducing_inputs, dtype=tf.float32))
         zeros = tf.zeros_initializer(dtype=tf.float32)
