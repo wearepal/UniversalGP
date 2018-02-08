@@ -39,7 +39,7 @@ class SquaredExponential:
         Returns:
             Tensor of shape (batch_size)
         """
-        length_scale_br = tf.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
+        length_scale_br = tf.reshape(self.length_scale, [1, self.input_dim if self.iso else 1])
         if point2 is None:
             point2 = point1
 
