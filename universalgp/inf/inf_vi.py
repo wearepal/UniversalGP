@@ -41,7 +41,7 @@ class Variational:
 
         if self.diag_post:
             # Use exp(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
-            covars = tf.exp(raw_covars)
+            chol_covars = tf.exp(raw_covars)
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
@@ -51,7 +51,7 @@ class Variational:
                 diag_mat = tf.matrix_diag(tf.matrix_diag_part(mat))
                 exp_diag_mat = tf.matrix_diag(tf.exp(tf.matrix_diag_part(mat)))
                 covars_list[i] = mat - diag_mat + exp_diag_mat
-            covars = tf.stack(covars_list, 0)
+            chol_covars = tf.stack(covars_list, 0)
         # Both inducing inputs and the posterior means can vary freely so don't change them.
         means = raw_means
         inducing_inputs = raw_inducing_inputs
@@ -64,26 +64,26 @@ class Variational:
         kernel_chol = tf.stack([tf.cholesky(k + jitter) for k in kernel_mat], 0)
 
         # Now build the objective function.
-        entropy = self._build_entropy(weights, means, covars)
-        cross_ent = self._build_cross_ent(weights, means, covars, kernel_chol)
-        ell = self._build_ell(weights, means, covars, inducing_inputs,
+        entropy = self._build_entropy(weights, means, chol_covars)
+        cross_ent = self._build_cross_ent(weights, means, chol_covars, kernel_chol)
+        ell = self._build_ell(weights, means, chol_covars, inducing_inputs,
                               kernel_chol, train_inputs, train_outputs)
         batch_size = tf.to_float(tf.shape(train_inputs)[0])
         nelbo = -((batch_size / num_train) * (entropy + cross_ent) + ell)
 
         # Finally, build the prediction function.
-        predictions = self._build_predict(weights, means, covars, inducing_inputs,
+        predictions = self._build_predict(weights, means, chol_covars, inducing_inputs,
                                           kernel_chol, test_inputs)
 
         return tf.squeeze(nelbo), predictions
 
-    def _build_predict(self, weights, means, covars, inducing_inputs, kernel_chol, test_inputs):
+    def _build_predict(self, weights, means, chol_covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution
 
         Args:
             weights: (num_components,)
             means: shape: (num_components, num_latent, num_inducing)
-            covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
             inducing_inputs: (num_latent, num_inducing, input_dim)
             kernel_chol: (num_latent, num_inducing, num_inducing)
             test_inputs: (batch_size, input_dim)
@@ -91,7 +91,7 @@ class Variational:
             means and variances of the predictive distribution
         """
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, test_inputs)
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, covars)
+        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, chol_covars)
         pred_means, pred_vars = self.lik.predict(sample_means, sample_vars)
 
         # Compute the mean and variance of the gaussian mixture from their components.
@@ -102,23 +102,23 @@ class Variational:
                          tf.reduce_sum(weights * pred_means, 0) ** 2)
         return tf.squeeze(weighted_means), tf.squeeze(weighted_vars)
 
-    def _build_entropy(self, weights, means, covars):
+    def _build_entropy(self, weights, means, chol_covars):
         """Construct entropy.
 
         Args:
             weights: shape: (num_components)
             means: shape: (num_components, num_latent, num_inducing)
-            covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
         Returns:
             Entropy (scalar)
         """
         # First build a square matrix of normals.
         if self.diag_post:
             # construct normal distributions for all combinations of compontents
-            normal = util.DiagNormal(means, covars[tf.newaxis, ...] + covars[:, tf.newaxis, ...])
+            normal = util.DiagNormal(means, chol_covars[tf.newaxis, ...] + chol_covars[:, tf.newaxis, ...])
         else:
             # TODO(karl): Can we just stay in cholesky space somehow?
-            square = util.mat_square(covars)
+            square = util.mat_square(chol_covars)
             covars_sum = tf.cholesky(square[tf.newaxis, ...] + square[:, tf.newaxis, ...])
             normal = util.CholNormal(means, covars_sum)
         # compute log probability of all means in all normal distributions
@@ -132,26 +132,26 @@ class Variational:
         # multiply with weights again and then sum over it all
         return -tf.tensordot(weights, weighted_logsumexp_probs, 1)
 
-    def _build_cross_ent(self, weights, means, covars, kernel_chol):
+    def _build_cross_ent(self, weights, means, chol_covars, kernel_chol):
         """Construct the cross-entropy.
 
         Args:
             weights: shape: (num_components)
             means: shape: (num_components, num_latent, num_inducing)
-            covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
             kernel_chol: shape: (num_latent, num_inducing, num_inducing)
         Returns:
             Cross entropy as scalar
         """
         if self.diag_post:
             # TODO(karl): this is a bit inefficient since we're not making use of the fact
-            # that covars is diagonal. A solution most likely involves a custom tf op.
+            # that chol_covars is diagonal. A solution most likely involves a custom tf op.
 
             # shape of trace: (num_components, num_latent)
-            trace = tf.trace(util.cholesky_solve_br(kernel_chol, tf.matrix_diag(covars)))
+            trace = tf.trace(util.cholesky_solve_br(kernel_chol, tf.matrix_diag(chol_covars)))
         else:
-            trace = tf.reduce_sum(util.diag_mul(util.cholesky_solve_br(kernel_chol, covars),
-                                                tf.matrix_transpose(covars)), axis=-1)
+            trace = tf.reduce_sum(util.diag_mul(util.cholesky_solve_br(kernel_chol, chol_covars),
+                                                tf.matrix_transpose(chol_covars)), axis=-1)
 
         # sum_val has the same shape as weights
         sum_val = tf.reduce_sum(util.CholNormal(means, kernel_chol).log_prob(0.0) - 0.5 * trace, -1)
@@ -161,13 +161,13 @@ class Variational:
 
         return cross_ent
 
-    def _build_ell(self, weights, means, covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
+    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
         """Construct the Expected Log Likelihood
 
         Args:
             weights: (num_components,)
             means: shape: (num_components, num_latent, num_inducing)
-            covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
             inducing_inputs: (num_latent, num_inducing, input_dim)
             kernel_chol: (num_latent, num_inducing, num_inducing)
             train_inputs: (batch_size, input_dim)
@@ -177,7 +177,7 @@ class Variational:
         """
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latent)
-        latent_samples = self._build_samples(kern_prods, kern_sums, means, covars)
+        latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
         ell_by_compontent = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2])
 
         # dot product
@@ -212,36 +212,36 @@ class Variational:
 
         return kern_prods, kern_sums
 
-    def _build_samples(self, kern_prods, kern_sums, means, covars):
+    def _build_samples(self, kern_prods, kern_sums, means, chol_covars):
         """Produce samples according to the given distribution.
 
         Args:
             kern_prods: (num_latent, batch_size, num_inducing)
             kern_sums: (num_latent, batch_size)
             means: (num_components, num_latent, num_inducing)
-            covars: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: (num_components, num_latent, num_inducing[, num_inducing])
         Returns:
         """
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, covars)
+        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, chol_covars)
         batch_size = tf.shape(sample_means)[-2]
         return (sample_means[:, tf.newaxis, ...] + tf.sqrt(sample_vars)[:, tf.newaxis, ...] *
                 tf.random_normal([self.num_components, self.num_samples, batch_size, self.num_latent]))
 
-    def _build_sample_info(self, kern_prods, kern_sums, means, covars):
+    def _build_sample_info(self, kern_prods, kern_sums, means, chol_covars):
         """Get means and variances of a distribution
 
         Args:
             kern_prods: (num_latent, batch_size, num_inducing)
             kern_sums: (num_latent, batch_size)
             means: (num_components, num_latent, num_inducing)
-            covars: (num_components, num_latent, num_inducing[, num_inducing])
+            chol_covars: (num_components, num_latent, num_inducing[, num_inducing])
         Returns:
             sample_means (num_components, batch_size, num_latent), sample_vars (num_components, batch_size, num_latent)
         """
         if self.diag_post:
-            quad_form = util.diag_mul(kern_prods * covars[..., tf.newaxis, :], tf.matrix_transpose(kern_prods))
+            quad_form = util.diag_mul(kern_prods * chol_covars[..., tf.newaxis, :], tf.matrix_transpose(kern_prods))
         else:
-            full_covar = util.mat_square(covars)  # same shape as covars
+            full_covar = util.mat_square(chol_covars)  # same shape as chol_covars
             quad_form = util.diag_mul(util.matmul_br(kern_prods, full_covar), tf.matrix_transpose(kern_prods))
         sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])  # (num_components, num_latent, batch_size, 1)
         sample_vars = tf.matrix_transpose(kern_sums + quad_form)  # (num_components, x, num_latent)
