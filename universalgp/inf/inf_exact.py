@@ -41,7 +41,7 @@ class Exact:
         nlml = - self._build_log_marginal_likelihood(train_outputs, chol, alpha, num_train)
         predictions = self._build_predict(train_inputs, test_inputs, chol, alpha)
 
-        return {'NLML': nlml}, predictions
+        return {'NLML': nlml}, predictions, []
 
     def _build_predict(self, train_inputs, test_inputs, chol, alpha):
 

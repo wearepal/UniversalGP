@@ -6,14 +6,22 @@ Created on Mon Jan 29 12:41:54 2018
 Usage: make variational inference for generic Gaussian process models
 """
 import tensorflow as tf
+import numpy as np
 from .. import util
 
 JITTER = 1e-2
 
 
 class Variational:
+    """
+    num_components : int
+        The number of mixture of Gaussian components (It can be considered except exact inference).
+        For standard GP, num_components = 1
+    diag_post : bool
+        True if the mixture of Gaussians uses a diagonal covariance, False otherwise.
+    """
 
-    def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100):
+    def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100, optimize_inducing=True):
 
         # self.mean = mean_func
         self.cov = cov_func
@@ -24,8 +32,39 @@ class Variational:
         # Save whether our posterior is diagonal or not.
         self.diag_post = diag_post
         self.num_samples = num_samples
+        self.optimize_inducing = optimize_inducing
 
-    def variation_inference(self,
+    def variation_inference(self, train_inputs, train_outputs, num_train, test_inputs, inducing_inputs):
+        # Repeat the inducing inputs for all latent processes if we haven't been given individually
+        # specified inputs per process.
+        if inducing_inputs.ndim == 2:
+            inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [self.num_latent, 1, 1])
+
+        num_inducing = inducing_inputs.shape[1]
+
+        # create variables
+        raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
+                                              initializer=tf.constant(inducing_inputs, dtype=tf.float32))
+        zeros = tf.zeros_initializer(dtype=tf.float32)
+        raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
+        raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, num_inducing],
+                                    initializer=zeros)
+        if self.diag_post:
+            raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent, num_inducing],
+                                         initializer=tf.ones_initializer())
+        else:
+            raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latent] +
+                                         util.tri_vec_shape(num_inducing), initializer=zeros)
+
+        # variables that will be changed during training
+        vars_to_train = [raw_means, raw_covars, raw_weights]
+        if self.optimize_inducing:
+            vars_to_train += [raw_inducing_inputs]
+
+        return self._build_inference_gr(raw_weights, raw_means, raw_covars, raw_inducing_inputs, train_inputs,
+                                        train_outputs, num_train, test_inputs) + (vars_to_train,)
+
+    def _build_inference_gr(self,
                             raw_weights,
                             raw_means,
                             raw_covars,
