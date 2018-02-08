@@ -104,10 +104,7 @@ class GaussianProcess:
         if self.optimizer != optimizer:
             self.optimizer = optimizer
 
-            if isinstance(self.inf, inf.Variational):
-                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=self.var_param + hyper_param)
-            else:
-                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=hyper_param)
+            self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=self.var_param + hyper_param)
 
             self.session.run(tf.global_variables_initializer())
 
