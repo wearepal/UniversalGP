@@ -75,7 +75,7 @@ class Variational:
         predictions = self._build_predict(weights, means, covars, inducing_inputs,
                                           kernel_chol, test_inputs)
 
-        return tf.squeeze(nelbo), predictions
+        return {'NELBO': tf.squeeze(nelbo)}, predictions
 
     def _build_predict(self, weights, means, covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution

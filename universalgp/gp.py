@@ -79,7 +79,6 @@ class GaussianProcess:
         # transformed internally to maintain certain pre-conditions.
 
         if isinstance(self.inf, inf.Variational):
-            self.obj_name = "ELBO"
             zeros = tf.zeros_initializer(dtype=tf.float32)
             self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
             self.raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latent, self.num_inducing],
@@ -102,7 +101,6 @@ class GaussianProcess:
                                                                            self.num_train,
                                                                            self.test_inputs)
         if isinstance(self.inf, inf.Exact):
-            self.obj_name = "NLML"
             self.obj_func, self.predictions = self.inf.exact_inference(self.train_inputs,
                                                                        self.train_outputs,
                                                                        self.num_train,
@@ -149,9 +147,9 @@ class GaussianProcess:
 
             if isinstance(self.inf, inf.Variational):
                 var_param = [self.raw_means, self.raw_covars, self.raw_weights]  # variational parameters
-                self.train_step = optimizer.minimize(self.obj_func, var_list=var_param + hyper_param)
+                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=var_param + hyper_param)
             else:
-                self.train_step = optimizer.minimize(self.obj_func, var_list=hyper_param)
+                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=hyper_param)
 
             self.session.run(tf.global_variables_initializer())
 
@@ -213,6 +211,7 @@ class GaussianProcess:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
-            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}] "
-                  f"obj_func={self.obj_name, obj_func!r}")
+            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}]", end=" ")
 
+            for k in obj_func:
+                print(f"obj_func={k}, {obj_func[k]!r}")
