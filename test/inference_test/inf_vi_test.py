@@ -59,7 +59,7 @@ class TestSimpleFull(TestVariationalInference):
     def setUpClass(cls):
         super(TestSimpleFull, cls).setUpClass()
         likelihood = lik.LikelihoodGaussian(1.0)
-        kernel = cov.SquaredExponential(input_dim=1, output_dim=1, length_scale=1.0, sf=1.0)
+        kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
         # In most of our unit test, we will replace this value with something else.
         cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1)
         cls.session.run(tf.global_variables_initializer())
@@ -170,7 +170,7 @@ class TestSimpleDiag(TestVariationalInference):
     def setUpClass(cls):
         super(TestSimpleDiag, cls).setUpClass()
         likelihood = lik.LikelihoodGaussian(1.0)
-        kernel = cov.SquaredExponential(input_dim=1, output_dim=1, length_scale=1.0, sf=1.0)
+        kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
         cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1,
                                   diag_post=True)
         cls.session.run(tf.global_variables_initializer())
@@ -239,8 +239,12 @@ class TestMultiFull(TestVariationalInference):
     def setUpClass(cls):
         super(TestMultiFull, cls).setUpClass()
         likelihood = lik.LikelihoodSoftmax()
-        kernel = cov.SquaredExponential(input_dim=2, output_dim=2, length_scale=1.0, sf=1.0)
-        cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=2)
+        kernels = []
+        with tf.variable_scope("latent1"):
+            kernels += [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0)]
+        with tf.variable_scope("latent2"):
+            kernels += [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0)]
+        cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernels, num_components=2)
         cls.session.run(tf.global_variables_initializer())
 
     def test_entropy(self):
