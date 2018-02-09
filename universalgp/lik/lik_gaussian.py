@@ -22,3 +22,8 @@ class LikelihoodGaussian:
 
     def predict(self, means, variances):
         return means, variances + self.sn ** 2
+
+    @staticmethod
+    def pred_log_prob(y, pred_mean, pred_var):
+        return -0.5 * tf.log(2.0 * np.pi * pred_var) - ((y - pred_mean)
+                                                        ** 2) / (2.0 * pred_var)
