@@ -33,35 +33,26 @@ class GaussianProcess:
                  # mean_func=mean.ZeroOffset(),
                  lik_func):
 
-        self.cov = cov_func
-        # self.mean = mean_func
-        self.inf = inf_func
-        self.lik = lik_func
+        input_dim = inducing_inputs.shape[-1]
 
-        self.input_dim = inducing_inputs.shape[-1]
-        self.raw_likelihood_params = self.lik.get_params()
-        self.raw_kernel_params = sum([k.get_params() for k in self.cov], [])
+        # Get hyper parameters
+        self.raw_likelihood_params = lik_func.get_params()
+        self.raw_kernel_params = sum([k.get_params() for k in cov_func], [])
 
         # Define placeholder variables for training and predicting.
         self.num_train = tf.placeholder(tf.float32, shape=[], name="num_train")
-        self.train_inputs = tf.placeholder(tf.float32, shape=[None, self.input_dim],
-                                           name="train_inputs")
-        self.train_outputs = tf.placeholder(tf.float32, shape=[None, None],
-                                            name="train_outputs")
-        self.test_inputs = tf.placeholder(tf.float32, shape=[None, self.input_dim],
-                                          name="test_inputs")
+        self.train_inputs = tf.placeholder(tf.float32, shape=[None, input_dim], name="train_inputs")
+        self.train_outputs = tf.placeholder(tf.float32, shape=[None, None], name="train_outputs")
+        self.test_inputs = tf.placeholder(tf.float32, shape=[None, input_dim], name="test_inputs")
 
-        # Define all parameters that get optimized directly in raw form. Some parameters get
-        # transformed internally to maintain certain pre-conditions.
-
-        if isinstance(self.inf, inf.Variational):
-            self.obj_func, self.predictions, self.var_param = self.inf.variation_inference(self.train_inputs,
+        if isinstance(inf_func, inf.Variational):
+            self.obj_func, self.predictions, self.var_param = inf_func.variation_inference(self.train_inputs,
                                                                                            self.train_outputs,
                                                                                            self.num_train,
                                                                                            self.test_inputs,
                                                                                            inducing_inputs)
-        if isinstance(self.inf, inf.Exact):
-            self.obj_func, self.predictions, self.var_param = self.inf.exact_inference(self.train_inputs,
+        if isinstance(inf_func, inf.Exact):
+            self.obj_func, self.predictions, self.var_param = inf_func.exact_inference(self.train_inputs,
                                                                                        self.train_outputs,
                                                                                        self.num_train,
                                                                                        self.test_inputs)
