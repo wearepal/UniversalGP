@@ -32,7 +32,7 @@ cov = [universalgp.cov.SquaredExponential(1)]
 
 # mean = universalgp.mean.ZeroOffset()
 inf = universalgp.inf.Variational(cov, lik)
-#inf = universalgp.inf.Exact(cov, lik)
+# inf = universalgp.inf.Exact(cov, lik)
 
 inducing_inputs = xtrain
 model = universalgp.GaussianProcess(inducing_inputs, cov, inf, lik)
