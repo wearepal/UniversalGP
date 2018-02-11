@@ -1,7 +1,7 @@
 # UniversalGP
 UniversalGP: Simple generic implementation for Gaussian process models
 
-The code was tested on Python3.6 and TensorFlow1.4
+The code was tested on Python3.6 and TensorFlow1.5
 
 The code mainly forked from [AutoGP: Automated Variational Inference for Gaussian Process Models](
 https://github.com/ebonilla/AutoGP). However, there are some differences and improvements.
