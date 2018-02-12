@@ -26,7 +26,7 @@ class Loo:
         self.lik = lik_func
         self.sn = self.lik.get_params()[0]
 
-    def loo_inference(self, train_inputs, train_outputs, test_inputs):
+    def inference(self, train_inputs, train_outputs, test_inputs, *_):
         """Build graph for computing predictive mean and variance and negative log probability.
 
         Args:
@@ -59,6 +59,13 @@ class Loo:
         return {'NLP': nlp}, predictions, []
 
     def _build_predict(self, train_inputs, test_inputs, chol, alpha):
+        """Build graph for computing predictive mean and variance
+
+        Args:
+            test_inputs: test inputs
+        Returns:
+            predictive mean and variance
+        """
         # kxx_star (num_latent, num_train, num_test)
         kxx_star = self.cov[0].cov_func(train_inputs, test_inputs)
         # f_star_mean (num_latent, num_test, 1)

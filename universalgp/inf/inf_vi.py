@@ -34,7 +34,17 @@ class Variational:
         self.num_samples = num_samples
         self.optimize_inducing = optimize_inducing
 
-    def variation_inference(self, train_inputs, train_outputs, num_train, test_inputs, inducing_inputs):
+    def inference(self, train_inputs, train_outputs, test_inputs, num_train, inducing_inputs):
+        """Build graph for computing negative evidence lower bound and predictive mean and variance
+
+        Args:
+            train_inputs: inputs
+            train_outputs: targets
+            num_train: the number of training examples
+            inducing_inputs: inducing inputs
+        Returns:
+            negative evidence lower bound and predictive mean and variance
+        """
         # Repeat the inducing inputs for all latent processes if we haven't been given individually
         # specified inputs per process.
         if inducing_inputs.ndim == 2:

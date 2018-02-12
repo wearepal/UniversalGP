@@ -45,21 +45,11 @@ class GaussianProcess:
         self.train_outputs = tf.placeholder(tf.float32, shape=[None, None], name="train_outputs")
         self.test_inputs = tf.placeholder(tf.float32, shape=[None, input_dim], name="test_inputs")
 
-        if isinstance(inf_func, inf.Variational):
-            self.obj_func, self.predictions, self.inf_param = inf_func.variation_inference(self.train_inputs,
-                                                                                           self.train_outputs,
-                                                                                           self.num_train,
-                                                                                           self.test_inputs,
-                                                                                           inducing_inputs)
-        if isinstance(inf_func, inf.Exact):
-            self.obj_func, self.predictions, self.inf_param = inf_func.exact_inference(self.train_inputs,
-                                                                                       self.train_outputs,
-                                                                                       self.num_train,
-                                                                                       self.test_inputs)
-        if isinstance(inf_func, inf.Loo):
-            self.obj_func, self.predictions, self.inf_param = inf_func.loo_inference(self.train_inputs,
-                                                                                     self.train_outputs,
-                                                                                     self.test_inputs)
+        self.obj_func, self.predictions, self.inf_param = inf_func.inference(self.train_inputs,
+                                                                             self.train_outputs,
+                                                                             self.test_inputs,
+                                                                             self.num_train,
+                                                                             inducing_inputs)
 
         # config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
         # Do all the tensorflow bookkeeping.
