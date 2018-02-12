@@ -26,14 +26,14 @@ class TestVariationalInference(unittest.TestCase):
     def entropy(cls, weights, means, covars):
         entropy = cls.inf._build_entropy(weights=tf.constant(weights, dtype=tf.float32),
                                          means=tf.constant(means, dtype=tf.float32),
-                                         covars=tf.constant(covars, dtype=tf.float32))
+                                         chol_covars=tf.constant(covars, dtype=tf.float32))
         return cls.session.run(entropy)
 
     @classmethod
     def cross_ent(cls, weights, means, covars, kernel_chol):
         cross_ent = cls.inf._build_cross_ent(weights=tf.constant(weights, dtype=tf.float32),
                                              means=tf.constant(means, dtype=tf.float32),
-                                             covars=tf.constant(covars, dtype=tf.float32),
+                                             chol_covars=tf.constant(covars, dtype=tf.float32),
                                              kernel_chol=tf.constant(kernel_chol, dtype=tf.float32))
         return cls.session.run(cross_ent)
 
@@ -50,7 +50,7 @@ class TestVariationalInference(unittest.TestCase):
         mean, var = cls.inf._build_sample_info(kern_prods=tf.constant(kern_prods, dtype=tf.float32),
                                                kern_sums=tf.constant(kern_sums, dtype=tf.float32),
                                                means=tf.constant(means, dtype=tf.float32),
-                                               covars=tf.constant(covars, dtype=tf.float32))
+                                               chol_covars=tf.constant(covars, dtype=tf.float32))
         return cls.session.run([mean, var])
 
 
