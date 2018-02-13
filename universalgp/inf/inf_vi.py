@@ -34,8 +34,8 @@ class Variational:
         self.num_samples = num_samples
         self.optimize_inducing = optimize_inducing
 
-    def inference(self, train_inputs, train_outputs, num_train, inducing_inputs):
-        """Build graph for computing negative evidence lower bound
+    def inference(self, train_inputs, train_outputs, test_inputs, num_train, inducing_inputs):
+        """Build graph for computing negative evidence lower bound and predictive mean and variance
 
         Args:
             train_inputs: inputs
@@ -43,7 +43,7 @@ class Variational:
             num_train: the number of training examples
             inducing_inputs: inducing inputs
         Returns:
-            negative evidence lower bound
+            negative evidence lower bound and predictive mean and variance
         """
         # Repeat the inducing inputs for all latent processes if we haven't been given individually
         # specified inputs per process.
@@ -73,7 +73,7 @@ class Variational:
             vars_to_train += [raw_inducing_inputs]
 
         return self._build_inference_gr(raw_weights, raw_means, raw_covars, raw_inducing_inputs, train_inputs,
-                                        train_outputs, num_train), vars_to_train
+                                        train_outputs, num_train, test_inputs) + (vars_to_train,)
 
     def _build_inference_gr(self,
                             raw_weights,
@@ -82,15 +82,16 @@ class Variational:
                             raw_inducing_inputs,
                             train_inputs,
                             train_outputs,
-                            num_train):
+                            num_train,
+                            test_inputs):
 
         # First transform all raw variables into their internal form.
         # Use softmax(raw_weights) to keep all weights normalized.
-        self.weights = tf.exp(raw_weights) / tf.reduce_sum(tf.exp(raw_weights))
+        weights = tf.exp(raw_weights) / tf.reduce_sum(tf.exp(raw_weights))
 
         if self.diag_post:
             # Use exp(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
-            self.chol_covars = tf.exp(raw_covars)
+            chol_covars = tf.exp(raw_covars)
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
@@ -100,50 +101,52 @@ class Variational:
                 diag_mat = tf.matrix_diag(tf.matrix_diag_part(mat))
                 exp_diag_mat = tf.matrix_diag(tf.exp(tf.matrix_diag_part(mat)))
                 covars_list[i] = mat - diag_mat + exp_diag_mat
-            self.chol_covars = tf.stack(covars_list, 0)
+            chol_covars = tf.stack(covars_list, 0)
         # Both inducing inputs and the posterior means can vary freely so don't change them.
-        self.means = raw_means
-        self.inducing_inputs = raw_inducing_inputs
+        means = raw_means
+        inducing_inputs = raw_inducing_inputs
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = [self.cov[i].cov_func(self.inducing_inputs[i, :, :])
+        kernel_mat = [self.cov[i].cov_func(inducing_inputs[i, :, :])
                       for i in range(self.num_latents)]
-        jitter = JITTER * tf.eye(tf.shape(self.inducing_inputs)[-2])
+        jitter = JITTER * tf.eye(tf.shape(inducing_inputs)[-2])
 
-        self.kernel_chol = tf.stack([tf.cholesky(k + jitter) for k in kernel_mat], 0)
+        kernel_chol = tf.stack([tf.cholesky(k + jitter) for k in kernel_mat], 0)
 
         # Now build the objective function.
-        entropy = self._build_entropy(self.weights, self.means, self.chol_covars)
-        cross_ent = self._build_cross_ent(self.weights, self.means, self.chol_covars, self.kernel_chol)
-        ell = self._build_ell(self.weights, self.means, self.chol_covars, self.inducing_inputs,
-                              self.kernel_chol, train_inputs, train_outputs)
+        entropy = self._build_entropy(weights, means, chol_covars)
+        cross_ent = self._build_cross_ent(weights, means, chol_covars, kernel_chol)
+        ell = self._build_ell(weights, means, chol_covars, inducing_inputs,
+                              kernel_chol, train_inputs, train_outputs)
         batch_size = tf.to_float(tf.shape(train_inputs)[0])
         nelbo = -((batch_size / num_train) * (entropy + cross_ent) + ell)
 
-        return {'NELBO': tf.squeeze(nelbo)}
+        # Finally, build the prediction function.
+        predictions = self._build_predict(weights, means, chol_covars, inducing_inputs,
+                                          kernel_chol, test_inputs)
 
-    def predict(self, test_inputs):
+        return {'NELBO': tf.squeeze(nelbo)}, predictions
+
+    def _build_predict(self, weights, means, chol_covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution
 
-        Uses the following parameters:
-        self.weights: (num_components,)
-        self.means: shape: (num_components, num_latents, num_inducing)
-        self.chol_covars: shape: (num_components, num_latents, num_inducing[, num_inducing])
-        self.inducing_inputs: (num_latents, num_inducing, input_dim)
-        self.kernel_chol: (num_latents, num_inducing, num_inducing)
-
         Args:
+            weights: (num_components,)
+            means: shape: (num_components, num_latents, num_inducing)
+            chol_covars: shape: (num_components, num_latents, num_inducing[, num_inducing])
+            inducing_inputs: (num_latents, num_inducing, input_dim)
+            kernel_chol: (num_latents, num_inducing, num_inducing)
             test_inputs: (batch_size, input_dim)
         Returns:
             means and variances of the predictive distribution
         """
-        kern_prods, kern_sums = self._build_interim_vals(self.kernel_chol, self.inducing_inputs, test_inputs)
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, self.means, self.chol_covars)
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, test_inputs)
+        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, chol_covars)
         pred_means, pred_vars = self.lik.predict(sample_means, sample_vars)
 
         # Compute the mean and variance of the gaussian mixture from their components.
         # weights = tf.expand_dims(tf.expand_dims(weights, 1), 1)
-        weights = self.weights[:, tf.newaxis, tf.newaxis]
+        weights = weights[:, tf.newaxis, tf.newaxis]
         weighted_means = tf.reduce_sum(weights * pred_means, 0)
         weighted_vars = (tf.reduce_sum(weights * (pred_means ** 2 + pred_vars), 0) -
                          tf.reduce_sum(weights * pred_means, 0) ** 2)

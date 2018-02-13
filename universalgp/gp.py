@@ -45,11 +45,11 @@ class GaussianProcess:
         self.train_outputs = tf.placeholder(tf.float32, shape=[None, None], name="train_outputs")
         self.test_inputs = tf.placeholder(tf.float32, shape=[None, input_dim], name="test_inputs")
 
-        self.obj_func, self.inf_param = inf_func.inference(self.train_inputs,
-                                                           self.train_outputs,
-                                                           self.num_train,
-                                                           inducing_inputs)
-        self.predictions = inf_func.predict(self.test_inputs)
+        self.obj_func, self.predictions, self.inf_param = inf_func.inference(self.train_inputs,
+                                                                             self.train_outputs,
+                                                                             self.test_inputs,
+                                                                             self.num_train,
+                                                                             inducing_inputs)
 
         # config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
         # Do all the tensorflow bookkeeping.

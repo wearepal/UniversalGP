@@ -17,32 +17,32 @@ class Exact:
         self.lik = lik_func
         self.sn = self.lik.get_params()[0]
 
-    def inference(self, train_inputs, train_outputs, *_):
-        """Build graph for computing negative log marginal likelihood.
+    def inference(self, train_inputs, train_outputs, test_inputs, *_):
+        """Build graph for computing predictive mean and variance and negative log marginal likelihood.
 
         Args:
             train_inputs: inputs
             train_outputs: targets
-            num_train: the number of trainings
+            test_inputs: test inputs
         Returns:
-            negative log marginal likelihood
+            negative log marginal likelihood and predictive mean and variance
         """
 
-        self.train_inputs = train_inputs
         # kxx (num_train, num_train)
         kxx = self.cov[0].cov_func(train_inputs) + self.sn ** 2 * tf.eye(tf.shape(train_inputs)[-2])
 
         jitter = JITTER * tf.eye(tf.shape(train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added
-        self.chol = tf.cholesky(kxx + jitter)
+        chol = tf.cholesky(kxx + jitter)
         # alpha = chol.T \ (chol \ train_outputs)
-        self.alpha = tf.cholesky_solve(self.chol, train_outputs)
+        alpha = tf.cholesky_solve(chol, train_outputs)
         # negative log marginal likelihood
-        nlml = - self._build_log_marginal_likelihood(train_outputs, self.chol, self.alpha)
+        nlml = - self._build_log_marginal_likelihood(train_outputs, chol, alpha)
+        predictions = self._build_predict(train_inputs, test_inputs, chol, alpha)
 
-        return {'NLML': nlml}, []
+        return {'NLML': nlml}, predictions, []
 
-    def predict(self, test_inputs):
+    def _build_predict(self, train_inputs, test_inputs, chol, alpha):
         """Build graph for computing predictive mean and variance
 
         Args:
@@ -52,14 +52,14 @@ class Exact:
         """
 
         # kxx_star (num_latent, num_train, num_test)
-        kxx_star = self.cov[0].cov_func(self.train_inputs, test_inputs)
+        kxx_star = self.cov[0].cov_func(train_inputs, test_inputs)
         # f_star_mean (num_latent, num_test, 1)
-        f_star_mean = tf.matmul(kxx_star, self.alpha, transpose_a=True)
+        f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
         kx_star_x_star = self.cov[0].cov_func(test_inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
-        v = tf.matrix_triangular_solve(self.chol, kxx_star)
+        v = tf.matrix_triangular_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
         var_f_star = tf.diag_part(kx_star_x_star - tf.reduce_sum(v ** 2, -2))
         pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
