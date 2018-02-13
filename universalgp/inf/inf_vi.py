@@ -272,7 +272,7 @@ class Variational:
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latents)
         latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
-        ell_by_compontent = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2])
+        ell_by_compontent = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2, 3])
 
         # dot product
         ell = tf.tensordot(weights, ell_by_compontent, 1)
