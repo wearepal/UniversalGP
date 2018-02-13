@@ -150,7 +150,7 @@ class Variational:
         weighted_means = tf.reduce_sum(weights * pred_means, 0)
         weighted_vars = (tf.reduce_sum(weights * (pred_means ** 2 + pred_vars), 0) -
                          tf.reduce_sum(weights * pred_means, 0) ** 2)
-        return tf.squeeze(weighted_means), tf.squeeze(weighted_vars)
+        return weighted_means, weighted_vars
 
     def _build_entropy(self, weights, means, chol_covars):
         """Construct entropy.
