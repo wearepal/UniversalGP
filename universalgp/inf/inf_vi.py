@@ -218,7 +218,7 @@ class Variational:
         # compute log probability of all means in all normal distributions
         # then sum over all latent functions
         # shape of log_normal_probs: (num_components, num_components)
-        log_normal_probs = chol_normal.log_prob(component_mean[:, tf.newaxis, ...])
+        log_normal_probs = tf.reduce_sum(chol_normal.log_prob(component_mean[:, tf.newaxis, ...]), axis=-1)
 
         # Now compute the entropy.
         # broadcast `weights` into dimension 1, then do `logsumexp` in that dimension
