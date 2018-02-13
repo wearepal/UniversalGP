@@ -12,7 +12,7 @@ from .. import util
 
 
 class SquaredExponential:
-    def __init__(self, input_dim, length_scale=1.0, sf=1.0, iso=False):
+    def __init__(self, input_dim, length_scale=1.0, sf=1.0, iso=False, name=None):
         """
         Args:
             iso:
@@ -24,7 +24,7 @@ class SquaredExponential:
         self.input_dim = input_dim
         self.iso = iso
         init_value = tf.constant_initializer(length_scale, dtype=tf.float32)
-        with tf.variable_scope("cov_se_parameters"):
+        with tf.variable_scope(name, "cov_se_parameters"):
             if iso:
                 self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_value)
             else:
