@@ -164,6 +164,7 @@ class Variational:
         """
 
         # This part is to compute the product of the pdf of normal distributions
+        """
         chol_component_covar = []
         component_mean = []
         component_covar =[]
@@ -197,14 +198,18 @@ class Variational:
         chol_component_covar = tf.stack(chol_component_covar, 0)
         component_covar = tf.stack(component_covar, 0)
         component_mean = tf.squeeze(tf.stack(component_mean, 0), -1)
+        """
+        component_mean = means
+        chol_component_covar = chol_covars
 
         # First build a square matrix of normals.
         if self.diag_post:
-            # construct normal distributions for all combinations of compontents
+            # construct normal distributions for all combinations of components
             chol_normal = util.DiagNormal(component_mean, chol_component_covar[tf.newaxis, ...] +
                                           chol_component_covar[:, tf.newaxis, ...])
         else:
             # here we use the original component_covar directly
+            component_covar = util.mat_square(chol_covars)
             chol_covars_sum = tf.cholesky(component_covar[tf.newaxis, ...] +
                                           component_covar[:, tf.newaxis, ...])
             # class CholNormal only accepts chol covars rather than covars
