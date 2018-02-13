@@ -44,14 +44,16 @@ model.fit(train_data, optimizer, var_steps=1, epochs=500, display_step=10)
 
 # Predict new inputs.
 pred_mean, pred_var = model.predict(train_data, xtest)
-plt.plot(xtrain, ytrain, '.', mew=2, label='trainings')
-plt.plot(xtest, ytest, 'o', mew=2, label='tests')
-plt.plot(xtest, pred_mean, 'x', mew=2, label='predictions')
+in_dim = 0
+out_dim = 0
+plt.plot(xtrain[:, in_dim], ytrain[:, out_dim], '.', mew=2, label='trainings')
+plt.plot(xtest[:, in_dim], ytest[:, out_dim], 'o', mew=2, label='tests')
+plt.plot(xtest[:, in_dim], pred_mean[:, out_dim], 'x', mew=2, label='predictions')
 
-upper_bound = pred_mean + 1.96 * np.sqrt(pred_var)
-lower_bound = pred_mean - 1.96 * np.sqrt(pred_var)
+upper_bound = pred_mean[:, out_dim] + 1.96 * np.sqrt(pred_var[:, out_dim])
+lower_bound = pred_mean[:, out_dim] - 1.96 * np.sqrt(pred_var[:, out_dim])
 
-plt.fill_between(np.squeeze(xtest), lower_bound, upper_bound, color='gray', alpha=0.25,
+plt.fill_between(xtest[:, in_dim], lower_bound, upper_bound, color='gray', alpha=0.25,
                  label='95% CI')
 plt.legend(loc='lower left')
 # plt.plot(xtest, upper_bound, '--', c='gray', lw=0.5)

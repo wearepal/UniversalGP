@@ -64,7 +64,7 @@ class Exact:
         var_f_star = tf.diag_part(kx_star_x_star - tf.reduce_sum(v ** 2, -2))
         pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
 
-        return pred_means, pred_vars
+        return pred_means[:, tf.newaxis], pred_vars[:, tf.newaxis]
 
     @staticmethod
     def _build_log_marginal_likelihood(train_outputs, chol, alpha):
