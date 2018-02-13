@@ -239,11 +239,7 @@ class TestMultiFull(TestVariationalInference):
     def setUpClass(cls):
         super(TestMultiFull, cls).setUpClass()
         likelihood = lik.LikelihoodSoftmax()
-        kernels = []
-        with tf.variable_scope("latent1"):
-            kernels += [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0)]
-        with tf.variable_scope("latent2"):
-            kernels += [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0)]
+        kernels = [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0) for _ in range(2)]
         cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernels, num_components=2)
         cls.session.run(tf.global_variables_initializer())
 
