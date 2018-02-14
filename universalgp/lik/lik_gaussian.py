@@ -15,7 +15,8 @@ class LikelihoodGaussian:
 
     def log_cond_prob(self, y, mu):
         var = self.sn ** 2
-        return -0.5 * tf.log(2.0 * np.pi * var) - ((y - mu) ** 2) / (2.0 * var)
+        log_cond_prob_per_latent_func = -0.5 * tf.log(2.0 * np.pi * var) - ((y - mu) ** 2) / (2.0 * var)
+        return tf.reduce_sum(log_cond_prob_per_latent_func, -1)  # sum over latent functions
 
     def get_params(self):
         return [self.sn]
@@ -25,5 +26,4 @@ class LikelihoodGaussian:
 
     @staticmethod
     def pred_log_prob(y, pred_mean, pred_var):
-        return -0.5 * tf.log(2.0 * np.pi * pred_var) - ((y - pred_mean)
-                                                        ** 2) / (2.0 * pred_var)
+        return -0.5 * tf.log(2.0 * np.pi * pred_var) - ((y - pred_mean) ** 2) / (2.0 * pred_var)
