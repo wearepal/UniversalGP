@@ -97,6 +97,9 @@ def build_gaussian_process(features, labels, mode, params: dict):
     assert mode == tf.estimator.ModeKeys.TRAIN
 
     optimizer = tf.train.RMSPropOptimizer(learning_rate=FLAGS.lr)
+    # if we want to use multiple loss functions, see the following:
+    # https://github.com/tensorflow/tensorflow/issues/15773#issuecomment-356451902
+    # in order to alternate the loss, the global step has to be taken into account (otherwise we stay on the same batch)
     train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step(),
                                   var_list=inf_param + [raw_likelihood_params, raw_kernel_params])
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, training_hooks=[
@@ -140,6 +143,7 @@ def main():
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 
+    print(f"length scale = {gp.get_variable_value('cov_se_parameters/length_scale')}")  # print final length scale
     if FLAGS.plot:
         # Create predictions
         predictions_gen = gp.predict(input_fn=lambda: data['test_fn']().batch(len(data['xtest'])))
