@@ -42,7 +42,7 @@ def main():
 
     # Setup initial values for the model.
     likelihood = lik.LikelihoodSoftmax()
-    kern = [cov.SquaredExponential(data.X.shape[1], length_scale=10, sf=1, iso=IS_ARD) for _ in range(10)]
+    kern = [cov.SquaredExponential(data.X.shape[1], length_scale=10, sf=1, iso=not IS_ARD) for _ in range(10)]
     # kern = [kernels.ArcCosine(X.shape[1], 2, 3, 5.0, 1.0, input_scaling=True) for i in range(10)]
     # RadialBasis(X.shape[1], input_scaling=True) for i in xrange(10)]
 
