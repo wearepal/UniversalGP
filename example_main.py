@@ -25,6 +25,8 @@ tf.app.flags.DEFINE_string('metric', 'rmse', 'metric for evaluating the trained 
 tf.app.flags.DEFINE_integer('num_components', 1, 'Number of mixture of Gaussians components')
 tf.app.flags.DEFINE_integer('num_samples', 100, 'Number of samples for mean and variance estimate of likelihood')
 tf.app.flags.DEFINE_boolean('diag_post', False, 'Whether the Gaussian mixture uses diagonal covariance')
+tf.app.flags.DEFINE_boolean('optimize_inducing', True, 'Whether to optimize the inducing inputs in training')
+tf.app.flags.DEFINE_boolean('loo', False, 'Whether to use the LOO loss')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
 tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
@@ -55,7 +57,8 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     # Construct graph
     if FLAGS.inf == 'Variational':
-        inf_func = inf.Variational(cov_func, lik_func, FLAGS.diag_post, FLAGS.num_components, FLAGS.num_samples)
+        inf_func = inf.Variational(cov_func, lik_func, FLAGS.diag_post, FLAGS.num_components, FLAGS.num_samples,
+                                   FLAGS.optimize_inducing, FLAGS.loo)
         labels = tf.constant(0.) if labels is None else labels
         obj_func, preds, inf_param = inf_func.inference(inputs, labels, inputs, params['num_train'], inducing_inputs)
     elif FLAGS.inf == 'Exact' or FLAGS.inf == 'Loo':
@@ -78,8 +81,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})
 
     # Get hyper parameters
-    raw_likelihood_params = lik_func.get_params()
-    raw_kernel_params = sum([k.get_params() for k in cov_func], [])
+    hyper_params = [lik_func.get_params(), sum([k.get_params() for k in cov_func], [])]
 
     # Compute evaluation metrics.
     if FLAGS.metric == 'rmse':
@@ -100,8 +102,16 @@ def build_gaussian_process(features, labels, mode, params: dict):
     # if we want to use multiple loss functions, see the following:
     # https://github.com/tensorflow/tensorflow/issues/15773#issuecomment-356451902
     # in order to alternate the loss, the global step has to be taken into account (otherwise we stay on the same batch)
-    train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step(),
-                                  var_list=inf_param + [raw_likelihood_params, raw_kernel_params])
+    if 'LOO_VARIATIONAL' in obj_func:
+        global_step = tf.train.get_global_step()
+        mask = tf.equal((global_step // 10) % 2, 0)
+        nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)
+        loo_loss = tf.where(mask, 0.0, obj_func['LOO_VARIATIONAL'])
+        train_nelbo = optimizer.minimize(nelbo_loss, global_step=global_step, var_list=inf_param + hyper_params)
+        train_loo = optimizer.minimize(loo_loss, global_step=global_step, var_list=hyper_params)
+        train_op = tf.group(train_nelbo, train_loo)
+    else:
+        train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step(), var_list=inf_param + hyper_params)
     return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, training_hooks=[
         tf.train.LoggingTensorHook(obj_func, every_n_iter=FLAGS.logging_steps)])
 

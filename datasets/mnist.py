@@ -12,9 +12,11 @@ NUM_INDUCING = 100
 
 def _init_z(train_inputs, num_inducing):
     # Initialize inducing points using clustering.
+    print('start clustering')
     mini_batch = sklearn.cluster.MiniBatchKMeans(num_inducing)
     mini_batch.fit_predict(train_inputs)
     inducing_locations = mini_batch.cluster_centers_
+    print('done clustering')
     return inducing_locations
 
 

@@ -21,7 +21,8 @@ class Variational:
         True if the mixture of Gaussians uses a diagonal covariance, False otherwise.
     """
 
-    def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100, optimize_inducing=True):
+    def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100, optimize_inducing=True,
+                 use_loo=False):
 
         # self.mean = mean_func
         self.cov = cov_func
@@ -33,6 +34,7 @@ class Variational:
         self.diag_post = diag_post
         self.num_samples = num_samples
         self.optimize_inducing = optimize_inducing
+        self.use_loo = use_loo
 
     def inference(self, train_inputs, train_outputs, test_inputs, num_train, inducing_inputs):
         """Build graph for computing negative evidence lower bound and predictive mean and variance
@@ -127,7 +129,10 @@ class Variational:
         predictions = self._build_predict(weights, means, chol_covars, inducing_inputs,
                                           kernel_chol, test_inputs)
 
-        return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, predictions
+        if self.use_loo:
+            return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, predictions
+        else:
+            return {'NELBO': tf.squeeze(nelbo)}, predictions
 
     def _build_predict(self, weights, means, chol_covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution
