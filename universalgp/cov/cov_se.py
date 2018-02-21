@@ -43,7 +43,7 @@ class SquaredExponential:
         if point2 is None:
             point2 = point1
 
-        kern = self.sf ** 2 * tf.exp(-util.sq_dist(point1, point2) / 2.0 / length_scale_br**2)
+        kern = self.sf ** 2 * tf.exp(-util.sq_dist(point1 / length_scale_br, point2 / length_scale_br) / 2.0)
         return kern
 
     def diag_cov_func(self, points):
