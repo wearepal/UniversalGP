@@ -1,141 +1,136 @@
-import unittest
-
 import numpy as np
 import scipy.misc
 import scipy.stats
 import tensorflow as tf
+import tensorflow.contrib.eager as tfe
 
-from universalgp import cov, lik, inf
+from universalgp import cov, lik
+from universalgp import inf as inference
+
+try:
+    tfe.enable_eager_execution()
+except ValueError:
+    pass
 
 
 SIG_FIGS = 5
 
 
-class TestVariationalInference(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        # We expect the child class to instantiate `cls.inf` for us.
-        tf.reset_default_graph()
-        cls.session = tf.Session()
+def build_entropy(inf, weights, means, covars):
+    ent = inf._build_entropy(weights=tf.constant(weights, dtype=tf.float32),
+                             means=tf.constant(means, dtype=tf.float32),
+                             chol_covars=tf.constant(covars, dtype=tf.float32))
+    return ent.numpy()
 
-    @classmethod
-    def tearDownClass(cls):
-        cls.session.close()
 
-    @classmethod
-    def entropy(cls, weights, means, covars):
-        entropy = cls.inf._build_entropy(weights=tf.constant(weights, dtype=tf.float32),
+def build_cross_ent(inf, weights, means, covars, kernel_chol):
+    cross_entropy = inf._build_cross_ent(weights=tf.constant(weights, dtype=tf.float32),
                                          means=tf.constant(means, dtype=tf.float32),
-                                         chol_covars=tf.constant(covars, dtype=tf.float32))
-        return cls.session.run(entropy)
-
-    @classmethod
-    def cross_ent(cls, weights, means, covars, kernel_chol):
-        cross_ent = cls.inf._build_cross_ent(weights=tf.constant(weights, dtype=tf.float32),
-                                             means=tf.constant(means, dtype=tf.float32),
-                                             chol_covars=tf.constant(covars, dtype=tf.float32),
-                                             kernel_chol=tf.constant(kernel_chol, dtype=tf.float32))
-        return cls.session.run(cross_ent)
-
-    @classmethod
-    def interim_vals(cls, kernel_chol, inducing_inputs, train_inputs):
-        kern_prods, kern_sums = cls.inf._build_interim_vals(
-            kernel_chol=tf.constant(kernel_chol, dtype=tf.float32),
-            inducing_inputs=tf.constant(inducing_inputs, dtype=tf.float32),
-            train_inputs=tf.constant(train_inputs, dtype=tf.float32))
-        return cls.session.run([kern_prods, kern_sums])
-
-    @classmethod
-    def sample_info(cls, kern_prods, kern_sums, means, covars):
-        mean, var = cls.inf._build_sample_info(kern_prods=tf.constant(kern_prods, dtype=tf.float32),
-                                               kern_sums=tf.constant(kern_sums, dtype=tf.float32),
-                                               means=tf.constant(means, dtype=tf.float32),
-                                               chol_covars=tf.constant(covars, dtype=tf.float32))
-        return cls.session.run([mean, var])
+                                         chol_covars=tf.constant(covars, dtype=tf.float32),
+                                         kernel_chol=tf.constant(kernel_chol, dtype=tf.float32))
+    return cross_entropy.numpy()
 
 
-class TestSimpleFull(TestVariationalInference):
-    @classmethod
-    def setUpClass(cls):
-        super(TestSimpleFull, cls).setUpClass()
-        likelihood = lik.LikelihoodGaussian(1.0)
-        kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
-        # In most of our unit test, we will replace this value with something else.
-        cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1)
-        cls.session.run(tf.global_variables_initializer())
+def build_interim_vals(inf, kernel_chol, inducing_inputs, train_inputs):
+    kern_prods, kern_sums = inf._build_interim_vals(
+        kernel_chol=tf.constant(kernel_chol, dtype=tf.float32),
+        inducing_inputs=tf.constant(inducing_inputs, dtype=tf.float32),
+        train_inputs=tf.constant(train_inputs, dtype=tf.float32))
+    return [kern_prods.numpy(), kern_sums.numpy()]
 
+
+def build_sample_info(inf, kern_prods, kern_sums, means, covars):
+    mean, var = inf._build_sample_info(kern_prods=tf.constant(kern_prods, dtype=tf.float32),
+                                       kern_sums=tf.constant(kern_sums, dtype=tf.float32),
+                                       means=tf.constant(means, dtype=tf.float32),
+                                       chol_covars=tf.constant(covars, dtype=tf.float32))
+    return [mean.numpy(), var.numpy()]
+
+
+###########################
+##### Test simple full ####
+###########################
+
+def construct_simple_full():
+    likelihood = lik.LikelihoodGaussian(1.0)
+    kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
+    # In most of our unit test, we will replace this value with something else.
+    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1)
+
+class TestSimpleFull:
     def test_simple_entropy(self):
-        entropy = TestSimpleFull.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[[1.0]]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2.0)), SIG_FIGS)
+        inf = construct_simple_full()
+        entropy = build_entropy(inf, weights=[1.0], means=[[[1.0]]], covars=[[[[1.0]]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2.0)), SIG_FIGS)
 
     def test_small_covar_entropy(self):
-        entropy = TestSimpleFull.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[[1e-10]]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-20)), SIG_FIGS)
+        inf = construct_simple_full()
+        entropy = build_entropy(inf, weights=[1.0], means=[[[1.0]]], covars=[[[[1e-10]]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-20)), SIG_FIGS)
 
     def test_large_covar_entropy(self):
-        entropy = TestSimpleFull.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[[1e10]]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e20)), SIG_FIGS)
+        inf = construct_simple_full()
+        entropy = build_entropy(inf, weights=[1.0], means=[[[1.0]]], covars=[[[[1e10]]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e20)), SIG_FIGS)
 
     def test_simple_cross_ent(self):
-        cross_ent = TestSimpleFull.cross_ent(weights=[1.0],
-                                             means=[[[1.0]]],
-                                             covars=[[[[1.0]]]],
-                                             kernel_chol=[[[1.0]]])
-        self.assertAlmostEqual(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1.0) + 2.0),
-                               SIG_FIGS)
+        inf = construct_simple_full()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1.0]]],
+                                    covars=[[[[1.0]]]],
+                                    kernel_chol=[[[1.0]]])
+        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1.0) + 2.0), SIG_FIGS)
 
     def test_small_cross_ent(self):
-        cross_ent = TestSimpleFull.cross_ent(weights=[1.0],
-                                             means=[[[1e-10]]],
-                                             covars=[[[[1e-10]]]],
-                                             kernel_chol=[[[1e-10]]])
-        self.assertAlmostEqual(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e-20) + 2.0),
-                               SIG_FIGS)
+        inf = construct_simple_full()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1e-10]]],
+                                    covars=[[[[1e-10]]]],
+                                    kernel_chol=[[[1e-10]]])
+        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e-20) + 2.0), SIG_FIGS)
 
     def test_large_cross_ent(self):
-        cross_ent = TestSimpleFull.cross_ent(weights=[1.0],
-                                             means=[[[1e10]]],
-                                             covars=[[[[1e10]]]],
-                                             kernel_chol=[[[1e10]]])
-        self.assertAlmostEqual(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 2.0),
-                               SIG_FIGS)
+        inf = construct_simple_full()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1e10]]],
+                                    covars=[[[[1e10]]]],
+                                    kernel_chol=[[[1e10]]])
+        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 2.0), SIG_FIGS)
 
     def test_simple_interim_vals(self):
-        kern_prods, kern_sums = TestSimpleFull.interim_vals(kernel_chol=[[[1.0]]],
-                                                            inducing_inputs=[[[1.0]]],
-                                                            train_inputs=[[1.0]])
-        self.assertAlmostEqual(kern_prods, 1.0, SIG_FIGS)
-        self.assertAlmostEqual(kern_sums, 0.0, SIG_FIGS)
+        inf = construct_simple_full()
+        kern_prods, kern_sums = build_interim_vals(inf, kernel_chol=[[[1.0]]],
+                                                   inducing_inputs=[[[1.0]]],
+                                                   train_inputs=[[1.0]])
+        np.testing.assert_almost_equal(kern_prods, 1.0, SIG_FIGS)
+        np.testing.assert_almost_equal(kern_sums, 0.0, SIG_FIGS)
 
     def test_small_interim_vals(self):
-        kern_prods, kern_sums = TestSimpleFull.interim_vals(kernel_chol=[[[1e-8]]],
+        inf = construct_simple_full()
+        kern_prods, kern_sums = build_interim_vals(inf, kernel_chol=[[[1e-8]]],
                                                             inducing_inputs=[[[1e-8]]],
                                                             train_inputs=[[1e-8]])
-        self.assertAlmostEqual(kern_prods, 1e16, SIG_FIGS)
-        self.assertAlmostEqual(kern_sums, 1 - 1e16, SIG_FIGS)
+        np.testing.assert_almost_equal(kern_prods, 1e16, SIG_FIGS)
+        np.testing.assert_almost_equal(kern_sums, 1 - 1e16, SIG_FIGS)
         
     def test_large_interim_vals(self):
-        kern_prods, kern_sums = TestSimpleFull.interim_vals(kernel_chol=[[[1e8]]],
-                                                            inducing_inputs=[[[1e8]]],
-                                                            train_inputs=[[1e8]])
-        self.assertAlmostEqual(kern_prods.item(), 1e-8, SIG_FIGS)
-        self.assertAlmostEqual(kern_sums, 1 - 1e-8, SIG_FIGS)
+        inf = construct_simple_full()
+        kern_prods, kern_sums = build_interim_vals(inf, kernel_chol=[[[1e8]]],
+                                                             inducing_inputs=[[[1e8]]],
+                                                             train_inputs=[[1e8]])
+        np.testing.assert_almost_equal(kern_prods.item(), 1e-8, SIG_FIGS)
+        np.testing.assert_almost_equal(kern_sums, 1 - 1e-8, SIG_FIGS)
 
     def test_multiple_inputs_interim_vals(self):
+        inf = construct_simple_full()
         inducing_distances = np.array([[1.0,          np.exp(-0.5), np.exp(-2.0)],
                                        [np.exp(-0.5), 1.0,          np.exp(-0.5)],
                                        [np.exp(-2.0), np.exp(-0.5), 1.0         ]],
                                       dtype=np.float32)
         kern_chol = np.linalg.cholesky(inducing_distances)[np.newaxis, :, :]
-        kern_prods, kern_sums = TestSimpleFull.interim_vals(kern_chol,
-                                                            inducing_inputs=[[[1.0], [2.0], [3.0]]],
-                                                            train_inputs=[[3.0], [4.0]])
+        kern_prods, kern_sums = build_interim_vals(inf, kern_chol,
+                                                   inducing_inputs=[[[1.0], [2.0], [3.0]]],
+                                                   train_inputs=[[3.0], [4.0]])
         train_inducing_distances = np.array([[np.exp(-2.0), np.exp(-0.5), 1.0         ],
                                              [np.exp(-4.5), np.exp(-2.0), np.exp(-0.5)]],
                                             dtype=np.float32)
@@ -147,116 +142,130 @@ class TestSimpleFull(TestVariationalInference):
         np.testing.assert_almost_equal(kern_sums[0], real_kern_sums, SIG_FIGS)
 
     def test_simple_sample_info(self):
-        mean, var = TestSimpleFull.sample_info(kern_prods=[[[2.0]]],
-                                               kern_sums=[[3.0]],
-                                               means=[[4.0]],
-                                               covars=[[[5.0]]])
-        self.assertAlmostEqual(mean, 8.0, SIG_FIGS)
-        self.assertAlmostEqual(var, 103.0, SIG_FIGS)
+        inf = construct_simple_full()
+        mean, var = build_sample_info(inf, kern_prods=[[[2.0]]],
+                                      kern_sums=[[3.0]],
+                                      means=[[4.0]],
+                                      covars=[[[5.0]]])
+        np.testing.assert_almost_equal(mean, 8.0, SIG_FIGS)
+        np.testing.assert_almost_equal(var, 103.0, SIG_FIGS)
 
     def test_multi_sample_info(self):
-        mean, var = TestSimpleFull.sample_info(kern_prods=[[[1.0, 2.0],
-                                                            [3.0, 4.0]]],
-                                               kern_sums=[[5.0, 6.0]],
-                                               means=[[7.0, 8.0]],
-                                               covars=[[[9.0 , 10.0],
-                                                        [11.0, 12.0]]])
+        inf = construct_simple_full()
+        mean, var = build_sample_info(inf, kern_prods=[[[1.0, 2.0],
+                                                             [3.0, 4.0]]],
+                                      kern_sums=[[5.0, 6.0]],
+                                      means=[[7.0, 8.0]],
+                                      covars=[[[9.0, 10.0],
+                                               [11.0, 12.0]]])
         np.testing.assert_almost_equal(mean, [[23.0], [53.0]], SIG_FIGS)
         np.testing.assert_almost_equal(var, [[2122.0], [11131.0]], SIG_FIGS)
 
 
-class TestSimpleDiag(TestVariationalInference):
-    @classmethod
-    def setUpClass(cls):
-        super(TestSimpleDiag, cls).setUpClass()
-        likelihood = lik.LikelihoodGaussian(1.0)
-        kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
-        cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1,
-                                  diag_post=True)
-        cls.session.run(tf.global_variables_initializer())
+###########################
+##### Test simple diag ####
+###########################
 
+def construct_simple_diag():
+    likelihood = lik.LikelihoodGaussian(1.0)
+    kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
+    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1, diag_post=True)
+
+
+class TestSimpleDiag:
     def test_simple_entropy(self):
-        entropy = TestSimpleDiag.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[1.0]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2.0)), SIG_FIGS)
+        inf = construct_simple_diag()
+        entropy = build_entropy(inf, weights=[1.0],
+                                means=[[[1.0]]],
+                                covars=[[[1.0]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2.0)), SIG_FIGS)
 
     def test_small_covar_entropy(self):
-        entropy = TestSimpleDiag.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[1e-10]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-10)), SIG_FIGS)
+        inf = construct_simple_diag()
+        entropy = build_entropy(inf, weights=[1.0],
+                                means=[[[1.0]]],
+                                covars=[[[1e-10]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-10)), SIG_FIGS)
 
     def test_large_covar_entropy(self):
-        entropy = TestSimpleDiag.entropy(weights=[1.0],
-                                         means=[[[1.0]]],
-                                         covars=[[[1e10]]])
-        self.assertAlmostEqual(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e10)), SIG_FIGS)
+        inf = construct_simple_diag()
+        entropy = build_entropy(inf, weights=[1.0],
+                                means=[[[1.0]]],
+                                covars=[[[1e10]]])
+        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e10)), SIG_FIGS)
 
     def test_simple_cross_ent(self):
-        cross_ent = TestSimpleDiag.cross_ent(weights=[1.0],
-                                             means=[[[1.0]]],
-                                             covars=[[[1.0]]],
-                                             kernel_chol=[[[1.0]]])
-        self.assertAlmostEqual(cross_ent, -0.5 * (np.log(2 * np.pi) + 2.0), SIG_FIGS)
+        inf = construct_simple_diag()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1.0]]],
+                                    covars=[[[1.0]]],
+                                    kernel_chol=[[[1.0]]])
+        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + 2.0), SIG_FIGS)
 
     def test_small_cross_ent(self):
-        cross_ent = TestSimpleDiag.cross_ent(weights=[1.0],
-                                             means=[[[1e-10]]],
-                                             covars=[[[1e-10]]],
-                                             kernel_chol=[[[1e-10]]])
-        self.assertAlmostEqual((-0.5 * (np.log(2 * np.pi) + np.log(1e-20) + 1.0 + 1e10) - cross_ent) / cross_ent, 0,
-                               SIG_FIGS)
+        inf = construct_simple_diag()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1e-10]]],
+                                    covars=[[[1e-10]]],
+                                    kernel_chol=[[[1e-10]]])
+        np.testing.assert_almost_equal((-.5 * (np.log(2 * np.pi) + np.log(1e-20) + 1.0 + 1e10) - cross_ent) / cross_ent,
+                                       0, SIG_FIGS)
 
     def test_large_cross_ent(self):
-        cross_ent = TestSimpleDiag.cross_ent(weights=[1.0],
-                                             means=[[[1e10]]],
-                                             covars=[[[1e10]]],
-                                             kernel_chol=[[[1e10]]])
-        self.assertAlmostEqual(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 1.0 + 1e-10),
+        inf = construct_simple_diag()
+        cross_ent = build_cross_ent(inf, weights=[1.0],
+                                    means=[[[1e10]]],
+                                    covars=[[[1e10]]],
+                                    kernel_chol=[[[1e10]]])
+        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 1.0 + 1e-10),
                                SIG_FIGS)
 
     def test_simple_sample_info(self):
-        mean, var = TestSimpleDiag.sample_info(kern_prods=[[[2.0]]],
-                                               kern_sums=[[3.0]],
-                                               means=[[4.0]],
-                                               covars=[[5.0]])
-        self.assertAlmostEqual(mean, 8.0, SIG_FIGS)
-        self.assertAlmostEqual(var, 23.0, SIG_FIGS)
+        inf = construct_simple_diag()
+        mean, var = build_sample_info(inf, kern_prods=[[[2.0]]],
+                                      kern_sums=[[3.0]],
+                                      means=[[4.0]],
+                                      covars=[[5.0]])
+        np.testing.assert_almost_equal(mean, 8.0, SIG_FIGS)
+        np.testing.assert_almost_equal(var, 23.0, SIG_FIGS)
 
     def test_multi_sample_info(self):
-        mean, var = TestSimpleDiag.sample_info(kern_prods=[[[1.0, 2.0],
-                                                            [3.0, 4.0]]],
-                                               kern_sums=[[5.0, 6.0]],
-                                               means=[[7.0, 8.0]],
-                                               covars=[[9.0 , 10.0]])
+        inf = construct_simple_diag()
+        mean, var = build_sample_info(inf, kern_prods=[[[1.0, 2.0],
+                                                        [3.0, 4.0]]],
+                                      kern_sums=[[5.0, 6.0]],
+                                      means=[[7.0, 8.0]],
+                                      covars=[[9.0, 10.0]])
         np.testing.assert_almost_equal(mean, [[23.0], [53.0]], SIG_FIGS)
         np.testing.assert_almost_equal(var, [[54.0], [247.0]], SIG_FIGS)
 
 
-class TestMultiFull(TestVariationalInference):
-    @classmethod
-    def setUpClass(cls):
-        super(TestMultiFull, cls).setUpClass()
-        likelihood = lik.LikelihoodSoftmax()
-        kernels = [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0) for _ in range(2)]
-        cls.inf = inf.Variational(num_samples=10, lik_func=likelihood, cov_func=kernels, num_components=2)
-        cls.session.run(tf.global_variables_initializer())
+###########################
+##### Test multi full #####
+###########################
 
+def construct_multi_full():
+    likelihood = lik.LikelihoodSoftmax()
+    kernels = [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0) for _ in range(2)]
+    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernels, num_components=2)
+
+
+class TestMultiFull:
     def test_entropy(self):
-        entropy = TestMultiFull.entropy(weights=[0.7, 0.3],
-                                        means=[[[01.0, 02.0],
-                                                [03.0, 04.0]],
-                                               [[05.0, 06.0],
-                                                [07.0, 08.0]]],
-                                        covars=[[[[0.1, 0.0],
-                                                  [0.2, 0.3]],
-                                                 [[0.4, 0.0],
-                                                  [0.5, 0.6]]],
-                                                [[[0.7, 0.0],
-                                                  [0.8, 0.9]],
-                                                 [[1.0, 0.0],
-                                                  [1.1, 1.2]]]])
+        inf = construct_multi_full()
+        entropy = build_entropy(inf, weights=[0.7, 0.3],
+                                means=[[[01.0, 02.0],
+                                        [03.0, 04.0]],
+                                       [[05.0, 06.0],
+                                        [07.0, 08.0]]],
+                                covars=[[[[0.1, 0.0],
+                                          [0.2, 0.3]],
+                                         [[0.4, 0.0],
+                                          [0.5, 0.6]]],
+                                        [[[0.7, 0.0],
+                                          [0.8, 0.9]],
+                                         [[1.0, 0.0],
+                                          [1.1, 1.2]]]])
         n11_1 = scipy.stats.multivariate_normal.logpdf([1.0, 2.0], [1.0, 2.0], [[0.02, 0.04],
                                                                                 [0.04, 0.26]])
         n11_2 = scipy.stats.multivariate_normal.logpdf([3.0, 4.0], [3.0, 4.0], [[0.32, 0.40],
@@ -276,26 +285,27 @@ class TestMultiFull(TestVariationalInference):
         true_ent = -(
             0.7 * scipy.misc.logsumexp([np.log(0.7) + n11_1 + n11_2, np.log(0.3) + n12_1 + n12_2]) +
             0.3 * scipy.misc.logsumexp([np.log(0.7) + n21_1 + n21_2, np.log(0.3) + n22_1 + n22_2]))
-        self.assertAlmostEqual(entropy, true_ent, SIG_FIGS)
+        np.testing.assert_almost_equal(entropy, true_ent, SIG_FIGS)
 
     def test_cross_ent(self):
-        cross_ent = TestMultiFull.cross_ent(weights=[0.3, 0.7],
-                                            means=[[[01.0, 02.0],
-                                                    [03.0, 04.0]],
-                                                   [[05.0, 06.0],
-                                                    [07.0, 08.0]]],
-                                            covars=[[[[01.0, 00.0],
-                                                      [02.0, 03.0]],
-                                                     [[04.0, 00.0],
-                                                      [05.0, 06.0]]],
-                                                    [[[07.0, 00.0],
-                                                      [08.0, 09.0]],
-                                                     [[10.0, 00.0],
-                                                      [11.0, 12.0]]]],
-                                            kernel_chol=[[[13.0, 0.0],
-                                                          [14.0, 15.0]],
-                                                         [[16.0, 0.0],
-                                                          [17.0, 18.0]]])
+        inf = construct_multi_full()
+        cross_ent = build_cross_ent(inf, weights=[0.3, 0.7],
+                                    means=[[[01.0, 02.0],
+                                            [03.0, 04.0]],
+                                           [[05.0, 06.0],
+                                            [07.0, 08.0]]],
+                                    covars=[[[[01.0, 00.0],
+                                              [02.0, 03.0]],
+                                             [[04.0, 00.0],
+                                              [05.0, 06.0]]],
+                                            [[[07.0, 00.0],
+                                              [08.0, 09.0]],
+                                             [[10.0, 00.0],
+                                              [11.0, 12.0]]]],
+                                    kernel_chol=[[[13.0, 0.0],
+                                                  [14.0, 15.0]],
+                                                 [[16.0, 0.0],
+                                                  [17.0, 18.0]]])
         n11 = scipy.stats.multivariate_normal.logpdf([0.0, 0.0], [1.0, 2.0], [[169.0, 182.0],
                                                                               [182.0, 421.0]])
         n12 = scipy.stats.multivariate_normal.logpdf([0.0, 0.0], [3.0, 4.0], [[256.0, 272.0],
@@ -320,21 +330,22 @@ class TestMultiFull(TestVariationalInference):
         t12 = np.trace(p12)
         t21 = np.trace(p21)
         t22 = np.trace(p22)
-        self.assertAlmostEqual(cross_ent, (0.3 * (n11 - 0.5 * t11 + n12 - 0.5 * t12) +
-                                           0.7 * (n21 - 0.5 * t21 + n22 - 0.5 * t22)),
-                               SIG_FIGS)
+        np.testing.assert_almost_equal(cross_ent, (0.3 * (n11 - 0.5 * t11 + n12 - 0.5 * t12) +
+                                                   0.7 * (n21 - 0.5 * t21 + n22 - 0.5 * t22)),
+                                       SIG_FIGS)
 
     def test_interim_vals(self):
-        kern_prods, kern_sums = TestMultiFull.interim_vals(kernel_chol=[[[1.0, 0.0],
-                                                                         [2.0, 3.0]],
-                                                                        [[4.0, 0.0],
-                                                                         [5.0, 6.0]]],
-                                                           inducing_inputs=[[[7.0, 8.0],
-                                                                             [9.0, 10.0]],
-                                                                            [[11.0, 12.0],
-                                                                             [13.0, 14.0]]],
-                                                           train_inputs=[[15.0, 16.0],
-                                                                         [17.0, 18.0]])
+        inf = construct_multi_full()
+        kern_prods, kern_sums = build_interim_vals(inf, kernel_chol=[[[1.0, 0.0],
+                                                                      [2.0, 3.0]],
+                                                                     [[4.0, 0.0],
+                                                                      [5.0, 6.0]]],
+                                                   inducing_inputs=[[[7.0, 8.0],
+                                                                     [9.0, 10.0]],
+                                                                    [[11.0, 12.0],
+                                                                     [13.0, 14.0]]],
+                                                   train_inputs=[[15.0, 16.0],
+                                                                 [17.0, 18.0]])
         kxz_1 = np.array([[np.exp(-64.0), np.exp(-36.0)],
                           [np.exp(-100.0), np.exp(-64.0)]])
         kxz_2 = np.array([[np.exp(-16.0), np.exp(-4.0)],
@@ -353,18 +364,19 @@ class TestMultiFull(TestVariationalInference):
         np.testing.assert_almost_equal(kern_sums[1], np.diag(kxx - a_2 @ kxz_2.T), SIG_FIGS)
 
     def test_sample_info(self):
-        mean, var = TestMultiFull.sample_info(kern_prods=[[[1.0, 2.0],
-                                                           [3.0, 4.0]],
-                                                          [[5.0, 6.0],
-                                                           [7.0, 8.0]]],
-                                              kern_sums=[[9.0, 10.0],
-                                                         [11.0, 12.0]],
-                                              means=[[13.0, 14.0],
-                                                     [15.0, 16.0]],
-                                              covars=[[[17.0,  0.0],
-                                                       [19.0, 20.0]],
-                                                      [[21.0,  0.0],
-                                                       [22.0, 23.0]]])
+        inf = construct_multi_full()
+        mean, var = build_sample_info(inf, kern_prods=[[[1.0, 2.0],
+                                                        [3.0, 4.0]],
+                                                       [[5.0, 6.0],
+                                                        [7.0, 8.0]]],
+                                      kern_sums=[[9.0, 10.0],
+                                                 [11.0, 12.0]],
+                                      means=[[13.0, 14.0],
+                                             [15.0, 16.0]],
+                                      covars=[[[17.0, 0.0],
+                                               [19.0, 20.0]],
+                                              [[21.0, 0.0],
+                                               [22.0, 23.0]]])
         true_mean = np.array([[41.0, 171.0],
                               [95.0, 233.0]])
         true_var = np.array([[4634.0, 75224.0],
