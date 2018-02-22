@@ -1,21 +1,28 @@
-import unittest
-
 import numpy as np
 import tensorflow as tf
 
 from universalgp import util
 
+import tensorflow.contrib.eager as tfe
 
-class TestInitList(unittest.TestCase):
-    def broadcast(self, tensor_a, tensor_b):
-        broadcasted = util.broadcast(tf.constant(tensor_a, dtype=tf.int32), tf.constant(tensor_b, dtype=tf.int32))
-        return tf.Session().run(broadcasted)
+try:
+    tfe.enable_eager_execution()
+except ValueError:
+    pass
 
-    def matmul_br(self, tensor_a, tensor_b, transpose_b=False):
-        product = util.matmul_br(tf.constant(tensor_a, dtype=tf.int32), tf.constant(tensor_b, dtype=tf.int32),
-                                 transpose_b=transpose_b)
-        return tf.Session().run(product)
 
+def broadcast(tensor_a, tensor_b):
+    broadcasted = util.broadcast(tf.constant(tensor_a, dtype=tf.int32), tf.constant(tensor_b, dtype=tf.int32))
+    return broadcasted.numpy()
+
+
+def matmul_br(tensor_a, tensor_b, transpose_b=False):
+    product = util.matmul_br(tf.constant(tensor_a, dtype=tf.int32), tf.constant(tensor_b, dtype=tf.int32),
+                             transpose_b=transpose_b)
+    return product.numpy()
+
+
+class TestBroadcast:
     def test_broadcast(self):
         a = np.array([1, 2, 3, 4])
         b = np.array([
@@ -38,7 +45,7 @@ class TestInitList(unittest.TestCase):
                      [[1, 2, 3, 4],
                       [1, 2, 3, 4]]
                      ])
-        self.assertEqual(self.broadcast(a, b).tolist(), c.tolist())
+        np.testing.assert_equal(broadcast(a, b), c)
 
     def test_matmul_br(self):
         a = np.array([[1, 2, 3, 4]])
@@ -53,14 +60,14 @@ class TestInitList(unittest.TestCase):
                       [3, 3, 3, 3]]
                      ])
         c = np.array([
-                     [[10, 10]],
+                      [[10, 10]],
 
-                     [[20, 20]],
+                      [[20, 20]],
 
-                     [[30, 30]]
+                      [[30, 30]]
                      ])
-        self.assertEqual(self.matmul_br(a, b, transpose_b=True).tolist(), c.tolist())
-        self.assertEqual(self.matmul_br(b, a, transpose_b=True).tolist(), np.transpose(c, [0, 2, 1]).tolist())
+        np.testing.assert_equal(matmul_br(a, b, transpose_b=True), c)
+        np.testing.assert_equal(matmul_br(b, a, transpose_b=True), np.transpose(c, [0, 2, 1]))
 
     def test_matmul_br_2(self):
         a = np.reshape(np.array([1] * 12 + [-1] * 12), [2, 4, 3])
@@ -85,4 +92,4 @@ class TestInitList(unittest.TestCase):
                         [-15, -15],
                         [-15, -15],
                         [-15, -15]]]])
-        self.assertEqual(self.matmul_br(a, b).tolist(), c.tolist())
+        np.testing.assert_equal(matmul_br(a, b), c)
