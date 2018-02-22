@@ -25,7 +25,7 @@ class SquaredExponential:
         self.iso = iso
         init_value = tf.constant_initializer(length_scale, dtype=tf.float32)
         with tf.variable_scope(name, "cov_se_parameters"):
-            if iso:
+            if not iso:
                 self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_value)
             else:
                 self.length_scale = tf.get_variable("length_scale", shape=[], initializer=init_value)
@@ -39,11 +39,11 @@ class SquaredExponential:
         Returns:
             Tensor of shape (batch_size)
         """
-        length_scale_br = tf.reshape(self.length_scale, [1, self.input_dim if self.iso else 1])
+        length_scale_br = tf.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
         if point2 is None:
             point2 = point1
 
-        kern = self.sf ** 2 * tf.exp(-util.sq_dist(point1, point2) / 2.0 / length_scale_br**2)
+        kern = self.sf ** 2 * tf.exp(-util.sq_dist(point1 / length_scale_br, point2 / length_scale_br) / 2.0)
         return kern
 
     def diag_cov_func(self, points):

@@ -58,7 +58,7 @@ class GaussianProcess:
         self.train_step = None
 
     def fit(self, data, optimizer, var_steps=10, epochs=200, batch_size=None,
-            display_step=1):
+            display_step=1, loo_steps=None):
         """
         Fit the Gaussian process model to the given data.
 
@@ -89,11 +89,15 @@ class GaussianProcess:
         if self.optimizer != optimizer:
             self.optimizer = optimizer
 
-            self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=self.inf_param + hyper_param)
+            if loo_steps is not None:
+                self.train_step = optimizer.minimize(self.obj_func['NELBO'], var_list=self.inf_param + hyper_param)
+                self.train_step_loo = optimizer.minimize(self.obj_func['LOO_VARIATIONAL'], var_list=hyper_param)
+            else:
+                self.train_step = optimizer.minimize(sum(self.obj_func.values()), var_list=self.inf_param + hyper_param)
 
             self.session.run(tf.global_variables_initializer())
 
-        iter_num = 0
+        total_steps = 0
         while data.epochs_completed < epochs:
             var_iter = 0
             while var_iter < var_steps:
@@ -102,9 +106,20 @@ class GaussianProcess:
                                                              self.train_outputs: batch[1],
                                                              self.num_train: num_train})
                 if var_iter % display_step == 0:
-                    self._print_state(data, num_train, iter_num)
+                    self._print_state(data, num_train, total_steps)
                 var_iter += 1
-                iter_num += 1
+                total_steps += 1
+            if loo_steps is not None:
+                loo_iter = 0
+                while loo_iter < loo_steps:
+                    batch = data.next_batch(batch_size)
+                    self.session.run(self.train_step_loo, feed_dict={self.train_inputs: batch[0],
+                                                                     self.train_outputs: batch[1],
+                                                                     self.num_train: num_train})
+                    if loo_iter % display_step == 0:
+                        self._print_state(data, num_train, total_steps)
+                    loo_iter += 1
+                    total_steps += 1
 
     def predict(self, data, test_inputs, batch_size=None):
         """
@@ -145,13 +160,13 @@ class GaussianProcess:
 
         return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
 
-    def _print_state(self, data, num_train, iter_num):
+    def _print_state(self, data, num_train, total_steps):
         """Print the current state."""
         if num_train <= 100000:
             obj_func = self.session.run(self.obj_func, feed_dict={self.train_inputs: data.X,
                                                                   self.train_outputs: data.Y,
                                                                   self.num_train: num_train})
-            print(f"iter={iter_num!r} [epoch={data.epochs_completed!r}]", end=" ")
+            print(f"iter={total_steps!r} [epoch={data.epochs_completed!r}]", end=" ")
 
             for k in obj_func:
                 print(f"obj_func={k}, {obj_func[k]!r}")

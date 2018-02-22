@@ -120,12 +120,14 @@ class Variational:
                               kernel_chol, train_inputs, train_outputs)
         batch_size = tf.to_float(tf.shape(train_inputs)[0])
         nelbo = -((batch_size / num_train) * (entropy + cross_ent) + ell)
+        loo_loss = self._build_loo_loss(weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs,
+                                        train_outputs)
 
         # Finally, build the prediction function.
         predictions = self._build_predict(weights, means, chol_covars, inducing_inputs,
                                           kernel_chol, test_inputs)
 
-        return {'NELBO': tf.squeeze(nelbo)}, predictions
+        return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, predictions
 
     def _build_predict(self, weights, means, chol_covars, inducing_inputs, kernel_chol, test_inputs):
         """Construct predictive distribution
@@ -254,6 +256,29 @@ class Variational:
         cross_ent = tf.tensordot(weights, sum_val, 1)
 
         return cross_ent
+
+    def _build_loo_loss(self, weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
+        """Construct leave out one loss
+        Args:
+            weights: (num_components,)
+            means: shape: (num_components, num_latent, num_inducing)
+            chold_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
+            inducing_inputs: (num_latent, num_inducing, input_dim)
+            kernel_chol: (num_latent, num_inducing, num_inducing)
+            test_inputs: (batch_size, input_dim)
+            train_outputs: (batch_size, num_latent)
+        Returns:
+            LOO loss
+        """
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
+        loss = 0
+        latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
+        # output of log_cond_prob: (num_components, num_samples, batch_size, num_latent)
+        # shape of loss_by_component: (num_components, batch_size, num_latent)
+        loss_by_component = tf.reduce_mean(1.0 / (tf.exp(self.lik.log_cond_prob(
+            train_outputs, latent_samples)) + 1e-7), axis=1)
+        loss = tf.reduce_sum(weights[:, tf.newaxis, tf.newaxis] * loss_by_component, axis=0)
+        return tf.reduce_sum(tf.log(loss))
 
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
         """Construct the Expected Log Likelihood
