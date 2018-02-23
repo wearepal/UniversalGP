@@ -14,7 +14,7 @@ from .util import vec_to_tri
 from .util import ceil_divide
 from .util import get_flags
 from .util import log_cholesky_det
-from .util import diag_mul
+from .util import mul_sum
 from .util import mat_square
 from .util import matmul_br
 from .util import cholesky_solve_br
