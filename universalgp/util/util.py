@@ -132,8 +132,11 @@ def log_cholesky_det(chol):
     return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(chol)), axis=-1)
 
 
-def diag_mul(mat1, mat2):
-    return tf.reduce_sum(mat1 * tf.matrix_transpose(mat2), -1)
+def mul_sum(a, b, transpose_b=True):
+    if transpose_b:
+        return tf.reduce_sum(a * tf.matrix_transpose(b), -1)
+    else:
+        return tf.reduce_sum(a * b, -1)
 
 
 def mat_square(mat):

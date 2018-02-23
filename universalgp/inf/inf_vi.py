@@ -251,8 +251,8 @@ class Variational:
             # shape of trace: (num_components, num_latents)
             trace = tf.trace(util.cholesky_solve_br(kernel_chol, tf.matrix_diag(chol_covars)))
         else:
-            trace = tf.reduce_sum(util.diag_mul(util.cholesky_solve_br(kernel_chol, chol_covars),
-                                                tf.matrix_transpose(chol_covars)), axis=-1)
+            trace = tf.reduce_sum(util.mul_sum(util.cholesky_solve_br(kernel_chol, chol_covars),
+                                                chol_covars, transpose_b=False), axis=-1)
 
         # sum_val has the same shape as weights
         sum_val = tf.reduce_sum(util.CholNormal(means, kernel_chol).log_prob(0.0) - 0.5 * trace, -1)
@@ -329,7 +329,7 @@ class Variational:
             kern_prods[i] = tf.transpose(tf.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
             # We only need the diagonal components.
             kern_sums[i] = (self.cov[i].diag_cov_func(train_inputs) -
-                            util.diag_mul(kern_prods[i], ind_train_kern))
+                            util.mul_sum(kern_prods[i], ind_train_kern))
 
         kern_prods = tf.stack(kern_prods, 0)
         kern_sums = tf.stack(kern_sums, 0)
@@ -363,10 +363,10 @@ class Variational:
             sample_means (num_components, batch_size, num_latents), sample_vars (num_components, batch_size, num_latents)
         """
         if self.diag_post:
-            quad_form = util.diag_mul(kern_prods * chol_covars[..., tf.newaxis, :], tf.matrix_transpose(kern_prods))
+            quad_form = util.mul_sum(kern_prods * chol_covars[..., tf.newaxis, :], kern_prods, transpose_b=False)
         else:
             full_covar = util.mat_square(chol_covars)  # same shape as chol_covars
-            quad_form = util.diag_mul(util.matmul_br(kern_prods, full_covar), tf.matrix_transpose(kern_prods))
+            quad_form = util.mul_sum(util.matmul_br(kern_prods, full_covar), kern_prods, transpose_b=False)
         sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])  # (num_components, num_latents, batch_size, 1)
         sample_vars = tf.matrix_transpose(kern_sums + quad_form)  # (num_components, x, num_latents)
         return tf.matrix_transpose(tf.squeeze(sample_means, -1)), sample_vars
