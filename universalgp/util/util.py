@@ -132,11 +132,21 @@ def log_cholesky_det(chol):
     return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(chol)), axis=-1)
 
 
-def mul_sum(a, b, transpose_b=True):
-    if transpose_b:
-        return tf.reduce_sum(a * tf.matrix_transpose(b), -1)
-    else:
-        return tf.reduce_sum(a * b, -1)
+def mul_sum(a, b):
+    """Compute inner product in the last dimension of `a` and `b`. Equivalent to `sum(a * b, axis=-1)`.
+    
+    Args:
+        a: Tensor
+        b: Tensor with dimensions compatible with `a`.
+    Returns:
+        Tensor with last dimension reduced
+    """
+    # First, expand dimensions so that the last two dimensions can be interpreted as a matrix with
+    # dimensions (1, n) and (n, 1).
+    # Then do matrix multiplication so that last two dimensions are contracted to shape (1, 1)
+    prod = matmul_br(a[..., tf.newaxis, :], b[..., tf.newaxis])
+    # Finally, remove the last two dimensions which are both 1
+    return tf.squeeze(prod, axis=[-2, -1])
 
 
 def mat_square(mat):
