@@ -154,7 +154,7 @@ def main():
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 
-    print(f"length scale = {gp.get_variable_value('cov_se_parameters/length_scale')}")  # print final length scale
+    print("length scale = {}".format(gp.get_variable_value('cov_se_parameters/length_scale')))  # final length scale
     if FLAGS.plot:
         # Create predictions
         predictions_gen = gp.predict(input_fn=lambda: data['test_fn']().batch(len(data['xtest'])))
