@@ -38,6 +38,7 @@ tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
                            'Directory where the checkpoints and summaries are saved')
 tf.app.flags.DEFINE_boolean('plot', True, 'Whether to plot the result')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
+tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 
 
 def build_gaussian_process(features, labels, mode, params: dict):
@@ -142,7 +143,7 @@ def main():
             save_summary_steps=FLAGS.summary_steps,
             keep_checkpoint_max=5,
             log_step_count_steps=FLAGS.chkpnt_steps,
-            session_config=tf.ConfigProto(allow_soft_placement=True)))
+            session_config=tf.ConfigProto(gpu_options=tf.GPUOptions(visible_device_list=FLAGS.gpus))))
 
     # Settings for training
     trainer = tf.estimator.TrainSpec(input_fn=lambda: data['train_fn']().repeat(FLAGS.epochs).batch(FLAGS.batch_size),
