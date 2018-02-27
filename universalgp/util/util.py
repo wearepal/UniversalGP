@@ -163,15 +163,7 @@ def vec_to_tri(vectors):
     tensor where the lower triangle of each matrix_size x matrix_size matrix
     is constructed by unpacking each M-vector.
     """
-    M = vectors.shape[1].value
-    N = int(np.floor(0.5 * np.sqrt(M * 8. + 1) - 0.5))
-    assert N * (N + 1) == 2 * M  # check M is a valid triangle number.
-    indices = tf.constant(np.stack(np.tril_indices(N)).T, dtype=tf.int32)
-
-    def vec_to_tri_vector(vector):
-        return tf.scatter_nd(indices=indices, shape=[N, N], updates=vector)
-
-    return tf.map_fn(vec_to_tri_vector, vectors)
+    return tf.contrib.distributions.fill_triangular(vectors)
 
 
 def get_flags():
