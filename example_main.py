@@ -1,7 +1,7 @@
 """
 Main training loop for a Gaussian Process
 """
-from os import path
+from pathlib import Path
 import tensorflow as tf
 import numpy as np
 
@@ -39,6 +39,7 @@ tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
 tf.app.flags.DEFINE_boolean('plot', True, 'Whether to plot the result')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
+tf.app.flags.DEFINE_boolean('save_vars', False, 'Whether to save the trained variables as numpy arrays in the end')
 
 
 def build_gaussian_process(features, labels, mode, params: dict):
@@ -136,7 +137,7 @@ def main():
             'num_train': data['num_train'],
             'inducing_inputs': data['inducing_inputs'],
         },
-        model_dir=None if FLAGS.save_dir is None else path.join(FLAGS.save_dir, FLAGS.model_name),
+        model_dir=None if FLAGS.save_dir is None else str(Path(FLAGS.save_dir) / Path(FLAGS.model_name)),
         config=tf.estimator.RunConfig().replace(
             save_checkpoints_secs=None,
             save_checkpoints_steps=FLAGS.chkpnt_steps,
@@ -154,7 +155,10 @@ def main():
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 
-    print("length scale = {}".format(gp.get_variable_value('cov_se_parameters/length_scale')))  # final length scale
+    if FLAGS.save_vars and FLAGS.save_dir is not None:
+        print("Saving variables...")
+        var_collection = {name: gp.get_variable_value(name) for name in gp.get_variable_names()}
+        np.savez_compressed(Path(FLAGS.save_dir) / Path(FLAGS.model_name) / Path("vars"), **var_collection)
     if FLAGS.plot:
         # Create predictions
         predictions_gen = gp.predict(input_fn=lambda: data['test_fn']().batch(len(data['xtest'])))
