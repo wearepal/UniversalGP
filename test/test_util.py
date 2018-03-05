@@ -22,6 +22,11 @@ def matmul_br(tensor_a, tensor_b, transpose_b=False):
     return product.numpy()
 
 
+def vec_to_tri(vectors):
+    tri = util.vec_to_tri(tf.constant(vectors, dtype=tf.int32))
+    return tri.numpy()
+
+
 class TestBroadcast:
     def test_broadcast(self):
         a = np.array([1, 2, 3, 4])
@@ -93,3 +98,21 @@ class TestBroadcast:
                         [-15, -15],
                         [-15, -15]]]])
         np.testing.assert_equal(matmul_br(a, b), c)
+
+
+def test_vec_to_tri_3x3():
+    vectors = np.array([[1, 2, 3, 4, 5, 6]])
+    triangle = np.array([[[4, 0, 0],
+                          [6, 5, 0],
+                          [3, 2, 1]]])
+    np.testing.assert_equal(vec_to_tri(vectors), triangle)
+
+
+def test_vec_to_tri_5x5():
+    vectors = np.array([[[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]]])
+    triangle = np.array([[[[6, 0, 0, 0, 0],
+                           [11, 12, 0, 0, 0],
+                           [15, 14, 13, 0, 0],
+                           [10, 9, 8, 7, 0],
+                           [5, 4, 3, 2, 1]]]])
+    np.testing.assert_equal(vec_to_tri(vectors), triangle)
