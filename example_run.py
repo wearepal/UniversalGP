@@ -9,7 +9,7 @@ import universalgp
 
 FLAGS = tf.app.flags.FLAGS
 ### GP flags
-tf.app.flags.DEFINE_string('tf_mode', 'graph', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
+tf.app.flags.DEFINE_string('tf_mode', 'eager', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
 tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
 # tf.app.flags.DEFINE_string('data', 'mnist', 'Dataset to use')
 tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
@@ -50,6 +50,8 @@ def main(_):
     if FLAGS.tf_mode == 'graph':
         tf.logging.set_verbosity(tf.logging.INFO)
         train_func = universalgp.train_graph
+    if FLAGS.tf_mode == 'eager':
+        train_func = universalgp.train_eager
     else:
         ValueError('Unknown tf_mode: "{}"'.format(FLAGS.tf_mode))
     dataset = getattr(datasets, FLAGS.data)()
