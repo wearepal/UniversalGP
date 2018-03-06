@@ -14,3 +14,4 @@ from . import inf
 from . import util
 from . import datasets
 from . import train_graph
+from . import train_eager
