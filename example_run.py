@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 This file is mainly for defining flags and choosing the right dataset.
 """
