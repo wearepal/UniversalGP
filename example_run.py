@@ -31,7 +31,7 @@ tf.app.flags.DEFINE_boolean('loo', False, 'Whether to use the LOO loss')
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
 tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
 tf.app.flags.DEFINE_integer('train_steps', 500, 'Number of training steps')
-tf.app.flags.DEFINE_integer('epochs', 10000, 'Number of training epochs')
+tf.app.flags.DEFINE_integer('eval_epochs', 10000, 'Number of epochs between evaluations')
 tf.app.flags.DEFINE_integer('summary_steps', 100, 'How many steps between saving summary')
 tf.app.flags.DEFINE_integer('chkpnt_steps', 5000, 'How many steps between saving checkpoints')
 tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
