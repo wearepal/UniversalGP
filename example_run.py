@@ -29,6 +29,7 @@ tf.app.flags.DEFINE_integer('num_samples', 100, 'Number of samples for mean and 
 tf.app.flags.DEFINE_boolean('diag_post', False, 'Whether the Gaussian mixture uses diagonal covariance')
 tf.app.flags.DEFINE_boolean('optimize_inducing', True, 'Whether to optimize the inducing inputs in training')
 tf.app.flags.DEFINE_boolean('loo', False, 'Whether to use the LOO loss')
+tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
 tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
