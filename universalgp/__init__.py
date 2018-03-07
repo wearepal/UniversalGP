@@ -13,3 +13,4 @@ from . import lik
 from . import inf
 from . import util
 from . import datasets
+from . import train_graph
