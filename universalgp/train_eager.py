@@ -37,10 +37,6 @@ def run(dataset):
 
     optimizer = tf.train.RMSPropOptimizer(learning_rate=FLAGS.lr)
 
-    # Training steps for NELBO and for LOO
-    var_steps = 10
-    loo_steps = 10
-
     if FLAGS.save_dir is not None:
         out_dir = Path(FLAGS.save_dir) / Path(FLAGS.model_name)
         tf.gfile.MakeDirs(str(out_dir))
@@ -57,7 +53,7 @@ def run(dataset):
                 with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
                     global_step = tf.train.get_or_create_global_step()
                     start = time.time()
-                    train(inf_func, optimizer, dataset, hyper_params)
+                    train(inf_func, optimizer, dataset, hyper_params)  # train for one epoch
                     end = time.time()
                     step = global_step.numpy()
                 if epoch % FLAGS.eval_epochs == 0 or not step < FLAGS.train_steps:
@@ -95,11 +91,18 @@ def train(inf_func, optimizer, dataset, hyper_params):
         with tfe.GradientTape() as tape:
             obj_func, _, inf_params = inf_func.inference(inputs['input'], outputs, inputs['input'],
                                                          dataset['num_train'], dataset['inducing_inputs'])
-            loss = sum(obj_func.values())
-        # TODO: Allow alternating losses (just set `grads_and_params` differently depending on `global_step`).
         # Compute gradients
-        grads_and_params = zip(tape.gradient(loss, inf_params + hyper_params), inf_params + hyper_params)
-        # apply gradients
+        all_params = inf_params + hyper_params
+        if FLAGS.loo_steps is not None:
+            # Alternate loss between NELBO and LOO
+            # TODO: allow `nelbo_steps` to be different from `loo_steps`
+            if (global_step.numpy() // FLAGS.loo_steps) % 2 == 0:
+                grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
+            else:
+                grads_and_params = zip(tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
+        else:
+            grads_and_params = zip(tape.gradient(sum(obj_func.values()), all_params), all_params)
+        # Apply gradients
         optimizer.apply_gradients(grads_and_params, global_step=global_step)
 
         if FLAGS.logging_steps is not None and batch_num % FLAGS.logging_steps == 0:

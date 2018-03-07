@@ -80,9 +80,9 @@ def build_gaussian_process(features, labels, mode, params: dict):
     # if we want to use multiple loss functions, see the following:
     # https://github.com/tensorflow/tensorflow/issues/15773#issuecomment-356451902
     # in order to alternate the loss, the global step has to be taken into account (otherwise we stay on the same batch)
-    if 'LOO_VARIATIONAL' in obj_func:
+    if FLAGS.loo and FLAGS.loo_steps is not None:
         global_step = tf.train.get_global_step()
-        mask = tf.equal((global_step // 10) % 2, 0)
+        mask = tf.equal((global_step // FLAGS.loo_steps) % 2, 0)
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)
         loo_loss = tf.where(mask, 0.0, obj_func['LOO_VARIATIONAL'])
         train_nelbo = optimizer.minimize(nelbo_loss, global_step=global_step, var_list=inf_param + hyper_params)
