@@ -122,7 +122,7 @@ def run(data):
             session_config=tf.ConfigProto(gpu_options=tf.GPUOptions(visible_device_list=FLAGS.gpus))))
 
     # Settings for training
-    trainer = tf.estimator.TrainSpec(input_fn=lambda: data['train_fn']().repeat(FLAGS.epochs).batch(FLAGS.batch_size),
+    trainer = tf.estimator.TrainSpec(lambda: data['train_fn']().repeat(FLAGS.eval_epochs).batch(FLAGS.batch_size),
                                      max_steps=FLAGS.train_steps)
 
     # Settings for evaluation
