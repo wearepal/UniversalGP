@@ -1,45 +1,13 @@
 """
-Main training loop for a Gaussian Process
+Main training loop for a Gaussian Process based on a Tensorflow graph
 """
 from pathlib import Path
 import tensorflow as tf
 import numpy as np
 
-from universalgp import inf, cov, lik
-import datasets
+from . import inf, cov, lik, util
 
 FLAGS = tf.app.flags.FLAGS
-### GP flags
-tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
-# tf.app.flags.DEFINE_string('data', 'mnist', 'Dataset to use')
-tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
-# tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
-tf.app.flags.DEFINE_string('lik', 'LikelihoodGaussian', 'Likelihood function')
-# tf.app.flags.DEFINE_string('lik', 'LikelihoodSoftmax', 'Likelihood function')
-tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
-tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
-tf.app.flags.DEFINE_boolean('use_ard', True, 'Whether to use an automatic relevance determination kernel')
-tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial lenght scale for the kernel')
-tf.app.flags.DEFINE_string('metric', 'rmse', 'metric for evaluating the trained model')
-### Variational inference flags
-tf.app.flags.DEFINE_integer('num_components', 1, 'Number of mixture of Gaussians components')
-tf.app.flags.DEFINE_integer('num_samples', 100, 'Number of samples for mean and variance estimate of likelihood')
-tf.app.flags.DEFINE_boolean('diag_post', False, 'Whether the Gaussian mixture uses diagonal covariance')
-tf.app.flags.DEFINE_boolean('optimize_inducing', True, 'Whether to optimize the inducing inputs in training')
-tf.app.flags.DEFINE_boolean('loo', False, 'Whether to use the LOO loss')
-### Tensorflow flags
-tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
-tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
-tf.app.flags.DEFINE_integer('train_steps', 500, 'Number of training steps')
-tf.app.flags.DEFINE_integer('epochs', 10000, 'Number of training epochs')
-tf.app.flags.DEFINE_integer('summary_steps', 100, 'How many steps between saving summary')
-tf.app.flags.DEFINE_integer('chkpnt_steps', 5000, 'How many steps between saving checkpoints')
-tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
-                           'Directory where the checkpoints and summaries are saved')
-tf.app.flags.DEFINE_boolean('plot', True, 'Whether to plot the result')
-tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
-tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
-tf.app.flags.DEFINE_boolean('save_vars', False, 'Whether to save the trained variables as numpy arrays in the end')
 
 
 def build_gaussian_process(features, labels, mode, params: dict):
@@ -47,6 +15,14 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     This function is called 3 times to create 3 different graphs which share some variables. It is called with
     mode == TRAIN, mode == EVAL and mode == PREDICT.
+
+    Args:
+        features: the inputs (has to be decoded with `tf.feature_column.input_layer()`)
+        labels: the outputs
+        mode: TRAIN, EVAL or PREDICT
+        params: a dictionary of parameters
+    Returns:
+        a `tf.EstimatorSpec`
     """
     # Recover inputs
     inputs = tf.feature_column.input_layer(features, params['feature_columns'])
@@ -83,7 +59,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})
 
     # Get hyper parameters
-    hyper_params = [lik_func.get_params(), sum([k.get_params() for k in cov_func], [])]
+    hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
     # Compute evaluation metrics.
     if FLAGS.metric == 'rmse':
@@ -118,12 +94,11 @@ def build_gaussian_process(features, labels, mode, params: dict):
         tf.train.LoggingTensorHook(obj_func, every_n_iter=FLAGS.logging_steps)])
 
 
-def main():
+def run(data):
     """The main entry point
 
     This functions calls other functions as necessary to construct a graph and then runs the training loop.
     """
-    data = getattr(datasets, FLAGS.data)()
 
     # Feature columns describe how to use the input.
     my_feature_columns = [tf.feature_column.numeric_column(key='input', shape=data['input_dim'])]
@@ -169,23 +144,4 @@ def main():
             pred_var.append(prediction['var'])
         pred_mean = np.stack(pred_mean)
         pred_var = np.stack(pred_var)
-        from matplotlib import pyplot as plt
-        out_dims = len(data['ytrain'][0])
-        in_dim = 0
-        for i in range(out_dims):
-            plt.subplot(out_dims, 1, i + 1)
-            plt.plot(data['xtrain'][:, in_dim], data['ytrain'][:, i], '.', mew=2, label='trainings')
-            plt.plot(data['xtest'][:, in_dim], data['ytest'][:, i], 'o', mew=2, label='tests')
-            plt.plot(data['xtest'][:, in_dim], pred_mean[:, i], 'x', mew=2, label='predictions')
-
-            upper_bound = pred_mean[:, i] + 1.96 * np.sqrt(pred_var[:, i])
-            lower_bound = pred_mean[:, i] - 1.96 * np.sqrt(pred_var[:, i])
-
-            plt.fill_between(data['xtest'][:, in_dim], lower_bound, upper_bound, color='gray', alpha=.3, label='95% CI')
-        plt.legend(loc='lower left')
-        plt.show()
-
-
-if __name__ == '__main__':
-    tf.logging.set_verbosity(tf.logging.INFO)
-    main()
+        util.simple_1d(pred_mean, pred_var, data['xtrain'], data['ytrain'], data['xtest'], data['ytest'])
