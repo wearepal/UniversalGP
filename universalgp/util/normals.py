@@ -55,5 +55,5 @@ class DiagNormal(Normal):
         """
         dim = tf.to_float(tf.shape(self.mean)[-1])
         # the following could be replaced by tensordot except tensordot does not broadcast
-        quad_form = tf.reduce_sum(self.covar * (val - self.mean)**2, axis=-1)
+        quad_form = tf.reduce_sum((val - self.mean) ** 2 / self.covar, axis=-1)
         return -0.5 * (dim * tf.log(2.0 * np.pi) + tf.reduce_sum(tf.log(self.covar), -1) + quad_form)
