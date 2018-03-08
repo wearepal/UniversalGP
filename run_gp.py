@@ -58,7 +58,7 @@ def main(_):
     else:
         ValueError('Unknown tf_mode: "{}"'.format(FLAGS.tf_mode))
     dataset = getattr(datasets, FLAGS.data)()
-    train_func.run(dataset)
+    train_func.gp(dataset)
 
 
 if __name__ == '__main__':
