@@ -94,7 +94,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
         tf.train.LoggingTensorHook(obj_func, every_n_iter=FLAGS.logging_steps)])
 
 
-def run(data):
+def gp(data):
     """The main entry point
 
     This functions calls other functions as necessary to construct a graph and then runs the training loop.

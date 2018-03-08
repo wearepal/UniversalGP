@@ -13,7 +13,7 @@ from . import inf, util, cov, lik
 FLAGS = tf.app.flags.FLAGS
 
 
-def run(dataset):
+def gp(dataset):
     """
     The function is the main Gaussian Process model.
     """
@@ -53,7 +53,7 @@ def run(dataset):
                 with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
                     global_step = tf.train.get_or_create_global_step()
                     start = time.time()
-                    train(inf_func, optimizer, dataset, hyper_params)  # train for one epoch
+                    fit(inf_func, optimizer, dataset, hyper_params)  # train for one epoch
                     end = time.time()
                     step = global_step.numpy()
                 if epoch % FLAGS.eval_epochs == 0 or not step < FLAGS.train_steps:
@@ -72,7 +72,7 @@ def run(dataset):
                 util.simple_1d(mean, var, dataset['xtrain'], dataset['ytrain'], dataset['xtest'], dataset['ytest'])
 
 
-def train(inf_func, optimizer, dataset, hyper_params):
+def fit(inf_func, optimizer, dataset, hyper_params):
     """Trains model on `dataset` using `optimizer`.
 
     Args:
@@ -101,7 +101,7 @@ def train(inf_func, optimizer, dataset, hyper_params):
             else:
                 grads_and_params = zip(tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
         else:
-            grads_and_params = zip(tape.gradient(sum(obj_func.values()), all_params), all_params)
+            grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
         # Apply gradients
         optimizer.apply_gradients(grads_and_params, global_step=global_step)
 
