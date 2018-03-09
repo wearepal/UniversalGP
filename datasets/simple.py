@@ -5,6 +5,8 @@ Simple datasets for testing
 import numpy as np
 import tensorflow as tf
 
+from .definition import Dataset
+
 
 def simple_example():
     """Simple 1D example with synthetic data."""
@@ -15,17 +17,16 @@ def simple_example():
     xtrain, ytrain, xtest, ytest = _select_training_and_test(inputs, outputs, n_all, num_train)
     num_inducing = 50
 
-    return {'train_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
-            'test_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
-            'num_train': num_train,
-            'input_dim': 1,
-            'inducing_inputs': xtrain[::num_train // num_inducing],
-            'output_dim': 1,
-            'xtrain': xtrain,
-            'ytrain': ytrain,
-            'xtest': xtest,
-            'ytest': ytest,
-           }
+    return Dataset(train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
+                   test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
+                   num_train=num_train,
+                   input_dim=1,
+                   inducing_inputs=xtrain[::num_train // num_inducing],
+                   output_dim=1,
+                   xtrain=xtrain,
+                   ytrain=ytrain,
+                   xtest=xtest,
+                   ytest=ytest)
 
 
 def _const(arr):
@@ -54,17 +55,16 @@ def simple_multi_out():
 
     xtrain, ytrain, xtest, ytest = _select_training_and_test(inputs, outputs, n_all, num_train)
 
-    return {'train_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
-            'test_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
-            'num_train': num_train,
-            'input_dim': 1,
-            'inducing_inputs': xtrain[::num_train // num_inducing],
-            'output_dim': 2,
-            'xtrain': xtrain,
-            'ytrain': ytrain,
-            'xtest': xtest,
-            'ytest': ytest,
-           }
+    return Dataset(train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
+                   test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
+                   num_train=num_train,
+                   input_dim=1,
+                   inducing_inputs=xtrain[::num_train // num_inducing],
+                   output_dim=2,
+                   xtrain=xtrain,
+                   ytrain=ytrain,
+                   xtest=xtest,
+                   ytest=ytest)
 
 
 def simple_multi_in():
@@ -80,14 +80,13 @@ def simple_multi_in():
 
     xtrain, ytrain, xtest, ytest = _select_training_and_test(inputs, outputs, n_all, num_train)
 
-    return {'train_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
-            'test_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
-            'num_train': num_train,
-            'input_dim': 2,
-            'inducing_inputs': xtrain[::num_train // num_inducing],
-            'output_dim': 1,
-            'xtrain': xtrain,
-            'ytrain': ytrain,
-            'xtest': xtest,
-            'ytest': ytest,
-           }
+    return Dataset(train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
+                   test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtest)}, _const(ytest))),
+                   num_train=num_train,
+                   input_dim=2,
+                   inducing_inputs=xtrain[::num_train // num_inducing],
+                   output_dim=1,
+                   xtrain=xtrain,
+                   ytrain=ytrain,
+                   xtest=xtest,
+                   ytest=ytest)
