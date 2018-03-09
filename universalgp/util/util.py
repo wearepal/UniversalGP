@@ -125,7 +125,7 @@ def broadcast(tensor, tensor_with_target_shape):
 
 
 def ceil_divide(dividend, divisor):
-    return (dividend + divisor - 1) / divisor
+    return (dividend + divisor - 1) // divisor  # we must use "//" (integer division) instead of "/" here
 
 
 def log_cholesky_det(chol):
