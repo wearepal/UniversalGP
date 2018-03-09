@@ -26,8 +26,8 @@ def gp(dataset):
     print('Using device {}'.format(device))
 
     # Gather parameters
-    cov_func = [getattr(cov, FLAGS.cov)(dataset['input_dim'], FLAGS.length_scale, iso=not FLAGS.use_ard)
-                for _ in range(dataset['output_dim'])]
+    cov_func = [getattr(cov, FLAGS.cov)(dataset.input_dim, FLAGS.length_scale, iso=not FLAGS.use_ard)
+                for _ in range(dataset.output_dim)]
     lik_func = getattr(lik, FLAGS.lik)()
     inf_func = inf.Variational(cov_func, lik_func, FLAGS.diag_post, FLAGS.num_components, FLAGS.num_samples,
                                FLAGS.optimize_inducing, FLAGS.loo)
@@ -68,8 +68,8 @@ def gp(dataset):
                 np.savez_compressed(out_dir / Path("vars"), **var_collection)
             if FLAGS.plot:
                 # Create predictions
-                mean, var = predict(inf_func, dataset['xtest'], dataset)
-                util.simple_1d(mean, var, dataset['xtrain'], dataset['ytrain'], dataset['xtest'], dataset['ytest'])
+                mean, var = predict(inf_func, dataset.xtest, dataset)
+                util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
 
 
 def fit(inf_func, optimizer, dataset, hyper_params):
@@ -85,12 +85,12 @@ def fit(inf_func, optimizer, dataset, hyper_params):
     global_step = tf.train.get_or_create_global_step()
 
     start = time.time()
-    for (batch_num, (inputs, outputs)) in enumerate(tfe.Iterator(dataset['train_fn']().batch(FLAGS.batch_size))):
+    for (batch_num, (inputs, outputs)) in enumerate(tfe.Iterator(dataset.train_fn().batch(FLAGS.batch_size))):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
             obj_func, _, inf_params = inf_func.inference(inputs['input'], outputs, inputs['input'],
-                                                         dataset['num_train'], dataset['inducing_inputs'])
+                                                         dataset.num_train, dataset.inducing_inputs)
         # Compute gradients
         all_params = inf_params + hyper_params
         if FLAGS.loo_steps is not None:
@@ -131,9 +131,9 @@ def evaluate(inf_func, dataset):
             accuracy(tf.argmax(pred, axis=1, output_type=tf.int64), tf.cast(label, tf.int64))
         result = lambda accuracy: accuracy.result()
 
-    for (inputs, outputs) in tfe.Iterator(dataset['test_fn']().batch(FLAGS.batch_size)):
+    for (inputs, outputs) in tfe.Iterator(dataset.test_fn().batch(FLAGS.batch_size)):
         obj_func, predictions, _ = inf_func.inference(inputs['input'], outputs, inputs['input'],
-                                                      dataset['num_train'], dataset['inducing_inputs'])
+                                                      dataset.num_train, dataset.inducing_inputs)
         avg_loss(sum(obj_func.values()))
         # accuracy(tf.argmax(predictions, axis=1, output_type=tf.int64), tf.cast(outputs, tf.int64))
         update(metric, predictions[0], outputs)
@@ -146,7 +146,7 @@ def predict(inf_func, test_inputs, dataset, batch_size=None):
     Args:
         inf_func: inference function
         test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
-        dataset: subclass of tf.data.Dataset. The train inputs and outputs.
+        dataset: subclass of datasets.Dataset. The train inputs and outputs.
         batch_size: int. The size of the batches we make predictions on. If batch_size is None, predict on the
             entire test set at once.
 
@@ -163,12 +163,12 @@ def predict(inf_func, test_inputs, dataset, batch_size=None):
     pred_means = [0.0] * num_batches
     pred_vars = [0.0] * num_batches
 
-    for (inputs, outputs) in tfe.Iterator(dataset['train_fn']().batch(1).take(1)):
+    for (inputs, outputs) in tfe.Iterator(dataset.train_fn().batch(1).take(1)):
         train_input = inputs['input']
         train_output = outputs
     for i in range(num_batches):
-        _, predictions, _ = inf_func.inference(train_input, train_output, test_inputs[i], dataset['num_train'],
-                                               dataset['inducing_inputs'])
+        _, predictions, _ = inf_func.inference(train_input, train_output, test_inputs[i], dataset.num_train,
+                                               dataset.inducing_inputs)
         pred_means[i], pred_vars[i] = predictions
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)

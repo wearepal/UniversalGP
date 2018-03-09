@@ -7,6 +7,8 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 import sklearn.cluster
 
+from .definition import Dataset
+
 NUM_INDUCING = 100
 
 
@@ -23,10 +25,11 @@ def _init_z(train_inputs, num_inducing):
 def mnist():
     mnist = input_data.read_data_sets('./datasets/data/', one_hot=True)
 
-    return {'input_dim': 28 * 28,
-            'output_dim': 10,
-            'train_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.train.images}, mnist.train.labels)),
-            'test_fn': lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.test.images}, mnist.test.labels)),
-            'inducing_inputs': _init_z(mnist.train.images, NUM_INDUCING),
-            'num_train': mnist.train.num_examples,
-           }
+    return Dataset(
+        input_dim=28 * 28,
+        output_dim=10,
+        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.train.images}, mnist.train.labels)),
+        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.test.images}, mnist.test.labels)),
+        inducing_inputs=_init_z(mnist.train.images, NUM_INDUCING),
+        num_train=mnist.train.num_examples,
+    )

@@ -101,16 +101,16 @@ def gp(data):
     """
 
     # Feature columns describe how to use the input.
-    my_feature_columns = [tf.feature_column.numeric_column(key='input', shape=data['input_dim'])]
+    my_feature_columns = [tf.feature_column.numeric_column(key='input', shape=data.input_dim)]
 
     gp = tf.estimator.Estimator(
         model_fn=build_gaussian_process,
         params={
             'feature_columns': my_feature_columns,
-            'input_dim': data['input_dim'],
-            'output_dim': data['output_dim'],
-            'num_train': data['num_train'],
-            'inducing_inputs': data['inducing_inputs'],
+            'input_dim': data.input_dim,
+            'output_dim': data.output_dim,
+            'num_train': data.num_train,
+            'inducing_inputs': data.inducing_inputs,
         },
         model_dir=None if FLAGS.save_dir is None else str(Path(FLAGS.save_dir) / Path(FLAGS.model_name)),
         config=tf.estimator.RunConfig().replace(
@@ -122,11 +122,11 @@ def gp(data):
             session_config=tf.ConfigProto(gpu_options=tf.GPUOptions(visible_device_list=FLAGS.gpus))))
 
     # Settings for training
-    trainer = tf.estimator.TrainSpec(lambda: data['train_fn']().repeat(FLAGS.eval_epochs).batch(FLAGS.batch_size),
+    trainer = tf.estimator.TrainSpec(input_fn=lambda: data.train_fn().repeat(FLAGS.eval_epochs).batch(FLAGS.batch_size),
                                      max_steps=FLAGS.train_steps)
 
     # Settings for evaluation
-    evaluator = tf.estimator.EvalSpec(input_fn=lambda: data['test_fn']().batch(FLAGS.batch_size))
+    evaluator = tf.estimator.EvalSpec(input_fn=lambda: data.test_fn().batch(FLAGS.batch_size))
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 
@@ -136,7 +136,7 @@ def gp(data):
         np.savez_compressed(Path(FLAGS.save_dir) / Path(FLAGS.model_name) / Path("vars"), **var_collection)
     if FLAGS.plot:
         # Create predictions
-        predictions_gen = gp.predict(input_fn=lambda: data['test_fn']().batch(len(data['xtest'])))
+        predictions_gen = gp.predict(input_fn=lambda: data.test_fn().batch(len(data.xtest)))
         pred_mean = []
         pred_var = []
         for prediction in predictions_gen:
@@ -144,4 +144,4 @@ def gp(data):
             pred_var.append(prediction['var'])
         pred_mean = np.stack(pred_mean)
         pred_var = np.stack(pred_var)
-        util.simple_1d(pred_mean, pred_var, data['xtrain'], data['ytrain'], data['xtest'], data['ytest'])
+        util.simple_1d(pred_mean, pred_var, data.xtrain, data.ytrain, data.xtest, data.ytest)
