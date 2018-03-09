@@ -31,32 +31,22 @@ def build_gaussian_process(features, labels, mode, params: dict):
     cov_func = [getattr(cov, FLAGS.cov)(params['input_dim'], FLAGS.length_scale, iso=not FLAGS.use_ard)
                 for _ in range(params['output_dim'])]
     lik_func = getattr(lik, FLAGS.lik)()
-    inducing_inputs = params.get('inducing_inputs', None)
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        inducing_param = params['inducing_inputs']
+    else:  # when we're not training, we only need the shape of the inducing inputs
+        inducing_param = params['inducing_inputs'].shape[-2]
 
-    # Construct graph
-    if FLAGS.inf == 'Variational':
-        inf_func = inf.Variational(cov_func, lik_func)
-        labels = tf.constant(0.) if labels is None else labels
-        obj_func, preds, inf_param = inf_func.inference(inputs, labels, inputs, params['num_train'], inducing_inputs)
-    elif FLAGS.inf == 'Exact' or FLAGS.inf == 'Loo':
-        inf_func = getattr(inf, FLAGS.inf)(cov_func, lik_func)
-        # TODO: the following should be moved into the inference class
-        train_inputs = tf.get_variable('saved_train_inputs', [params['num_train'], inputs.shape[1]], trainable=False)
-        train_outputs = tf.get_variable('saved_train_outputs', [params['num_train'], 1], trainable=False)
-        if mode == tf.estimator.ModeKeys.TRAIN:
-            train_inputs = train_inputs.assign(inputs)
-            train_outputs = train_outputs.assign(labels)
-        elif mode == tf.estimator.ModeKeys.EVAL:
-            train_inputs, train_outputs = inputs, labels
-        obj_func, preds, inf_param = inf_func.inference(train_inputs, train_outputs, inputs, params['num_train'], None)
+    # Initialize GP
+    inf_func = getattr(inf, FLAGS.inf)(cov_func, lik_func, params['num_train'], inducing_param)
 
-    loss = sum(obj_func.values())
-    pred_mean, pred_var = preds
+    pred_mean, pred_var = inf_func.predict(inputs)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
-        # Only do prediction
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})
 
+    # Do inference
+    obj_func, inf_param = inf_func.inference(inputs, labels, mode == tf.estimator.ModeKeys.TRAIN)
+    loss = sum(obj_func.values())
     # Get hyper parameters
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
@@ -76,10 +66,8 @@ def build_gaussian_process(features, labels, mode, params: dict):
     assert mode == tf.estimator.ModeKeys.TRAIN
 
     optimizer = tf.train.RMSPropOptimizer(learning_rate=FLAGS.lr)
-    # if we want to use multiple loss functions, see the following:
-    # https://github.com/tensorflow/tensorflow/issues/15773#issuecomment-356451902
-    # in order to alternate the loss, the global step has to be taken into account (otherwise we stay on the same batch)
     if FLAGS.loo_steps is not None:
+        # Alternate the loss function
         global_step = tf.train.get_global_step()
         mask = tf.equal((global_step // FLAGS.loo_steps) % 2, 0)
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)

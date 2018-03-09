@@ -29,133 +29,145 @@ class Variational:
     Defines inference for Variational Inference
     """
 
-    def __init__(self, cov_func, lik_func, diag_post=None, num_components=None, num_samples=None,
-                 optimize_inducing=None, use_loo=None):
+    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, params=None):
+        """Create an instance of the variational inference class which will keep track of all variables.
+
+        Args:
+            cov_func: covariance function (kernel function)
+            lik_func: likelihood function
+            num_train: the number of training examples
+            inducing_inputs: the initial values for the inducing_inputs or just the number of inducing inputs
+            params: (optional) specifies parameters. if this is not provided then the parameters are taken from flags.
+        """
 
         # self.mean = mean_func
         self.cov = cov_func
         self.lik = lik_func
-
+        self.num_train = num_train
         self.num_latents = len(self.cov)
-        self.num_components = FLAGS.num_components if num_components is None else num_components
-        self.diag_post = FLAGS.diag_post if diag_post is None else diag_post
-        self.num_samples = FLAGS.num_samples if num_samples is None else num_samples
-        self.optimize_inducing = FLAGS.optimize_inducing if optimize_inducing is None else optimize_inducing
-        self.use_loo = FLAGS.use_loo if use_loo is None else use_loo
 
-    def inference(self, train_inputs, train_outputs, test_inputs, num_train, inducing_inputs):
-        """Build graph for computing negative evidence lower bound and predictive mean and variance
+        if params is None:
+            params = FLAGS
+        self.num_components = params.num_components
+        self.diag_post = params.diag_post
+        self.num_samples = params.num_samples
+        self.optimize_inducing = params.optimize_inducing
+        self.use_loo = params.use_loo
 
-        Args:
-            train_inputs: inputs
-            train_outputs: targets
-            num_train: the number of training examples
-            inducing_inputs: inducing inputs
-        Returns:
-            negative evidence lower bound and predictive mean and variance
-        """
-        # Repeat the inducing inputs for all latent processes if we haven't been given individually
-        # specified inputs per process.
-        if inducing_inputs.ndim == 2:
-            inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [self.num_latents, 1, 1])
-
-        num_inducing = inducing_inputs.shape[1]
-
-        # Define all parameters that get optimized directly in raw form. Some parameters get
-        # transformed internally to maintain certain pre-conditions.
-        raw_inducing_inputs = tf.get_variable("raw_inducing_inputs",
-                                              initializer=tf.constant(inducing_inputs, dtype=tf.float32))
-        zeros = tf.zeros_initializer(dtype=tf.float32)
-        raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
-        raw_means = tf.get_variable("raw_means", [self.num_components, self.num_latents, num_inducing],
-                                    initializer=zeros)
-        if self.diag_post:
-            raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents, num_inducing],
-                                         initializer=tf.ones_initializer())
+        # Initialize inducing inputs if they are provided
+        if isinstance(inducing_inputs, int):
+            # Only the number of inducing inputs is given -> just specify the shape
+            num_inducing = inducing_inputs
+            inducing_params = {'shape': [self.num_latents, num_inducing, self.cov[0].input_dim], 'dtype': tf.float32}
         else:
-            raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents] +
-                                         util.tri_vec_shape(num_inducing), initializer=zeros)
+            # Repeat the inducing inputs for all latent processes if we haven't
+            # been given individually specified inputs per process.
+            if inducing_inputs.ndim == 2:
+                inducing_inputs = np.tile(inducing_inputs[np.newaxis, :, :], [self.num_latents, 1, 1])
+            # Initialize with the given values
+            inducing_params = {'initializer': tf.constant(inducing_inputs, dtype=tf.float32)}
+            num_inducing = inducing_inputs.shape[-2]
 
-        # variables that will be changed during training
-        vars_to_train = [raw_means, raw_covars, raw_weights]
-        if self.optimize_inducing:
-            vars_to_train += [raw_inducing_inputs]
 
-        return self._build_inference_gr(raw_weights, raw_means, raw_covars, raw_inducing_inputs, train_inputs,
-                                        train_outputs, num_train, test_inputs) + (vars_to_train,)
+        # Initialize all variables
+        with tf.variable_scope("variational_inference"):
+            # Define all parameters that get optimized directly in raw form. Some parameters get
+            # transformed internally to maintain certain pre-conditions.
 
-    def _build_inference_gr(self,
-                            raw_weights,
-                            raw_means,
-                            raw_covars,
-                            raw_inducing_inputs,
-                            train_inputs,
-                            train_outputs,
-                            num_train,
-                            test_inputs):
+            self.inducing_inputs = tf.get_variable("inducing_inputs", **inducing_params)
 
-        # First transform all raw variables into their internal form.
+            zeros = tf.zeros_initializer(dtype=tf.float32)
+            self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
+            self.means = tf.get_variable("means", [self.num_components, self.num_latents, num_inducing],
+                                         initializer=zeros)
+            if self.diag_post:
+                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents, num_inducing],
+                                                  initializer=tf.ones_initializer())
+            else:
+                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents] +
+                                                  util.tri_vec_shape(num_inducing), initializer=zeros)
+
+    def _transform_variables(self):
+        """Transorm variables that were stored in a more compact form.
+
+        Doing it like this allows us to put certain constraints on the variables.
+        """
         # Use softmax(raw_weights) to keep all weights normalized.
-        weights = tf.exp(raw_weights) / tf.reduce_sum(tf.exp(raw_weights))
+        weights = tf.nn.softmax(self.raw_weights)
 
         if self.diag_post:
             # Use exp(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
-            chol_covars = tf.exp(raw_covars)
+            chol_covars = tf.exp(self.raw_covars)
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
             covars_list = [None] * self.num_components
             for i in range(self.num_components):
-                mat = util.vec_to_tri(raw_covars[i, :, :])
+                mat = util.vec_to_tri(self.raw_covars[i, :, :])
                 diag_mat = tf.matrix_diag(tf.matrix_diag_part(mat))
                 exp_diag_mat = tf.matrix_diag(tf.exp(tf.matrix_diag_part(mat)))
                 covars_list[i] = mat - diag_mat + exp_diag_mat
             chol_covars = tf.stack(covars_list, 0)
-        # Both inducing inputs and the posterior means can vary freely so don't change them.
-        means = raw_means
-        inducing_inputs = raw_inducing_inputs
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = [self.cov[i].cov_func(inducing_inputs[i, :, :])
-                      for i in range(self.num_latents)]
-        jitter = JITTER * tf.eye(tf.shape(inducing_inputs)[-2])
+        kernel_mat = tf.stack([self.cov[i].cov_func(self.inducing_inputs[i, :, :]) for i in range(self.num_latents)], 0)
+        jitter = JITTER * tf.eye(tf.shape(self.inducing_inputs)[-2])
 
-        kernel_chol = tf.stack([tf.cholesky(k + jitter) for k in kernel_mat], 0)
+        kernel_chol = tf.cholesky(kernel_mat + jitter)
+        return weights, chol_covars, kernel_chol
 
-        # Now build the objective function.
-        entropy = self._build_entropy(weights, means, chol_covars)
-        cross_ent = self._build_cross_ent(weights, means, chol_covars, kernel_chol)
-        ell = self._build_ell(weights, means, chol_covars, inducing_inputs,
-                              kernel_chol, train_inputs, train_outputs)
-        batch_size = tf.to_float(tf.shape(train_inputs)[0])
-        nelbo = -((batch_size / num_train) * (entropy + cross_ent) + ell)
-        loo_loss = self._build_loo_loss(weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs,
-                                        train_outputs)
 
-        # Finally, build the prediction function.
-        predictions = self._build_predict(weights, means, chol_covars, inducing_inputs,
-                                          kernel_chol, test_inputs)
-
-        if self.use_loo:
-            return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, predictions
-        else:
-            return {'NELBO': tf.squeeze(nelbo)}, predictions
-
-    def _build_predict(self, weights, means, chol_covars, inducing_inputs, kernel_chol, test_inputs):
-        """Construct predictive distribution
+    def inference(self, train_inputs, train_outputs, _):
+        """Build graph for computing negative evidence lower bound and predictive mean and variance
 
         Args:
-            weights: (num_components,)
-            means: shape: (num_components, num_latents, num_inducing)
-            chol_covars: shape: (num_components, num_latents, num_inducing[, num_inducing])
-            inducing_inputs: (num_latents, num_inducing, input_dim)
-            kernel_chol: (num_latents, num_inducing, num_inducing)
+            train_inputs: inputs
+            train_outputs: targets
+        Returns:
+            negative evidence lower bound and variables to train
+        """
+        # First transform all raw variables into their internal form.
+        weights, chol_covars, kernel_chol = self._transform_variables()
+
+        # Build the objective function.
+        entropy = self._build_entropy(weights, self.means, chol_covars)
+        cross_ent = self._build_cross_ent(weights, self.means, chol_covars, kernel_chol)
+        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol, train_inputs,
+                              train_outputs)
+        batch_size = tf.to_float(tf.shape(train_inputs)[0])
+        nelbo = -((batch_size / self.num_train) * (entropy + cross_ent) + ell)
+        loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
+                                        train_inputs, train_outputs)
+
+        # Variables that will be changed during training
+        vars_to_train = [self.means, self.raw_covars, self.raw_weights]
+        if self.optimize_inducing:
+            vars_to_train += [self.inducing_inputs]
+
+        if self.use_loo:
+            return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
+        else:
+            return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
+
+    def predict(self, test_inputs):
+        """Construct predictive distribution
+
+        weights: (num_components,)
+        means: shape: (num_components, num_latents, num_inducing)
+        chol_covars: shape: (num_components, num_latents, num_inducing[, num_inducing])
+        inducing_inputs: (num_latents, num_inducing, input_dim)
+        kernel_chol: (num_latents, num_inducing, num_inducing)
+
+        Args:
             test_inputs: (batch_size, input_dim)
         Returns:
             means and variances of the predictive distribution
         """
-        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, test_inputs)
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, chol_covars)
+        # Transform all raw variables into their internal form.
+        weights, chol_covars, kernel_chol = self._transform_variables()
+
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, self.inducing_inputs, test_inputs)
+        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, self.means, chol_covars)
         pred_means, pred_vars = self.lik.predict(sample_means, sample_vars)
 
         # Compute the mean and variance of the gaussian mixture from their components.
@@ -377,3 +389,7 @@ class Variational:
         sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])  # (num_components, num_latents, batch_size, 1)
         sample_vars = tf.matrix_transpose(kern_sums + quad_form)  # (num_components, x, num_latents)
         return tf.matrix_transpose(tf.squeeze(sample_means, -1)), sample_vars
+
+    def get_all_variables(self):
+        """Returns all variables, not just the ones that are trained."""
+        return [self.means, self.raw_covars, self.raw_weights, self.inducing_inputs]

@@ -5,6 +5,7 @@ This file is mainly for defining flags and choosing the right dataset.
 """
 import sys
 import tensorflow as tf
+import tensorflow.contrib.eager as tfe
 
 import datasets
 import universalgp
@@ -49,6 +50,7 @@ def main(_):
         train_func = universalgp.train_graph
     if FLAGS.tf_mode == 'eager':
         train_func = universalgp.train_eager
+        tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
     else:
         ValueError('Unknown tf_mode: "{}"'.format(FLAGS.tf_mode))
     dataset = getattr(datasets, FLAGS.data)()
