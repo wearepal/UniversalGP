@@ -35,8 +35,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     # Construct graph
     if FLAGS.inf == 'Variational':
-        inf_func = inf.Variational(cov_func, lik_func, FLAGS.diag_post, FLAGS.num_components, FLAGS.num_samples,
-                                   FLAGS.optimize_inducing, FLAGS.loo)
+        inf_func = inf.Variational(cov_func, lik_func)
         labels = tf.constant(0.) if labels is None else labels
         obj_func, preds, inf_param = inf_func.inference(inputs, labels, inputs, params['num_train'], inducing_inputs)
     elif FLAGS.inf == 'Exact' or FLAGS.inf == 'Loo':
@@ -80,7 +79,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
     # if we want to use multiple loss functions, see the following:
     # https://github.com/tensorflow/tensorflow/issues/15773#issuecomment-356451902
     # in order to alternate the loss, the global step has to be taken into account (otherwise we stay on the same batch)
-    if FLAGS.loo and FLAGS.loo_steps is not None:
+    if FLAGS.loo_steps is not None:
         global_step = tf.train.get_global_step()
         mask = tf.equal((global_step // FLAGS.loo_steps) % 2, 0)
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)

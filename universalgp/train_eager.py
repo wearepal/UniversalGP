@@ -29,8 +29,7 @@ def gp(dataset):
     cov_func = [getattr(cov, FLAGS.cov)(dataset.input_dim, FLAGS.length_scale, iso=not FLAGS.use_ard)
                 for _ in range(dataset.output_dim)]
     lik_func = getattr(lik, FLAGS.lik)()
-    inf_func = inf.Variational(cov_func, lik_func, FLAGS.diag_post, FLAGS.num_components, FLAGS.num_samples,
-                               FLAGS.optimize_inducing, FLAGS.loo)
+    inf_func = inf.Variational(cov_func, lik_func)
 
     # Get hyper parameters
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])

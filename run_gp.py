@@ -23,12 +23,6 @@ tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
 tf.app.flags.DEFINE_boolean('use_ard', True, 'Whether to use an automatic relevance determination kernel')
 tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial lenght scale for the kernel')
 tf.app.flags.DEFINE_string('metric', 'rmse', 'metric for evaluating the trained model')
-### Variational inference flags
-tf.app.flags.DEFINE_integer('num_components', 1, 'Number of mixture of Gaussians components')
-tf.app.flags.DEFINE_integer('num_samples', 100, 'Number of samples for mean and variance estimate of likelihood')
-tf.app.flags.DEFINE_boolean('diag_post', False, 'Whether the Gaussian mixture uses diagonal covariance')
-tf.app.flags.DEFINE_boolean('optimize_inducing', True, 'Whether to optimize the inducing inputs in training')
-tf.app.flags.DEFINE_boolean('loo', False, 'Whether to use the LOO loss')
 tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
