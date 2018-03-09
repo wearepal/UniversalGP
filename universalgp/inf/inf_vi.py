@@ -11,30 +11,37 @@ from .. import util
 
 JITTER = 1e-2
 
+FLAGS = tf.app.flags.FLAGS
+tf.app.flags.DEFINE_integer('num_components', 1,
+                            'Number of mixture of Gaussians components')
+tf.app.flags.DEFINE_integer('num_samples', 100,
+                            'Number of samples for mean and variance estimate of likelihood')
+tf.app.flags.DEFINE_boolean('diag_post', False,
+                            'Whether the posterior is diagonal or not')
+tf.app.flags.DEFINE_boolean('optimize_inducing', True,
+                            'Whether to optimize the inducing inputs in training')
+tf.app.flags.DEFINE_boolean('use_loo', False,
+                            'Whether to use the LOO (leave one out) loss for hyper parameter optimization')
+
 
 class Variational:
     """
-    num_components : int
-        The number of mixture of Gaussian components (It can be considered except exact inference).
-        For standard GP, num_components = 1
-    diag_post : bool
-        True if the mixture of Gaussians uses a diagonal covariance, False otherwise.
+    Defines inference for Variational Inference
     """
 
-    def __init__(self, cov_func, lik_func, diag_post=False, num_components=1, num_samples=100, optimize_inducing=True,
-                 use_loo=False):
+    def __init__(self, cov_func, lik_func, diag_post=None, num_components=None, num_samples=None,
+                 optimize_inducing=None, use_loo=None):
 
         # self.mean = mean_func
         self.cov = cov_func
         self.lik = lik_func
 
-        self.num_components = num_components
         self.num_latents = len(self.cov)
-        # Save whether our posterior is diagonal or not.
-        self.diag_post = diag_post
-        self.num_samples = num_samples
-        self.optimize_inducing = optimize_inducing
-        self.use_loo = use_loo
+        self.num_components = FLAGS.num_components if num_components is None else num_components
+        self.diag_post = FLAGS.diag_post if diag_post is None else diag_post
+        self.num_samples = FLAGS.num_samples if num_samples is None else num_samples
+        self.optimize_inducing = FLAGS.optimize_inducing if optimize_inducing is None else optimize_inducing
+        self.use_loo = FLAGS.use_loo if use_loo is None else use_loo
 
     def inference(self, train_inputs, train_outputs, test_inputs, num_train, inducing_inputs):
         """Build graph for computing negative evidence lower bound and predictive mean and variance
