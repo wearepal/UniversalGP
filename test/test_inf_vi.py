@@ -1,3 +1,4 @@
+from collections import namedtuple
 import numpy as np
 import scipy.misc
 import scipy.stats
@@ -14,6 +15,7 @@ except ValueError:
 
 
 SIG_FIGS = 5
+PARAMS = namedtuple('vi_params', ['num_components', 'diag_post', 'num_samples', 'optimize_inducing', 'use_loo'])
 
 
 def build_entropy(inf, weights, means, covars):
@@ -55,7 +57,9 @@ def construct_simple_full():
     likelihood = lik.LikelihoodGaussian(1.0)
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
     # In most of our unit test, we will replace this value with something else.
-    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1)
+    return inference.Variational(kernel, likelihood, 1, 1,
+                                 PARAMS(num_samples=10, num_components=1, diag_post=False, optimize_inducing=True,
+                                        use_loo=False))
 
 class TestSimpleFull:
     def test_simple_entropy(self):
@@ -169,7 +173,9 @@ class TestSimpleFull:
 def construct_simple_diag():
     likelihood = lik.LikelihoodGaussian(1.0)
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
-    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernel, num_components=1, diag_post=True)
+    return inference.Variational(kernel, likelihood, 1, 1,
+                                 PARAMS(num_samples=10, num_components=1, diag_post=True, optimize_inducing=True,
+                                        use_loo=False))
 
 
 class TestSimpleDiag:
@@ -247,7 +253,9 @@ class TestSimpleDiag:
 def construct_multi_full():
     likelihood = lik.LikelihoodSoftmax()
     kernels = [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0) for _ in range(2)]
-    return inference.Variational(num_samples=10, lik_func=likelihood, cov_func=kernels, num_components=2)
+    return inference.Variational(kernels, likelihood, 1, 1,
+                                 PARAMS(num_samples=10, num_components=2, diag_post=False, optimize_inducing=True,
+                                        use_loo=False))
 
 
 class TestMultiFull:

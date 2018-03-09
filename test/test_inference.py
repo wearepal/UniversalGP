@@ -1,3 +1,4 @@
+from collections import namedtuple
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
@@ -18,23 +19,26 @@ def construct_input():
     train_inputs = tf.constant([[-1], [1]], dtype=tf.float32)
     train_outputs = tf.constant([[1], [-1]], dtype=tf.float32)
     test_inputs = tf.constant([[0]], dtype=tf.float32)
-    num_train = tf.constant(2, tf.float32)
+    num_train = 2
     inducing_inputs = np.array([[-1], [1]])
-    return [train_inputs, train_outputs, test_inputs, num_train, inducing_inputs]
+    return train_inputs, train_outputs, test_inputs, num_train, inducing_inputs
 
 
 def test_variational_complete():
     # construct objects
+    train_inputs, train_outputs, test_inputs, num_train, inducing_inputs = construct_input()
+    vi_params = namedtuple('vi_params', ['num_components', 'diag_post', 'num_samples', 'optimize_inducing', 'use_loo'])
     likelihood = lik.LikelihoodGaussian(1.0)
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=0.5, sf=1.0)]
-    vi = inference.Variational(num_samples=5000000, lik_func=likelihood, cov_func=kernel, num_components=1,
-                               optimize_inducing=False, use_loo=True)
+    vi = inference.Variational(kernel, likelihood, num_train, inducing_inputs,
+                               vi_params(num_samples=5000000, num_components=1, optimize_inducing=False, use_loo=True,
+                                         diag_post=False))
 
     # compute losses and predictions
-    losses, preds, _ = vi.inference(*construct_input())
+    losses, _ = vi.inference(train_inputs, train_outputs, True)
     nelbo = losses['NELBO']
     loo = losses['LOO_VARIATIONAL']
-    pred_mean, pred_var = preds
+    pred_mean, pred_var = vi.predict(test_inputs)
 
     # check results
     np.testing.assert_almost_equal(nelbo.numpy(), 4.1, decimal=1)
@@ -45,14 +49,15 @@ def test_variational_complete():
 
 def test_exact_complete():
     # construct objects
+    train_inputs, train_outputs, test_inputs, num_train, _ = construct_input()
     likelihood = lik.LikelihoodGaussian(1.0)
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=0.5, sf=1.0)]
-    exact = inference.Exact(lik_func=likelihood, cov_func=kernel)
+    exact = inference.Exact(kernel, likelihood, num_train)
 
     # compute losses and predictions
-    losses, preds, _ = exact.inference(*construct_input())
+    losses, _ = exact.inference(train_inputs, train_outputs, True)
     nlml = losses['NLML']
-    pred_mean, pred_var = preds
+    pred_mean, pred_var = exact.predict(test_inputs)
 
     # check results
     np.testing.assert_almost_equal(nlml.numpy(), 2.34046, SIG_FIGS)

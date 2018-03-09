@@ -17,7 +17,6 @@ def gp(dataset):
     """
     The function is the main Gaussian Process model.
     """
-    tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no need for a session)
 
     # Select device
     device = '/gpu:' + FLAGS.gpus
@@ -29,95 +28,95 @@ def gp(dataset):
     cov_func = [getattr(cov, FLAGS.cov)(dataset.input_dim, FLAGS.length_scale, iso=not FLAGS.use_ard)
                 for _ in range(dataset.output_dim)]
     lik_func = getattr(lik, FLAGS.lik)()
-    inf_func = inf.Variational(cov_func, lik_func)
-
-    # Get hyper parameters
+    inf_class = getattr(inf, FLAGS.inf)
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
     optimizer = tf.train.RMSPropOptimizer(learning_rate=FLAGS.lr)
 
+    # Set checkpoint path
     if FLAGS.save_dir is not None:
         out_dir = Path(FLAGS.save_dir) / Path(FLAGS.model_name)
         tf.gfile.MakeDirs(str(out_dir))
     else:
         out_dir = Path(mkdtemp())  # Create temporary directory
     checkpoint_prefix = out_dir / Path('ckpt')
+    step_counter = tf.train.get_or_create_global_step()
+
+    # Restore from existing checkpoint
+    with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
+        inf_func = inf_class(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs)
 
     with tf.device(device):
-        store = tfe.EagerVariableStore()
-        with store.as_default():  # This is necessary because the `inf_func` object doesn't store the variables
-            step = 0
-            epoch = 1
-            while step < FLAGS.train_steps:
-                with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-                    global_step = tf.train.get_or_create_global_step()
-                    start = time.time()
-                    fit(inf_func, optimizer, dataset, hyper_params)  # train for one epoch
-                    end = time.time()
-                    step = global_step.numpy()
-                if epoch % FLAGS.eval_epochs == 0 or not step < FLAGS.train_steps:
-                    print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-                    evaluate(inf_func, dataset)
-                all_variables = (store.variables() + optimizer.variables() + [global_step] + hyper_params)
-                tfe.Saver(all_variables).save(checkpoint_prefix, global_step=global_step)
-                epoch += 1
+        step = 0
+        epoch = 1
+        while step < FLAGS.train_steps:
+            start = time.time()
+            fit(inf_func, optimizer, dataset.train_fn(), step_counter, hyper_params)  # train for one epoch
+            end = time.time()
+            step = step_counter.numpy()
+            if epoch % FLAGS.eval_epochs == 0 or not step < FLAGS.train_steps:
+                print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
+                evaluate(inf_func, dataset.test_fn())
+            if step % FLAGS.chkpnt_steps == 0 or not step < FLAGS.train_steps:
+                all_variables = (inf_func.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
+                tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
+            epoch += 1
 
-            if FLAGS.save_vars and FLAGS.save_dir is not None:
-                var_collection = {var.name: var.numpy() for var in store.variables() + hyper_params}
-                np.savez_compressed(out_dir / Path("vars"), **var_collection)
+        if FLAGS.save_vars and FLAGS.save_dir is not None:
+            var_collection = {var.name: var.numpy() for var in inf_func.get_all_variables() + hyper_params}
+            np.savez_compressed(out_dir / Path("vars"), **var_collection)
         if FLAGS.plot:
             # Create predictions
-            mean, var = predict(inf_func, dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, FLAGS.batch_size)
+            mean, var = predict(inf_class, cov_func, lik_func, dataset.num_train, dataset.inducing_inputs.shape[-2],
+                                dataset.xtest, tf.train.latest_checkpoint(out_dir), FLAGS.batch_size)
             util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
 
 
-def fit(inf_func, optimizer, dataset, hyper_params):
+def fit(inf_func, optimizer, train_data, step_counter, hyper_params):
     """Trains model on `dataset` using `optimizer`.
 
     Args:
         inf_func: inference function
         optimizer: tensorflow optimizer
-        dataset: training dataset
+        train_data: training dataset (instance of tf.data.Dataset)
+        step_counter: variable to keep track of the training step
         hyper_params: hyper params that should be updated during training
     """
 
-    global_step = tf.train.get_or_create_global_step()
-
     start = time.time()
-    for (batch_num, (inputs, outputs)) in enumerate(tfe.Iterator(dataset.train_fn().batch(FLAGS.batch_size))):
+    for (batch_num, (inputs, outputs)) in enumerate(tfe.Iterator(train_data.batch(FLAGS.batch_size))):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
-            obj_func, _, inf_params = inf_func.inference(inputs['input'], outputs, inputs['input'],
-                                                         dataset.num_train, dataset.inducing_inputs)
+            obj_func, inf_params = inf_func.inference(inputs['input'], outputs, True)
         # Compute gradients
         all_params = inf_params + hyper_params
         if FLAGS.loo_steps is not None:
             # Alternate loss between NELBO and LOO
             # TODO: allow `nelbo_steps` to be different from `loo_steps`
-            if (global_step.numpy() // FLAGS.loo_steps) % 2 == 0:
+            if (step_counter.numpy() // FLAGS.loo_steps) % 2 == 0:
                 grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
             else:
                 grads_and_params = zip(tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
         else:
             grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
         # Apply gradients
-        optimizer.apply_gradients(grads_and_params, global_step=global_step)
+        optimizer.apply_gradients(grads_and_params, global_step=step_counter)
 
         if FLAGS.logging_steps is not None and batch_num % FLAGS.logging_steps == 0:
-            print(f"Step #{global_step.numpy()} ({time.time() - start:.4f} sec)\t", end=' ')
+            print(f"Step #{step_counter.numpy()} ({time.time() - start:.4f} sec)\t", end=' ')
             for loss_name, loss_value in obj_func.items():
                 print('{}: {}'.format(loss_name, loss_value), end=' ')
             print("")
             start = time.time()
 
 
-def evaluate(inf_func, dataset):
+def evaluate(inf_func, test_data):
     """Perform an evaluation of `inf_func` on the examples from `dataset`.
 
     Args:
         inf_func: inference function
-        dataset: test dataset
+        test_data: test dataset (instance of tf.data.Dataset)
     """
     avg_loss = tfe.metrics.Mean('loss')
     if FLAGS.metric == 'rmse':
@@ -130,25 +129,26 @@ def evaluate(inf_func, dataset):
             accuracy(tf.argmax(pred, axis=1, output_type=tf.int64), tf.cast(label, tf.int64))
         result = lambda accuracy: accuracy.result()
 
-    for (inputs, outputs) in tfe.Iterator(dataset.test_fn().batch(FLAGS.batch_size)):
-        obj_func, predictions, _ = inf_func.inference(inputs['input'], outputs, inputs['input'],
-                                                      dataset.num_train, dataset.inducing_inputs)
+    for (inputs, outputs) in tfe.Iterator(test_data.batch(FLAGS.batch_size)):
+        obj_func, _ = inf_func.inference(inputs['input'], outputs, False)
+        pred_mean, _ = inf_func.predict(inputs['input'])
         avg_loss(sum(obj_func.values()))
-        # accuracy(tf.argmax(predictions, axis=1, output_type=tf.int64), tf.cast(outputs, tf.int64))
-        update(metric, predictions[0], outputs)
+        update(metric, pred_mean, outputs)
     print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), FLAGS.metric, result(metric)))
 
 
-def predict(inf_func, test_inputs, saved_model, dataset, batch_size=None):
-    """Predict outputs given inputs.
+def predict(inf_class, cov_func, lik_func, num_train, num_inducing, test_inputs, saved_model, batch_size=None):
+    """Predict outputs given test inputs.
 
     This function can be called from a different module and should still work.
 
     Args:
-        inf_func: inference function
+        inf_class: inference class
+        cov_func: covariance function
+        lik_func: likelihood function
+        num_inducing: the number of inducing inputs
         test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
         saved_model: path to saved model
-        dataset: subclass of datasets.Dataset. The train inputs and outputs.
         batch_size: int. The size of the batches we make predictions on. If batch_size is None, predict on the
             entire test set at once.
 
@@ -165,16 +165,11 @@ def predict(inf_func, test_inputs, saved_model, dataset, batch_size=None):
     pred_means = [0.0] * num_batches
     pred_vars = [0.0] * num_batches
 
-    # TODO: get rid of the dependency of the training data set
-    for (inputs, outputs) in tfe.Iterator(dataset.train_fn().batch(1).take(1)):
-        train_input = inputs['input']
-        train_output = outputs
     with tfe.restore_variables_on_create(saved_model):
-        store = tfe.EagerVariableStore()
-        with store.as_default():  # This is necessary because the `inf_func` object doesn't store the variables
-            for i in range(num_batches):
-                _, predictions, _ = inf_func.inference(train_input, train_output, test_inputs[i], dataset.num_train,
-                                                       dataset.inducing_inputs)
-                pred_means[i], pred_vars[i] = predictions
+        # Creating the inference object here will restore the variables from the saved model
+        inf_func = inf_class(cov_func, lik_func, num_train, num_inducing)
+
+    for i in range(num_batches):
+        pred_means[i], pred_vars[i] = inf_func.predict(test_inputs[i])
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
