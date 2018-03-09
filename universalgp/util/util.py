@@ -164,32 +164,3 @@ def vec_to_tri(vectors):
     is constructed by unpacking each M-vector.
     """
     return tf.contrib.distributions.fill_triangular(vectors)
-
-
-def get_flags():
-    flags = tf.app.flags
-    FLAGS = flags.FLAGS
-    flags.DEFINE_integer('batch_size', 100, 'Batch size.  '
-                                           'Must divide evenly into the dataset sizes.')
-    flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-    flags.DEFINE_integer('n_epochs', 10000, 'Number of passes through the data')
-    flags.DEFINE_integer('n_inducing', 240, 'Number of inducing points')
-    flags.DEFINE_integer('display_step', 500, 'Display progress every FLAGS.display_step iterations')
-    flags.DEFINE_integer('mc_train', 100, 'Number of Monte Carlo samples used to compute stochastic gradients')
-    flags.DEFINE_integer('mc_test', 100, 'Number of Monte Carlo samples for predictions')
-    flags.DEFINE_string('optimizer', "adagrad", 'Optimizer')
-    flags.DEFINE_boolean('is_ard', True, 'Using ARD kernel or isotropic')
-    flags.DEFINE_float('lengthscale', 10, 'Initial lengthscale')
-    flags.DEFINE_integer('var_steps', 50, 'Number of times spent optimizing the variational objective.')
-    flags.DEFINE_integer('loocv_steps', 50, 'Number of times spent optimizing the LOOCV objective.')
-    flags.DEFINE_float('opt_growth', 0.0, 'Percentage to grow the number of each optimizations.')
-    flags.DEFINE_integer('num_components', 1, 'Number of mixture components on posterior')
-    flags.DEFINE_string('kernel', 'rbf', 'kernel')
-    flags.DEFINE_string('device_name', 'gpu0', 'Device name')
-    flags.DEFINE_integer('kernel_degree', 0, 'Degree of arccosine kernel')
-    flags.DEFINE_integer('kernel_depth', 1, 'Depth of arcosine kernel')
-    flags.DEFINE_boolean('hyper_with_elbo', True, 'Optimize hyperparameters with elbo as well')
-    flags.DEFINE_boolean('normalize_features', False, 'Normalizes features')
-    flags.DEFINE_boolean('optimize_inducing', True, 'Optimize inducing inputs')
-    flags.DEFINE_float('latent_noise', 0.001, 'latent noise for Kernel matrices')
-    return FLAGS
