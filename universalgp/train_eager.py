@@ -65,10 +65,10 @@ def gp(dataset):
             if FLAGS.save_vars and FLAGS.save_dir is not None:
                 var_collection = {var.name: var.numpy() for var in store.variables() + hyper_params}
                 np.savez_compressed(out_dir / Path("vars"), **var_collection)
-            if FLAGS.plot:
-                # Create predictions
-                mean, var = predict(inf_func, dataset.xtest, dataset)
-                util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
+        if FLAGS.plot:
+            # Create predictions
+            mean, var = predict(inf_func, dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, FLAGS.batch_size)
+            util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
 
 
 def fit(inf_func, optimizer, dataset, hyper_params):
@@ -139,12 +139,15 @@ def evaluate(inf_func, dataset):
     print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), FLAGS.metric, result(metric)))
 
 
-def predict(inf_func, test_inputs, dataset, batch_size=None):
+def predict(inf_func, test_inputs, saved_model, dataset, batch_size=None):
     """Predict outputs given inputs.
+
+    This function can be called from a different module and should still work.
 
     Args:
         inf_func: inference function
         test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
+        saved_model: path to saved model
         dataset: subclass of datasets.Dataset. The train inputs and outputs.
         batch_size: int. The size of the batches we make predictions on. If batch_size is None, predict on the
             entire test set at once.
@@ -162,12 +165,16 @@ def predict(inf_func, test_inputs, dataset, batch_size=None):
     pred_means = [0.0] * num_batches
     pred_vars = [0.0] * num_batches
 
+    # TODO: get rid of the dependency of the training data set
     for (inputs, outputs) in tfe.Iterator(dataset.train_fn().batch(1).take(1)):
         train_input = inputs['input']
         train_output = outputs
-    for i in range(num_batches):
-        _, predictions, _ = inf_func.inference(train_input, train_output, test_inputs[i], dataset.num_train,
-                                               dataset.inducing_inputs)
-        pred_means[i], pred_vars[i] = predictions
+    with tfe.restore_variables_on_create(saved_model):
+        store = tfe.EagerVariableStore()
+        with store.as_default():  # This is necessary because the `inf_func` object doesn't store the variables
+            for i in range(num_batches):
+                _, predictions, _ = inf_func.inference(train_input, train_output, test_inputs[i], dataset.num_train,
+                                                       dataset.inducing_inputs)
+                pred_means[i], pred_vars[i] = predictions
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
