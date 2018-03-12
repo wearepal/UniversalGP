@@ -12,7 +12,6 @@ from .normals import DiagNormal
 from .util import tri_vec_shape
 from .util import vec_to_tri
 from .util import ceil_divide
-from .util import get_flags
 from .util import log_cholesky_det
 from .util import mul_sum
 from .util import mat_square
