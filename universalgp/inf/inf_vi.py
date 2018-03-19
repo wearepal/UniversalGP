@@ -70,7 +70,7 @@ class Variational:
 
 
         # Initialize all variables
-        with tf.variable_scope("variational_inference"):
+        with tf.variable_scope(None, "variational_inference"):
             # Define all parameters that get optimized directly in raw form. Some parameters get
             # transformed internally to maintain certain pre-conditions.
 

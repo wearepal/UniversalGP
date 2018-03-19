@@ -24,13 +24,6 @@ def gp(dataset):
         device = '/cpu:0'
     print('Using device {}'.format(device))
 
-    # Gather parameters
-    cov_func = [getattr(cov, FLAGS.cov)(dataset.input_dim, FLAGS.length_scale, iso=not FLAGS.use_ard)
-                for _ in range(dataset.output_dim)]
-    lik_func = getattr(lik, FLAGS.lik)()
-    inf_class = getattr(inf, FLAGS.inf)
-    hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
-
     optimizer = tf.train.RMSPropOptimizer(learning_rate=FLAGS.lr)
 
     # Set checkpoint path
@@ -44,7 +37,13 @@ def gp(dataset):
 
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-        inf_func = inf_class(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs)
+        # Gather parameters
+        cov_func = [getattr(cov, FLAGS.cov)(dataset.input_dim, FLAGS.length_scale, iso=not FLAGS.use_ard)
+                    for _ in range(dataset.output_dim)]
+        lik_func = getattr(lik, FLAGS.lik)()
+        hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
+
+        inf_func = getattr(inf, FLAGS.inf)(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs)
 
     with tf.device(device):
         step = 0
@@ -66,10 +65,12 @@ def gp(dataset):
             var_collection = {var.name: var.numpy() for var in inf_func.get_all_variables() + hyper_params}
             np.savez_compressed(out_dir / Path("vars"), **var_collection)
         if FLAGS.plot:
+            tf.reset_default_graph()
             # Create predictions
-            mean, var = predict(inf_class, cov_func, lik_func, dataset.num_train, dataset.inducing_inputs.shape[-2],
-                                dataset.xtest, tf.train.latest_checkpoint(out_dir), FLAGS.batch_size)
+            mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset.num_train,
+                                dataset.inducing_inputs.shape[-2], dataset.output_dim, FLAGS.batch_size)
             util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
+    return inf_func
 
 
 def fit(inf_func, optimizer, train_data, step_counter, hyper_params):
@@ -137,18 +138,17 @@ def evaluate(inf_func, test_data):
     print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), FLAGS.metric, result(metric)))
 
 
-def predict(inf_class, cov_func, lik_func, num_train, num_inducing, test_inputs, saved_model, batch_size=None):
+def predict(test_inputs, saved_model, num_train, num_inducing, output_dim, batch_size=None):
     """Predict outputs given test inputs.
 
     This function can be called from a different module and should still work.
 
     Args:
-        inf_class: inference class
-        cov_func: covariance function
-        lik_func: likelihood function
-        num_inducing: the number of inducing inputs
         test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
         saved_model: path to saved model
+        num_train: the number of training examples
+        num_inducing: the number of inducing inputs
+        output_dim: number of output dimensions
         batch_size: int. The size of the batches we make predictions on. If batch_size is None, predict on the
             entire test set at once.
 
@@ -161,13 +161,15 @@ def predict(inf_class, cov_func, lik_func, num_train, num_inducing, test_inputs,
     else:
         num_batches = util.ceil_divide(test_inputs.shape[0], batch_size)
 
+    with tfe.restore_variables_on_create(saved_model):
+        # Creating the inference object here will restore the variables from the saved model
+        cov_func = [getattr(cov, FLAGS.cov)(test_inputs.shape[1], iso=not FLAGS.use_ard) for _ in range(output_dim)]
+        lik_func = getattr(lik, FLAGS.lik)()
+        inf_func = getattr(inf, FLAGS.inf)(cov_func, lik_func, num_train, num_inducing)
+
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
     pred_vars = [0.0] * num_batches
-
-    with tfe.restore_variables_on_create(saved_model):
-        # Creating the inference object here will restore the variables from the saved model
-        inf_func = inf_class(cov_func, lik_func, num_train, num_inducing)
 
     for i in range(num_batches):
         pred_means[i], pred_vars[i] = inf_func.predict(test_inputs[i])
