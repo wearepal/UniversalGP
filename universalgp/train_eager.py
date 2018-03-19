@@ -13,7 +13,7 @@ from . import inf, util, cov, lik
 FLAGS = tf.app.flags.FLAGS
 
 
-def gp(dataset):
+def train_gp(dataset):
     """
     The function is the main Gaussian Process model.
     """
