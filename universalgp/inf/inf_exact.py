@@ -18,7 +18,7 @@ class Exact:
         self.cov = cov_func
         self.lik = lik_func
         self.sn = self.lik.get_params()[0]
-        with tf.variable_scope("exact_inference"):
+        with tf.variable_scope(None, "exact_inference"):
             self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim], trainable=False)
             self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)], trainable=False)
 
