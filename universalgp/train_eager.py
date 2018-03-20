@@ -94,6 +94,7 @@ def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
             obj_func, inf_params = gp.inference(inputs['input'], outputs, True)
+            loss = sum(obj_func.values())
         # Compute gradients
         all_params = inf_params + hyper_params
         if args['loo_steps'] is not None:
@@ -104,7 +105,7 @@ def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
             else:
                 grads_and_params = zip(tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
         else:
-            grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
+            grads_and_params = zip(tape.gradient(loss, all_params), all_params)
         # Apply gradients
         optimizer.apply_gradients(grads_and_params, global_step=step_counter)
 
