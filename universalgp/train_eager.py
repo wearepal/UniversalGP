@@ -67,12 +67,12 @@ def train_gp(dataset, args):
         if args['save_vars'] and args['save_dir'] is not None:
             var_collection = {var.name: var.numpy() for var in gp.get_all_variables() + hyper_params}
             np.savez_compressed(out_dir / Path("vars"), **var_collection)
-        if args['plot']:
+        if args['plot'] is not None:
             tf.reset_default_graph()
             # Create predictions
             mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset.num_train,
                                 dataset.inducing_inputs.shape[-2], dataset.output_dim, args)
-            util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
+            getattr(util.plot, args['plot'])(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
     return gp
 
 

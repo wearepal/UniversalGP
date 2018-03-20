@@ -18,4 +18,4 @@ from .util import mat_square
 from .util import matmul_br
 from .util import cholesky_solve_br
 from .util import broadcast
-from .plot import simple_1d
+from . import plot
