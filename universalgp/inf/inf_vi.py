@@ -11,7 +11,6 @@ from .. import util
 
 JITTER = 1e-2
 
-FLAGS = tf.app.flags.FLAGS
 tf.app.flags.DEFINE_integer('num_components', 1,
                             'Number of mixture of Gaussians components')
 tf.app.flags.DEFINE_integer('num_samples', 100,
@@ -29,7 +28,7 @@ class Variational:
     Defines inference for Variational Inference
     """
 
-    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, params=None):
+    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
         """Create an instance of the variational inference class which will keep track of all variables.
 
         Args:
@@ -37,7 +36,7 @@ class Variational:
             lik_func: likelihood function
             num_train: the number of training examples
             inducing_inputs: the initial values for the inducing_inputs or just the number of inducing inputs
-            params: (optional) specifies parameters. if this is not provided then the parameters are taken from flags.
+            args: additional parameters: num_components, diag_post, use_loo, num_samples, optimize_inducing
         """
 
         # self.mean = mean_func
@@ -45,14 +44,7 @@ class Variational:
         self.lik = lik_func
         self.num_train = num_train
         self.num_latents = len(self.cov)
-
-        if params is None:
-            params = FLAGS
-        self.num_components = params.num_components
-        self.diag_post = params.diag_post
-        self.num_samples = params.num_samples
-        self.optimize_inducing = params.optimize_inducing
-        self.use_loo = params.use_loo
+        self.args = args
 
         # Initialize inducing inputs if they are provided
         if isinstance(inducing_inputs, int):
@@ -68,7 +60,7 @@ class Variational:
             inducing_params = {'initializer': tf.constant(inducing_inputs, dtype=tf.float32)}
             num_inducing = inducing_inputs.shape[-2]
 
-
+        num_components = args['num_components']
         # Initialize all variables
         with tf.variable_scope(None, "variational_inference"):
             # Define all parameters that get optimized directly in raw form. Some parameters get
@@ -77,14 +69,13 @@ class Variational:
             self.inducing_inputs = tf.get_variable("inducing_inputs", **inducing_params)
 
             zeros = tf.zeros_initializer(dtype=tf.float32)
-            self.raw_weights = tf.get_variable("raw_weights", [self.num_components], initializer=zeros)
-            self.means = tf.get_variable("means", [self.num_components, self.num_latents, num_inducing],
-                                         initializer=zeros)
-            if self.diag_post:
-                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents, num_inducing],
+            self.raw_weights = tf.get_variable("raw_weights", [num_components], initializer=zeros)
+            self.means = tf.get_variable("means", [num_components, self.num_latents, num_inducing], initializer=zeros)
+            if args['diag_post']:
+                self.raw_covars = tf.get_variable("raw_covars", [num_components, self.num_latents, num_inducing],
                                                   initializer=tf.ones_initializer())
             else:
-                self.raw_covars = tf.get_variable("raw_covars", [self.num_components, self.num_latents] +
+                self.raw_covars = tf.get_variable("raw_covars", [num_components, self.num_latents] +
                                                   util.tri_vec_shape(num_inducing), initializer=zeros)
 
     def _transform_variables(self):
@@ -95,14 +86,14 @@ class Variational:
         # Use softmax(raw_weights) to keep all weights normalized.
         weights = tf.nn.softmax(self.raw_weights)
 
-        if self.diag_post:
+        if self.args['diag_post']:
             # Use exp(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
             chol_covars = tf.exp(self.raw_covars)
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
-            covars_list = [None] * self.num_components
-            for i in range(self.num_components):
+            covars_list = [None] * self.args['num_components']
+            for i in range(self.args['num_components']):
                 mat = util.vec_to_tri(self.raw_covars[i, :, :])
                 diag_mat = tf.matrix_diag(tf.matrix_diag_part(mat))
                 exp_diag_mat = tf.matrix_diag(tf.exp(tf.matrix_diag_part(mat)))
@@ -141,10 +132,10 @@ class Variational:
 
         # Variables that will be changed during training
         vars_to_train = [self.means, self.raw_covars, self.raw_weights]
-        if self.optimize_inducing:
+        if self.args['optimize_inducing']:
             vars_to_train += [self.inducing_inputs]
 
-        if self.use_loo:
+        if self.args['use_loo']:
             return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
         else:
             return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
@@ -229,7 +220,7 @@ class Variational:
         chol_component_covar = chol_covars
 
         # First build a square matrix of normals.
-        if self.diag_post:
+        if self.args['diag_post']:
             # construct normal distributions for all combinations of components
             chol_normal = util.DiagNormal(component_mean, chol_component_covar[tf.newaxis, ...] +
                                           chol_component_covar[:, tf.newaxis, ...])
@@ -263,7 +254,7 @@ class Variational:
         Returns:
             Cross entropy as scalar
         """
-        if self.diag_post:
+        if self.args['diag_post']:
             # TODO(karl): this is a bit inefficient since we're not making use of the fact
             # that chol_covars is diagonal. A solution most likely involves a custom tf op.
 
@@ -325,7 +316,7 @@ class Variational:
 
         # dot product
         ell = tf.tensordot(weights, ell_by_compontent, 1)
-        return ell / self.num_samples
+        return ell / self.args['num_samples']
 
     def _build_interim_vals(self, kernel_chol, inducing_inputs, train_inputs):
         """Helper function for `_build_ell`
@@ -368,7 +359,7 @@ class Variational:
         sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means, chol_covars)
         batch_size = tf.shape(sample_means)[-2]
         return (sample_means[:, tf.newaxis, ...] + tf.sqrt(sample_vars)[:, tf.newaxis, ...] *
-                tf.random_normal([self.num_components, self.num_samples, batch_size, self.num_latents]))
+                tf.random_normal([self.args['num_components'], self.args['num_samples'], batch_size, self.num_latents]))
 
     def _build_sample_info(self, kern_prods, kern_sums, means, chol_covars):
         """Get means and variances of a distribution
@@ -379,14 +370,15 @@ class Variational:
             means: (num_components, num_latents, num_inducing)
             chol_covars: (num_components, num_latents, num_inducing[, num_inducing])
         Returns:
-            sample_means (num_components, batch_size, num_latents), sample_vars (num_components, batch_size, num_latents)
+            sample_means (num_components, batch_size, num_latents),
+            sample_vars (num_components, batch_size, num_latents)
         """
-        if self.diag_post:
+        if self.args['diag_post']:
             quad_form = util.mul_sum(kern_prods * chol_covars[..., tf.newaxis, :], kern_prods)
         else:
             full_covar = util.mat_square(chol_covars)  # same shape as chol_covars
             quad_form = util.mul_sum(util.matmul_br(kern_prods, full_covar), kern_prods)
-        sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])  # (num_components, num_latents, batch_size, 1)
+        sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])  # (num_components, num_latents, batch_size,1)
         sample_vars = tf.matrix_transpose(kern_sums + quad_form)  # (num_components, x, num_latents)
         return tf.matrix_transpose(tf.squeeze(sample_means, -1)), sample_vars
 
