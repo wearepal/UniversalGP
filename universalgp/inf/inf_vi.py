@@ -1,9 +1,5 @@
 """
-Created on Mon Jan 29 12:41:54 2018
-
-@author: zc223
-
-Usage: make variational inference for generic Gaussian process models
+Variational inference for generic Gaussian process models
 """
 import tensorflow as tf
 import numpy as np
@@ -262,7 +258,7 @@ class Variational:
             trace = tf.trace(util.cholesky_solve_br(kernel_chol, tf.matrix_diag(chol_covars)))
         else:
             trace = tf.reduce_sum(util.mul_sum(util.cholesky_solve_br(kernel_chol, chol_covars),
-                                                chol_covars), axis=-1)
+                                               chol_covars), axis=-1)
 
         # sum_val has the same shape as weights
         sum_val = tf.reduce_sum(util.CholNormal(means, kernel_chol).log_prob(0.0) - 0.5 * trace, -1)
