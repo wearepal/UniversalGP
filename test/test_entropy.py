@@ -2,7 +2,6 @@
 Test for computation of entropy
 """
 
-from collections import namedtuple
 import numpy as np
 import scipy.linalg as sl
 import scipy.special
@@ -46,12 +45,10 @@ def mat_square(mat):
 
 def construct_inf(input_dim, num_latents, num_components):
     """Construct a very basic inference object"""
-    vi_params = namedtuple('vi_params', ['num_components', 'diag_post', 'num_samples', 'optimize_inducing', 'use_loo'])
     lik = universalgp.lik.LikelihoodGaussian()
     cov = [universalgp.cov.SquaredExponential(input_dim) for _ in range(num_latents)]
-    return universalgp.inf.Variational(cov, lik, 1, 1,
-                                       vi_params(num_samples=10, num_components=num_components, diag_post=False,
-                                                 optimize_inducing=True, use_loo=False))
+    return universalgp.inf.Variational(cov, lik, 1, 1, {'num_components': num_components, 'optimize_inducing': True,
+                                                        'num_samples': 10, 'diag_post': False, 'use_loo': False})
 
 
 def tf_constant(np_array):
