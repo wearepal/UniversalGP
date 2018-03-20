@@ -125,7 +125,7 @@ def train_gp(data, args):
         print("Saving variables...")
         var_collection = {name: gp.get_variable_value(name) for name in gp.get_variable_names()}
         np.savez_compressed(Path(args['save_dir']) / Path(args['model_name']) / Path("vars"), **var_collection)
-    if args['plot']:
+    if args['plot'] is not None:
         # Create predictions
         predictions_gen = gp.predict(input_fn=lambda: data.test_fn().batch(len(data.xtest)))
         pred_mean = []
@@ -135,5 +135,5 @@ def train_gp(data, args):
             pred_var.append(prediction['var'])
         pred_mean = np.stack(pred_mean)
         pred_var = np.stack(pred_var)
-        util.simple_1d(pred_mean, pred_var, data.xtrain, data.ytrain, data.xtest, data.ytest)
+        getattr(util.plot, args['plot'])(pred_mean, pred_var, data.xtrain, data.ytrain, data.xtest, data.ytest)
     return gp

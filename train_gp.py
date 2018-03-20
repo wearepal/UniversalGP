@@ -34,7 +34,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100, 'How many steps between saving
 tf.app.flags.DEFINE_integer('chkpnt_steps', 5000, 'How many steps between saving checkpoints')
 tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
                            'Directory where the checkpoints and summaries are saved')
-tf.app.flags.DEFINE_boolean('plot', True, 'Whether to plot the result')
+tf.app.flags.DEFINE_string('plot', 'simple_1d', 'Which function to use for plotting (or None)')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.app.flags.DEFINE_boolean('save_vars', False, 'Whether to save the trained variables as numpy arrays in the end')
