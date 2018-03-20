@@ -46,26 +46,26 @@ def train_gp(dataset, args):
         lik_func = getattr(lik, args['lik'])()
         hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
-        inf_func = getattr(inf, args['inf'])(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs, args)
+        gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs, args)
 
     with tf.device(device):
         step = 0
         epoch = 1
         while step < args['train_steps']:
             start = time.time()
-            fit(inf_func, optimizer, dataset.train_fn(), step_counter, hyper_params, args)  # train for one epoch
+            fit(gp, optimizer, dataset.train_fn(), step_counter, hyper_params, args)  # train for one epoch
             end = time.time()
             step = step_counter.numpy()
             if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
                 print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-                evaluate(inf_func, dataset.test_fn(), args)
+                evaluate(gp, dataset.test_fn(), args)
             if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
-                all_variables = (inf_func.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
+                all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
                 tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
             epoch += 1
 
         if args['save_vars'] and args['save_dir'] is not None:
-            var_collection = {var.name: var.numpy() for var in inf_func.get_all_variables() + hyper_params}
+            var_collection = {var.name: var.numpy() for var in gp.get_all_variables() + hyper_params}
             np.savez_compressed(out_dir / Path("vars"), **var_collection)
         if args['plot']:
             tf.reset_default_graph()
@@ -73,14 +73,14 @@ def train_gp(dataset, args):
             mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset.num_train,
                                 dataset.inducing_inputs.shape[-2], dataset.output_dim, args)
             util.simple_1d(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
-    return inf_func
+    return gp
 
 
-def fit(inf_func, optimizer, train_data, step_counter, hyper_params, args):
+def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
     """Trains model on `train_data` using `optimizer`.
 
     Args:
-        inf_func: inference function
+        gp: gaussian process
         optimizer: tensorflow optimizer
         train_data: training dataset (instance of tf.data.Dataset)
         step_counter: variable to keep track of the training step
@@ -93,7 +93,7 @@ def fit(inf_func, optimizer, train_data, step_counter, hyper_params, args):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
-            obj_func, inf_params = inf_func.inference(inputs['input'], outputs, True)
+            obj_func, inf_params = gp.inference(inputs['input'], outputs, True)
         # Compute gradients
         all_params = inf_params + hyper_params
         if args['loo_steps'] is not None:
@@ -116,11 +116,11 @@ def fit(inf_func, optimizer, train_data, step_counter, hyper_params, args):
             start = time.time()
 
 
-def evaluate(inf_func, test_data, args):
+def evaluate(gp, test_data, args):
     """Perform an evaluation of `inf_func` on the examples from `dataset`.
 
     Args:
-        inf_func: inference function
+        gp: gaussian process
         test_data: test dataset (instance of tf.data.Dataset)
         args: additional parameters
     """
@@ -136,8 +136,8 @@ def evaluate(inf_func, test_data, args):
         result = lambda accuracy: accuracy.result()
 
     for (inputs, outputs) in tfe.Iterator(test_data.batch(args['batch_size'])):
-        obj_func, _ = inf_func.inference(inputs['input'], outputs, False)
-        pred_mean, _ = inf_func.predict(inputs['input'])
+        obj_func, _ = gp.inference(inputs['input'], outputs, False)
+        pred_mean, _ = gp.predict(inputs['input'])
         avg_loss(sum(obj_func.values()))
         update(metric, pred_mean, outputs)
     print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), args['metric'], result(metric)))
@@ -169,13 +169,13 @@ def predict(test_inputs, saved_model, num_train, num_inducing, output_dim, args)
         # Creating the inference object here will restore the variables from the saved model
         cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], iso=not args['use_ard']) for _ in range(output_dim)]
         lik_func = getattr(lik, args['lik'])()
-        lik_func = getattr(inf, args['inf'])(cov_func, lik_func, num_train, num_inducing, args)
+        gp = getattr(inf, args['inf'])(cov_func, lik_func, num_train, num_inducing, args)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
     pred_vars = [0.0] * num_batches
 
     for i in range(num_batches):
-        pred_means[i], pred_vars[i] = inf_func.predict(test_inputs[i])
+        pred_means[i], pred_vars[i] = gp.predict(test_inputs[i])
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
