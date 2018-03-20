@@ -12,17 +12,23 @@ many developments and improvements.
    variational inference, leave-one-out inference and exact inference.
 
    * Variational inference can be used for generic Gaussian process 
-     models( multi-input, multi-output, regression and classification) 
+     models (multi-input, multi-output, regression and classification) 
      with black-box likelihood.
 
    * Leave-one-out inference can be used for generic Gaussian process 
-     models( multi-input, multi-output, regression and classification) 
+     models (multi-input, multi-output, regression and classification) 
      with Gaussian likelihood.
 
    * Exact inference can be only used for standard Gaussian process 
      model (one dimensional output) with Gaussian likelihood.
 
-2. Improve and adjust some codes to Tensorflow running more smoothly
+2. Improve the use of the Tensorflow API.
+
+## Installation
+
+Dependencies: Tensorflow, SciPy, sklearn, matplotlib
+
+After installing all dependencies just clone the repository.
 
 ## Usage
 
@@ -56,6 +62,32 @@ run
 ```sh
 python train_gp.py --helpfull
 ```
+
+#### Call training function from Python code (not recommended)
+
+In general, it is recommended to run the training in a standalone 
+process (i.e. executing `python train_gp.py` from command line). But 
+occasionally it can be useful to call the training function from other 
+Python code.
+
+In this case, all the parameters for the training function have to be 
+given in a dictionary. The code would look something like this:
+```python
+import universalgp as ugp
+
+data = ...
+gp = ugp.train_eager.train_gp(
+        data,
+        {'inf': 'Variational', 'lik': 'LikelihoodGaussian', 'cov': 
+        'SquaSquaredExponential', 'plot': None, 'train_steps': 500,
+        ...  # many more...
+        }
+    )
+gp.predict(test_data)
+```
+
+A list of all necessary parameters can be seen by running `python 
+train_gp.py --helpfull`.
 
 ### Add a new dataset
 
@@ -110,17 +142,17 @@ checkpoint created at step 500.
 
 To use this trained model do:
 ```python
+import numpy as np
 import tensorflow.contrib.eager as tfe  # eager execution
 from universalgp import inf, cov, lik
 
 # restore all variables from checkpoint
 with tfe.restore_variables_on_create("save_dir/model_name/chkpt-500"):
-    gp = inf.Variational(cov.SquaredExponential(input_dim),
-                         lik.LikelihoodGaussian(),
-                         num_train=3756,
-                         num_inducing=100)
+    gp = inf.Exact(cov.SquaredExponential(input_dim),
+                   lik.LikelihoodGaussian(),
+                   num_train=3756)
 
-prediction = gp.predict(test_inputs=[[3.2], [4.6]])
+prediction = gp.predict(test_inputs=np.array([[3.2], [4.6]]))
 print(prediction)
 print(gp.get_all_variables())  # print the values of all train variables
 ```
