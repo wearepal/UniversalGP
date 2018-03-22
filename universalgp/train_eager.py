@@ -133,7 +133,7 @@ def evaluate(gp, test_data, args):
     elif args['metric'] == 'accuracy':
         metric = tfe.metrics.Accuracy('accuracy')
         def update(accuracy, pred, label):
-            accuracy(tf.argmax(pred, axis=1, output_type=tf.int64), tf.cast(label, tf.int64))
+            accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))
         result = lambda accuracy: accuracy.result()
 
     for (inputs, outputs) in tfe.Iterator(test_data.batch(args['batch_size'])):
