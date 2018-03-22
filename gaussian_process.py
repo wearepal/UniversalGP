@@ -13,17 +13,18 @@ import universalgp
 FLAGS = tf.app.flags.FLAGS
 ### GP flags
 tf.app.flags.DEFINE_string('tf_mode', 'eager', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
-tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
+# tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
+tf.app.flags.DEFINE_string('data', 'sensitive_example', 'Dataset to use')
 # tf.app.flags.DEFINE_string('data', 'mnist', 'Dataset to use')
 tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
-tf.app.flags.DEFINE_string('lik', 'LikelihoodGaussian', 'Likelihood function')
-# tf.app.flags.DEFINE_string('lik', 'LikelihoodSoftmax', 'Likelihood function')
+# tf.app.flags.DEFINE_string('lik', 'LikelihoodGaussian', 'Likelihood function')
+tf.app.flags.DEFINE_string('lik', 'LikelihoodLogistic', 'Likelihood function')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
 tf.app.flags.DEFINE_boolean('use_ard', True, 'Whether to use an automatic relevance determination kernel')
 tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial lenght scale for the kernel')
-tf.app.flags.DEFINE_string('metric', 'rmse', 'metric for evaluating the trained model')
+tf.app.flags.DEFINE_string('metric', 'logistic_accuracy', 'metric for evaluating the trained model')
 tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
@@ -34,7 +35,7 @@ tf.app.flags.DEFINE_integer('summary_steps', 100, 'How many steps between saving
 tf.app.flags.DEFINE_integer('chkpnt_steps', 5000, 'How many steps between saving checkpoints')
 tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
                            'Directory where the checkpoints and summaries are saved')
-tf.app.flags.DEFINE_string('plot', 'simple_1d', 'Which function to use for plotting (or None)')
+tf.app.flags.DEFINE_string('plot', None, 'Which function to use for plotting (or None)')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.app.flags.DEFINE_boolean('save_vars', False, 'Whether to save the trained variables as numpy arrays in the end')
