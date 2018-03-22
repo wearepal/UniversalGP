@@ -53,8 +53,12 @@ def build_gaussian_process(features, labels, mode, params: dict):
         rmse = tf.metrics.root_mean_squared_error(labels, pred_mean, name='rmse_op')
         metrics = {'RMSE': rmse}
         tf.summary.scalar('RMSE', rmse[0])
-    elif params['metric'] == 'accuracy':
+    elif params['metric'] == 'soft_accuracy':
         acc = tf.metrics.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))
+        metrics = {'accuracy': acc}
+        tf.summary.scalar('accuracy', acc[0])
+    elif params['metric'] == 'logistic_accuracy':
+        acc = tf.metrics.accuracy(tf.cast(pred_mean > 0.5, tf.int32), tf.cast(labels, tf.int32))
         metrics = {'accuracy': acc}
         tf.summary.scalar('accuracy', acc[0])
 

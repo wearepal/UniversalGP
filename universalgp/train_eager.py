@@ -130,10 +130,17 @@ def evaluate(gp, test_data, args):
         metric = tfe.metrics.Mean('mse')
         update = lambda mse, pred, label: mse((pred - label)**2)
         result = lambda mse: np.sqrt(mse.result())
-    elif args['metric'] == 'accuracy':
+    elif args['metric'] == 'soft_accuracy':
         metric = tfe.metrics.Accuracy('accuracy')
+
         def update(accuracy, pred, label):
             accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))
+        result = lambda accuracy: accuracy.result()
+    elif args['metric'] == 'logistic_accuracy':
+        metric = tfe.metrics.Accuracy('accuracy')
+
+        def update(accuracy, pred, label):
+            accuracy(tf.cast(pred > 0.5, tf.int32), tf.cast(label, tf.int32))
         result = lambda accuracy: accuracy.result()
 
     for (inputs, outputs) in tfe.Iterator(test_data.batch(args['batch_size'])):
