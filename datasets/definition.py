@@ -21,3 +21,5 @@ class Dataset(NamedTuple):
     ytrain: ndarray = None  # (optional) the training output as numpy array
     xtest: ndarray = None  # (optional) the test input as numpy array
     ytest: ndarray = None  # (optional) the test output as numpy array
+    stest: ndarray = None  # sensitive attribute for test
+    strain: ndarray = None  # sensitive attribute for train
