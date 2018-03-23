@@ -7,8 +7,6 @@ Created on Tue Jan 23 17:33:47 2018
 """
 from .sq_dist import sq_dist
 
-from .normals import CholNormal
-from .normals import DiagNormal
 from .util import tri_vec_shape
 from .util import vec_to_tri
 from .util import ceil_divide
