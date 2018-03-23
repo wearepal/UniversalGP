@@ -30,7 +30,8 @@ class LikelihoodLogistic:
         latent = (latent_means[:, tf.newaxis, ...] + tf.sqrt(latent_vars)[:, tf.newaxis, ...] *
                   tf.random_normal([num_components, self.num_samples, num_points, 1]))
         # Compute the logistic function
-        logistic = 1.0 / (1.0 + tf.exp(-latent))
+        # logistic = 1.0 / (1.0 + tf.exp(-latent))
+        logistic = tf.sigmoid(latent)
 
         # Estimate the expected value of the softmax and the variance through sampling.
         pred_means = tf.reduce_mean(logistic, 1)
