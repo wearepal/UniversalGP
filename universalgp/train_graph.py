@@ -50,17 +50,13 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     # Compute evaluation metrics.
     if params['metric'] == 'rmse':
-        rmse = tf.metrics.root_mean_squared_error(labels, pred_mean, name='rmse_op')
-        metrics = {'RMSE': rmse}
-        tf.summary.scalar('RMSE', rmse[0])
+        metrics = {'RMSE': tf.metrics.root_mean_squared_error(labels, pred_mean, name='rmse_op')}
     elif params['metric'] == 'soft_accuracy':
-        acc = tf.metrics.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))
-        metrics = {'accuracy': acc}
-        tf.summary.scalar('accuracy', acc[0])
+        metrics = {'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))}
     elif params['metric'] == 'logistic_accuracy':
-        acc = tf.metrics.accuracy(tf.cast(pred_mean > 0.5, tf.int32), tf.cast(labels, tf.int32))
-        metrics = {'accuracy': acc}
-        tf.summary.scalar('accuracy', acc[0])
+        metrics = {'accuracy': tf.metrics.accuracy(tf.cast(pred_mean > 0.5, tf.int32), tf.cast(labels, tf.int32))}
+    for name, metric in metrics.items():
+        tf.summary.scalar(name, metric[0])
 
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
