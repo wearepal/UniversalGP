@@ -106,6 +106,8 @@ def train_gp(data, args):
             'output_dim': data.output_dim,
             'num_train': data.num_train,
             'inducing_inputs': data.inducing_inputs,
+            'metric': data.metric,
+            'lik': data.lik,
             **args},
         model_dir=None if args['save_dir'] is None else str(Path(args['save_dir']) / Path(args['model_name'])),
         config=tf.estimator.RunConfig().replace(

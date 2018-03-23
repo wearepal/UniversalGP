@@ -27,6 +27,8 @@ def maize_yield():
         test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': xtest}, ytest)),
         inducing_inputs=xtrain,
         num_train=len(ytrain),
+        lik="LikelihoodGaussian",
+        metric="rmse",
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
