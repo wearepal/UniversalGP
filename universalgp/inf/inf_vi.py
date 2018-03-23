@@ -2,6 +2,7 @@
 Variational inference for generic Gaussian process models
 """
 import tensorflow as tf
+from tensorflow.contrib.distributions import MultivariateNormalDiag, MultivariateNormalTriL
 import numpy as np
 from .. import util
 
@@ -212,26 +213,23 @@ class Variational:
         component_covar = tf.stack(component_covar, 0)
         component_mean = tf.squeeze(tf.stack(component_mean, 0), -1)
         """
-        component_mean = means
-        chol_component_covar = chol_covars
-
         # First build a square matrix of normals.
         if self.args['diag_post']:
             # construct normal distributions for all combinations of components
-            chol_normal = util.DiagNormal(component_mean, chol_component_covar[tf.newaxis, ...] +
-                                          chol_component_covar[:, tf.newaxis, ...])
+            variational_dist = MultivariateNormalDiag(
+                means, tf.sqrt(chol_covars[tf.newaxis, ...] + chol_covars[:, tf.newaxis, ...]))
         else:
             # here we use the original component_covar directly
             component_covar = util.mat_square(chol_covars)
             chol_covars_sum = tf.cholesky(component_covar[tf.newaxis, ...] +
                                           component_covar[:, tf.newaxis, ...])
-            # class CholNormal only accepts chol covars rather than covars
-            chol_normal = util.CholNormal(component_mean[tf.newaxis, ...], chol_covars_sum)
+            # class MultivariateNormalTriL only accepts cholesky covariances instead of covariances
+            variational_dist = MultivariateNormalTriL(means[tf.newaxis, ...], chol_covars_sum)
 
         # compute log probability of all means in all normal distributions
         # then sum over all latent functions
         # shape of log_normal_probs: (num_components, num_components)
-        log_normal_probs = tf.reduce_sum(chol_normal.log_prob(component_mean[:, tf.newaxis, ...]), axis=-1)
+        log_normal_probs = tf.reduce_sum(variational_dist.log_prob(means[:, tf.newaxis, ...]), axis=-1)
 
         # Now compute the entropy.
         # broadcast `weights` into dimension 1, then do `logsumexp` in that dimension
@@ -261,7 +259,7 @@ class Variational:
                                                chol_covars), axis=-1)
 
         # sum_val has the same shape as weights
-        sum_val = tf.reduce_sum(util.CholNormal(means, kernel_chol).log_prob(0.0) - 0.5 * trace, -1)
+        sum_val = tf.reduce_sum(MultivariateNormalTriL(means, kernel_chol).log_prob([0.0]) - 0.5 * trace, -1)
 
         # weighted sum of weights and sum_val
         cross_ent = util.mul_sum(weights, sum_val)
