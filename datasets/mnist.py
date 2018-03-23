@@ -23,13 +23,16 @@ def _init_z(train_inputs, num_inducing):
 
 
 def mnist():
-    mnist = input_data.read_data_sets('./datasets/data/', one_hot=True)
+    """MNIST dataset with one hot labels"""
+    data = input_data.read_data_sets('./datasets/data/', one_hot=True)
 
     return Dataset(
         input_dim=28 * 28,
         output_dim=10,
-        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.train.images}, mnist.train.labels)),
-        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': mnist.test.images}, mnist.test.labels)),
-        inducing_inputs=_init_z(mnist.train.images, NUM_INDUCING),
-        num_train=mnist.train.num_examples,
+        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': data.train.images}, data.train.labels)),
+        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': data.test.images}, data.test.labels)),
+        inducing_inputs=_init_z(data.train.images, NUM_INDUCING),
+        num_train=data.train.num_examples,
+        lik="LikelihoodSoftmax",
+        metric="soft_accuracy",
     )

@@ -9,9 +9,9 @@ Usage: Generate the simple synthetic data with two non-sensitive features and on
        For parity demographic
 """
 
+from random import seed, shuffle
 import numpy as np
 import tensorflow as tf
-from random import seed, shuffle
 from scipy.stats import multivariate_normal
 
 from .definition import Dataset
@@ -40,6 +40,8 @@ def sensitive_example():
         input_dim=2,
         inducing_inputs=xtrain[::num_train // num_inducing],
         output_dim=1,
+        lik="LikelihoodLogistic",
+        metric="logistic_accuracy",
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
@@ -57,7 +59,7 @@ def _gaussian_generator(mean, cov, label, n):
 
 
 def _generate_feature(n, disc_factor):
-    """  Generate the non-sensitive features randomly """
+    """Generate the non-sensitive features randomly"""
     mu1, sigma1 = [2, 2], [[5, 1], [1, 5]]
     mu2, sigma2 = [-2, -2], [[10, 1], [1, 3]]
     nv1, X1, y1 = _gaussian_generator(mu1, sigma1, 1, n)  # positive class
@@ -71,7 +73,7 @@ def _generate_feature(n, disc_factor):
                          [np.sin(disc_factor), np.cos(disc_factor)]])
     inputs_aux = np.dot(inputs, rotation)
 
-    """ Generate the sensitive feature here """
+    #### Generate the sensitive feature here ####
     sensi_attr = []  # this array holds the sensitive feature value
     for i in range(len(inputs)):
         x = inputs_aux[i]
@@ -114,4 +116,3 @@ def _select_training_and_test(inputs, outputs, sensi_attr, num_train):
     sensi_attr_test = sensi_attr[idx[num_train:]]
 
     return xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test
-

@@ -17,6 +17,8 @@ class Dataset(NamedTuple):
     inducing_inputs: ndarray  # initial values for the inducing inputs
     input_dim: int  # number of input dimensions
     output_dim: int  # number of output dimensions
+    lik: str  # name of likelihood function
+    metric: str # name of the metric to use for evaluation during training
     xtrain: ndarray = None  # (optional) the training input as numpy array
     ytrain: ndarray = None  # (optional) the training output as numpy array
     xtest: ndarray = None  # (optional) the test input as numpy array

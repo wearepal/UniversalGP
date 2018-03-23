@@ -43,7 +43,7 @@ def train_gp(dataset, args):
         # Gather parameters
         cov_func = [getattr(cov, args['cov'])(dataset.input_dim, args['length_scale'], iso=not args['use_ard'])
                     for _ in range(dataset.output_dim)]
-        lik_func = getattr(lik, args['lik'])()
+        lik_func = getattr(lik, dataset.lik)()
         hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
         gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs, args)
@@ -58,7 +58,7 @@ def train_gp(dataset, args):
             step = step_counter.numpy()
             if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
                 print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-                evaluate(gp, dataset.test_fn(), args)
+                evaluate(gp, dataset.test_fn(), dataset.metric, args)
             if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
                 all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
                 tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
@@ -70,8 +70,7 @@ def train_gp(dataset, args):
         if args['plot'] is not None:
             tf.reset_default_graph()
             # Create predictions
-            mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset.num_train,
-                                dataset.inducing_inputs.shape[-2], dataset.output_dim, args)
+            mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
             getattr(util.plot, args['plot'])(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
     return gp
 
@@ -117,26 +116,27 @@ def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
             start = time.time()
 
 
-def evaluate(gp, test_data, args):
+def evaluate(gp, test_data, metric_name, args):
     """Perform an evaluation of `inf_func` on the examples from `dataset`.
 
     Args:
         gp: gaussian process
         test_data: test dataset (instance of tf.data.Dataset)
+        metric_name: name of the metric for evaluation
         args: additional parameters
     """
     avg_loss = tfe.metrics.Mean('loss')
-    if args['metric'] == 'rmse':
+    if metric_name == 'rmse':
         metric = tfe.metrics.Mean('mse')
         update = lambda mse, pred, label: mse((pred - label)**2)
         result = lambda mse: np.sqrt(mse.result())
-    elif args['metric'] == 'soft_accuracy':
+    elif metric_name == 'soft_accuracy':
         metric = tfe.metrics.Accuracy('accuracy')
 
         def update(accuracy, pred, label):
             accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))
         result = lambda accuracy: accuracy.result()
-    elif args['metric'] == 'logistic_accuracy':
+    elif metric_name == 'logistic_accuracy':
         metric = tfe.metrics.Accuracy('accuracy')
 
         def update(accuracy, pred, label):
@@ -148,10 +148,10 @@ def evaluate(gp, test_data, args):
         pred_mean, _ = gp.predict(inputs['input'])
         avg_loss(sum(obj_func.values()))
         update(metric, pred_mean, outputs)
-    print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), args['metric'], result(metric)))
+    print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), metric_name, result(metric)))
 
 
-def predict(test_inputs, saved_model, num_train, num_inducing, output_dim, args):
+def predict(test_inputs, saved_model, dataset_info, args):
     """Predict outputs given test inputs.
 
     This function can be called from a different module and should still work.
@@ -159,9 +159,7 @@ def predict(test_inputs, saved_model, num_train, num_inducing, output_dim, args)
     Args:
         test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
         saved_model: path to saved model
-        num_train: the number of training examples
-        num_inducing: the number of inducing inputs
-        output_dim: number of output dimensions
+        dataset_info: info about the dataset
         args: additional parameters
 
     Returns:
@@ -172,12 +170,14 @@ def predict(test_inputs, saved_model, num_train, num_inducing, output_dim, args)
         num_batches = 1
     else:
         num_batches = util.ceil_divide(test_inputs.shape[0], args['batch_size'])
+    num_inducing = dataset_info.inducing_inputs.shape[0]
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], iso=not args['use_ard']) for _ in range(output_dim)]
-        lik_func = getattr(lik, args['lik'])()
-        gp = getattr(inf, args['inf'])(cov_func, lik_func, num_train, num_inducing, args)
+        cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], iso=not args['use_ard'])
+                    for _ in range(dataset_info.output_dim)]
+        lik_func = getattr(lik, dataset_info.lik)()
+        gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset_info.num_train, num_inducing, args)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
