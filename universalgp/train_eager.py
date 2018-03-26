@@ -126,29 +126,30 @@ def evaluate(gp, test_data, metric_name, args):
         args: additional parameters
     """
     avg_loss = tfe.metrics.Mean('loss')
-    if metric_name == 'rmse':
-        metric = tfe.metrics.Mean('mse')
-        update = lambda mse, pred, label: mse((pred - label)**2)
-        result = lambda mse: np.sqrt(mse.result())
-    elif metric_name == 'soft_accuracy':
-        metric = tfe.metrics.Accuracy('accuracy')
-
-        def update(accuracy, pred, label):
-            accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))
-        result = lambda accuracy: accuracy.result()
-    elif metric_name == 'logistic_accuracy':
-        metric = tfe.metrics.Accuracy('accuracy')
-
-        def update(accuracy, pred, label):
-            accuracy(tf.cast(pred > 0.5, tf.int32), tf.cast(label, tf.int32))
-        result = lambda accuracy: accuracy.result()
+    # Every metric needs to define a variable that holds the current value, an update function and a result function
+    metric_vars, update_fns, result_fns = [], [], []
+    if 'rmse' in metric_name.split(','):
+        metric_vars += [tfe.metrics.Mean('RMSE')]
+        update_fns += [lambda mse, pred, label: mse((pred - label)**2)]
+        result_fns += [lambda mse: np.sqrt(mse.result())]
+    if 'soft_accuracy' in metric_name.split(','):
+        metric_vars += [tfe.metrics.Accuracy('Accuracy')]
+        update_fns += [lambda accuracy, pred, label: accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))]
+        result_fns += [lambda accuracy: accuracy.result()]
+    if 'logistic_accuracy' in metric_name.split(','):
+        metric_vars += [tfe.metrics.Accuracy('Accuracy')]
+        update_fns += [lambda accuracy, pred, label: accuracy(tf.cast(pred > 0.5, tf.int32), tf.cast(label, tf.int32))]
+        result_fns += [lambda accuracy: accuracy.result()]
 
     for (inputs, outputs) in tfe.Iterator(test_data.batch(args['batch_size'])):
         obj_func, _ = gp.inference(inputs['input'], outputs, False)
         pred_mean, _ = gp.predict(inputs['input'])
         avg_loss(sum(obj_func.values()))
-        update(metric, pred_mean, outputs)
-    print('Test set: Average loss: {}, {}: {}\n'.format(avg_loss.result(), metric_name, result(metric)))
+        for metric_variable, update in zip(metric_vars, update_fns):
+            update(metric_variable, pred_mean, outputs)
+    print(f"Test set: Average loss: {avg_loss.result()}")
+    for metric_variable, result in zip(metric_vars, result_fns):
+        print(f"{metric_variable.name}: {result(metric_variable)}")
 
 
 def predict(test_inputs, saved_model, dataset_info, args):
