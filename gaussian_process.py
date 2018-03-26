@@ -12,9 +12,9 @@ import universalgp
 
 FLAGS = tf.app.flags.FLAGS
 ### GP flags
-tf.app.flags.DEFINE_string('tf_mode', 'eager', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
+tf.app.flags.DEFINE_string('tf_mode', 'graph', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
 # tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
-tf.app.flags.DEFINE_string('data', 'sensitive_example', 'Dataset to use')
+tf.app.flags.DEFINE_string('data', 'sensitive_odds_example', 'Dataset to use')
 # tf.app.flags.DEFINE_string('data', 'mnist', 'Dataset to use')
 tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
