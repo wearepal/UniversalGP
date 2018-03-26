@@ -237,7 +237,7 @@ class Variational:
         # broadcast `weights` into dimension 1, then do `logsumexp` in that dimension
         weighted_logsumexp_probs = tf.reduce_logsumexp(tf.log(weights) + log_normal_probs, 1)
         # multiply with weights again and then sum over it all
-        return -tf.tensordot(weights, weighted_logsumexp_probs, 1)
+        return -util.mul_sum(weights, weighted_logsumexp_probs)
 
     def _build_cross_ent(self, weights, means, chol_covars, kernel_chol):
         """Construct the cross-entropy.
@@ -263,8 +263,8 @@ class Variational:
         # sum_val has the same shape as weights
         sum_val = tf.reduce_sum(util.CholNormal(means, kernel_chol).log_prob(0.0) - 0.5 * trace, -1)
 
-        # dot product of weights and sum_val
-        cross_ent = tf.tensordot(weights, sum_val, 1)
+        # weighted sum of weights and sum_val
+        cross_ent = util.mul_sum(weights, sum_val)
 
         return cross_ent
 
@@ -308,10 +308,10 @@ class Variational:
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latents)
         latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
-        ell_by_compontent = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2])
+        ell_by_component = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2])
 
-        # dot product
-        ell = tf.tensordot(weights, ell_by_compontent, 1)
+        # weighted sum of the components
+        ell = util.mul_sum(weights, ell_by_component)
         return ell / self.args['num_samples']
 
     def _build_interim_vals(self, kernel_chol, inducing_inputs, train_inputs):
