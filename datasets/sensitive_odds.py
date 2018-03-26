@@ -39,6 +39,8 @@ def sensitive_odds_example():
         input_dim=2,
         inducing_inputs=xtrain[::num_train // num_inducing],
         output_dim=1,
+        lik="LikelihoodLogistic",
+        metric="logistic_accuracy",
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
