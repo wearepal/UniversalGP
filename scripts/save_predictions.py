@@ -34,10 +34,10 @@ def main():
     # load GP model from checkpoint
     with tfe.restore_variables_on_create(CHECKPOINT_PATH):
         gp = inf.Variational([cov.SquaredExponential(INPUT_DIM) for _ in range(OUTPUT_DIM)],
-                             LIKELIHODD(),
+                             LIKELIHODD({'num_samples_pred': NUM_SAMPLES}),
                              NUM_TRAIN,
                              NUM_INDUCING,
-                             {'num_components': NUM_COMPONENTS, 'num_samples': NUM_SAMPLES, 'diag_post': DIAG_POST})
+                             {'num_components': NUM_COMPONENTS, 'diag_post': DIAG_POST})
 
     # pred_means, pred_vars = gp.predict([[1., 1.]])
     # print(pred_means)

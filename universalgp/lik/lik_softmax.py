@@ -2,10 +2,13 @@ import tensorflow as tf
 
 from universalgp import util
 
+tf.app.flags.DEFINE_integer('num_samples_pred', 2000, 'Number of samples for mean and variance estimate for prediction')
+
 
 class LikelihoodSoftmax:
-    def __init__(self, num_samples=2000):
-        self.num_samples = num_samples
+    """Softmax likelihood used for multi-class classification"""
+    def __init__(self, args):
+        self.num_samples = args['num_samples_pred']
 
     def log_cond_prob(self, outputs, latent):
         # shape of `outputs`: (batch_size, output_dim)
