@@ -27,7 +27,7 @@ def test_variational_complete():
     # construct objects
     train_inputs, train_outputs, test_inputs, num_train, inducing_inputs = construct_input()
     likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, length_scale=0.5, sf=1.0)]
+    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=0.5, sf=1.0, iso=False))]
     vi = inference.Variational(kernel, likelihood, num_train, inducing_inputs,
                                {'num_samples': 5000000, 'num_components': 1, 'optimize_inducing': False,
                                 'use_loo': True, 'diag_post': False})
@@ -49,7 +49,7 @@ def test_exact_complete():
     # construct objects
     train_inputs, train_outputs, test_inputs, num_train, _ = construct_input()
     likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, length_scale=0.5, sf=1.0)]
+    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=0.5, sf=1.0, iso=False))]
     exact = inference.Exact(kernel, likelihood, num_train)
 
     # compute losses and predictions

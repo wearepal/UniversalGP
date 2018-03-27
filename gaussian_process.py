@@ -20,8 +20,6 @@ tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
-tf.app.flags.DEFINE_boolean('use_ard', True, 'Whether to use an automatic relevance determination kernel')
-tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial lenght scale for the kernel')
 tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
