@@ -7,7 +7,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 import sklearn.cluster
 
-from .definition import Dataset
+from .definition import Dataset, default_feat_col
 
 NUM_INDUCING = 100
 
@@ -35,4 +35,5 @@ def mnist():
         num_train=data.train.num_examples,
         lik="LikelihoodSoftmax",
         metric="soft_accuracy",
+        **default_feat_col(28 * 28),
     )

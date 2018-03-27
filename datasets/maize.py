@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from scipy.stats import zscore
 
-from .definition import Dataset
+from .definition import Dataset, to_tf_dataset_fn, default_feat_col
 
 DATA_PATH = Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
 
@@ -23,12 +23,13 @@ def maize_yield():
     return Dataset(
         input_dim=8,
         output_dim=1,
-        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': xtrain}, ytrain)),
-        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': xtest}, ytest)),
+        train_fn=to_tf_dataset_fn(xtrain, ytrain),
+        test_fn=to_tf_dataset_fn(xtest, ytest),
         inducing_inputs=xtrain,
         num_train=len(ytrain),
         lik="LikelihoodGaussian",
         metric="rmse",
+        **default_feat_col(8),
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
