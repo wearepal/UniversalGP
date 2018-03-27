@@ -15,6 +15,7 @@ NUM_INDUCING = 300
 NUM_COMPONENTS = 1
 NUM_SAMPLES = 1000
 DIAG_POST = False
+ISO = False
 LIKELIHODD = lik.LikelihoodLogistic
 RESULT_PATH = "./predictions.npz"
 
@@ -33,7 +34,7 @@ def main():
     """
     # load GP model from checkpoint
     with tfe.restore_variables_on_create(CHECKPOINT_PATH):
-        gp = inf.Variational([cov.SquaredExponential(INPUT_DIM) for _ in range(OUTPUT_DIM)],
+        gp = inf.Variational([cov.SquaredExponential(INPUT_DIM, {'iso': ISO}) for _ in range(OUTPUT_DIM)],
                              LIKELIHODD({'num_samples_pred': NUM_SAMPLES}),
                              NUM_TRAIN,
                              NUM_INDUCING,

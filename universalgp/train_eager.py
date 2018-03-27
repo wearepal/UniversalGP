@@ -41,8 +41,7 @@ def train_gp(dataset, args):
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
         # Gather parameters
-        cov_func = [getattr(cov, args['cov'])(dataset.input_dim, args['length_scale'], iso=not args['use_ard'])
-                    for _ in range(dataset.output_dim)]
+        cov_func = [getattr(cov, args['cov'])(dataset.input_dim, args) for _ in range(dataset.output_dim)]
         lik_func = getattr(lik, dataset.lik)(args)
         hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
@@ -175,8 +174,7 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], iso=not args['use_ard'])
-                    for _ in range(dataset_info.output_dim)]
+        cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], args) for _ in range(dataset_info.output_dim)]
         lik_func = getattr(lik, dataset_info.lik)(args)
         gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset_info.num_train, num_inducing, args)
 

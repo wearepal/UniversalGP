@@ -26,8 +26,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
     inputs = tf.feature_column.input_layer(features, params['feature_columns'])
 
     # Gather parameters
-    cov_func = [getattr(cov, params['cov'])(params['input_dim'], params['length_scale'], iso=not params['use_ard'])
-                for _ in range(params['output_dim'])]
+    cov_func = [getattr(cov, params['cov'])(params['input_dim'], params) for _ in range(params['output_dim'])]
     lik_func = getattr(lik, params['lik'])(params)
     if mode == tf.estimator.ModeKeys.TRAIN:
         inducing_param = params['inducing_inputs']

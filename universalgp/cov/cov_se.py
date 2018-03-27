@@ -10,26 +10,28 @@ import numpy as np
 import tensorflow as tf
 from .. import util
 
+tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial length scale for the kernel')
+tf.app.flags.DEFINE_float('sf', 1.0, 'Initial standard dev for the kernel')
+tf.app.flags.DEFINE_boolean('iso', False, 'Whether to use an isotropic kernel otherwise use automatic relevance det')
+
 
 class SquaredExponential:
-    def __init__(self, input_dim, length_scale=1.0, sf=1.0, iso=False, name=None):
+    """Squared exponential kernel"""
+    def __init__(self, input_dim, args, name=None):
         """
         Args:
-            iso:
-        if iso:
-             consider ISO (isotropic) kernel
-        else:
-             consider ARD (automatic relevance determination) kernel
+            input_dim: the number of input dimensions
         """
         self.input_dim = input_dim
-        self.iso = iso
-        init_value = tf.constant_initializer(length_scale, dtype=tf.float32)
+        self.iso = args['iso']
+        init_len = tf.constant_initializer(args['length_scale'], dtype=tf.float32) if 'length_scale' in args else None
+        init_sf = tf.constant_initializer(args['sf'], dtype=tf.float32) if 'sf' in args else None
         with tf.variable_scope(name, "cov_se_parameters"):
-            if not iso:
-                self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_value)
+            if not args['iso']:
+                self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_len)
             else:
-                self.length_scale = tf.get_variable("length_scale", shape=[], initializer=init_value)
-            self.sf = tf.get_variable("sf", shape=[], initializer=tf.constant_initializer(sf, dtype=tf.float32))
+                self.length_scale = tf.get_variable("length_scale", shape=[], initializer=init_len)
+            self.sf = tf.get_variable("sf", shape=[], initializer=init_sf)
 
     def cov_func(self, point1, point2=None):
         """
