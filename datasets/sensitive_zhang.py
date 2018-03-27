@@ -24,7 +24,7 @@ def sensitive_zhang():
     labels = (raw_output > 0).astype(np.int)
 
     xtrain, ytrain, xtest, ytest, strain, stest = select_training_and_test(
-        num_train, features[..., np.newaxis], labels[..., np.newaxis], sensitive_attr)
+        num_train, features[..., np.newaxis], labels[..., np.newaxis], sensitive_attr[..., np.newaxis])
 
     return Dataset(
         train_fn=to_tf_dataset_fn(xtrain, ytrain, strain),
