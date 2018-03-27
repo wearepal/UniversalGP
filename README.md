@@ -36,7 +36,7 @@ After installing all dependencies just clone the repository.
 
 To train the GP with one of the included datasets, run for example
 ```sh
-python train_gp.py --data=mnist
+python gaussian_process.py --data=mnist
 ```
 This will train on the MNIST dataset. For other included datasets see 
 the files in `datasets/`.
@@ -44,7 +44,7 @@ the files in `datasets/`.
 By default, the code uses *Variational Inference*. In order to use a 
 different method, specify the `--inf` parameter. For example
 ```sh
-python train_gp.py --data=mnist --inf=Exact
+python gaussian_process.py --data=mnist --inf=Exact
 ```
 uses *Exact Inference* (which can only be used for regression tasks).  
 Other allowed values for `--inf` are `Variational` and `Loo`.
@@ -61,7 +61,7 @@ Other useful parameters:
 To see all available parameters with explanations and default values, 
 run
 ```sh
-python train_gp.py --helpfull
+python gaussian_process.py --helpfull
 ```
 
 #### Call training function from Python code (not recommended)
@@ -79,7 +79,7 @@ import universalgp as ugp
 data = ...
 gp = ugp.train_eager.train_gp(
         data,
-        {'inf': 'Variational', 'cov': 'SquaSquaredExponential', 'plot': 
+        {'inf': 'Variational', 'cov': 'SquaredExponential', 'plot': 
         None, 'train_steps': 500, 'lr': 0.005, 'length_scale': 1.0,
         ...  # many more...
         }
@@ -151,7 +151,7 @@ from universalgp import inf, cov, lik
 
 # restore all variables from checkpoint
 with tfe.restore_variables_on_create("save_dir/model_name/chkpt-500"):
-    gp = inf.Exact(cov.SquaredExponential(input_dim),
+    gp = inf.Exact(cov.SquaredExponential(input_dim, {'iso': False}),
                    lik.LikelihoodGaussian(),
                    num_train=3756)
 
