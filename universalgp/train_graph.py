@@ -22,16 +22,15 @@ def build_gaussian_process(features, labels, mode, params: dict):
     Returns:
         a `tf.EstimatorSpec`
     """
-    # Recover inputs
-    inputs = tf.feature_column.input_layer(features, params['feature_columns'])
-
     # Gather parameters
     cov_func = [getattr(cov, params['cov'])(params['input_dim'], params) for _ in range(params['output_dim'])]
     lik_func = getattr(lik, params['lik'])(params)
     if mode == tf.estimator.ModeKeys.TRAIN:
         inducing_param = params['inducing_inputs']
-    else:  # when we're not training, we only need the shape of the inducing inputs
-        inducing_param = params['inducing_inputs'].shape[-2]
+        inputs = tf.feature_column.input_layer(features, params['train_feature_columns'])  # recover inputs
+    else:
+        inducing_param = params['inducing_inputs'].shape[-2]  # not training -> only need shape of the inducing inputs
+        inputs = tf.feature_column.input_layer(features, params['test_feature_columns'])  # recover inputs
 
     # Initialize GP
     inf_func = getattr(inf, params['inf'])(cov_func, lik_func, params['num_train'], inducing_param, params)
@@ -90,21 +89,12 @@ def train_gp(data, args):
     Returns:
         the trained GP as `tf.estimator.Estimator`
     """
-
-    # Feature columns describe how to use the input.
-    my_feature_columns = [tf.feature_column.numeric_column(key='input', shape=data.input_dim)]
-
+    # Get certain parameters from `data`
+    params = {param: getattr(data, param) for param in ['train_feature_columns', 'test_feature_columns', 'input_dim',
+                                                        'output_dim', 'num_train', 'inducing_inputs', 'metric', 'lik']}
     gp = tf.estimator.Estimator(
         model_fn=build_gaussian_process,
-        params={
-            'feature_columns': my_feature_columns,
-            'input_dim': data.input_dim,
-            'output_dim': data.output_dim,
-            'num_train': data.num_train,
-            'inducing_inputs': data.inducing_inputs,
-            'metric': data.metric,
-            'lik': data.lik,
-            **args},
+        params={**params, **args},
         model_dir=None if args['save_dir'] is None else str(Path(args['save_dir']) / Path(args['model_name'])),
         config=tf.estimator.RunConfig().replace(
             save_checkpoints_secs=None,

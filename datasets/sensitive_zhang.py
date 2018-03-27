@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import random
+import tensorflow as tf
 
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
@@ -35,6 +36,9 @@ def sensitive_zhang():
         output_dim=1,
         lik="LikelihoodLogistic",
         metric="logistic_accuracy",
+        train_feature_columns=[tf.feature_column.numeric_column('input', shape=1),
+                               tf.feature_column.numeric_column('sensitive', shape=1)],
+        test_feature_columns=[tf.feature_column.numeric_column('input', shape=1)],
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,

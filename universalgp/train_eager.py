@@ -52,12 +52,12 @@ def train_gp(dataset, args):
         epoch = 1
         while step < args['train_steps']:
             start = time.time()
-            fit(gp, optimizer, dataset.train_fn(), step_counter, hyper_params, args)  # train for one epoch
+            fit(gp, optimizer, dataset, step_counter, hyper_params, args)  # train for one epoch
             end = time.time()
             step = step_counter.numpy()
             if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
                 print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-                evaluate(gp, dataset.test_fn(), dataset.metric, args)
+                evaluate(gp, dataset, args)
             if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
                 all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
                 tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
@@ -74,24 +74,25 @@ def train_gp(dataset, args):
     return gp
 
 
-def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
+def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
     """Trains model on `train_data` using `optimizer`.
 
     Args:
         gp: gaussian process
         optimizer: tensorflow optimizer
-        train_data: training dataset (instance of tf.data.Dataset)
+        dataset: dataset
         step_counter: variable to keep track of the training step
         hyper_params: hyper params that should be updated during training
         args: additional parameters
     """
 
     start = time.time()
-    for (batch_num, (inputs, outputs)) in enumerate(tfe.Iterator(train_data.batch(args['batch_size']))):
+    for (batch_num, (features, outputs)) in enumerate(tfe.Iterator(dataset.train_fn().batch(args['batch_size']))):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
-            obj_func, inf_params = gp.inference(inputs['input'], outputs, True)
+            inputs = tf.feature_column.input_layer(features, dataset.train_feature_columns)
+            obj_func, inf_params = gp.inference(inputs, outputs, True)
             loss = sum(obj_func.values())
         # Compute gradients
         all_params = inf_params + hyper_params
@@ -115,34 +116,34 @@ def fit(gp, optimizer, train_data, step_counter, hyper_params, args):
             start = time.time()
 
 
-def evaluate(gp, test_data, metric_name, args):
+def evaluate(gp, dataset, args):
     """Perform an evaluation of `inf_func` on the examples from `dataset`.
 
     Args:
         gp: gaussian process
-        test_data: test dataset (instance of tf.data.Dataset)
-        metric_name: name of the metric for evaluation
+        dataset: dataset
         args: additional parameters
     """
     avg_loss = tfe.metrics.Mean('loss')
     # Every metric needs to define a variable that holds the current value, an update function and a result function
     metric_vars, update_fns, result_fns = [], [], []
-    if 'rmse' in metric_name.split(','):
+    if 'rmse' in dataset.metric.split(','):
         metric_vars += [tfe.metrics.Mean('RMSE')]
         update_fns += [lambda mse, pred, label: mse((pred - label)**2)]
         result_fns += [lambda mse: np.sqrt(mse.result())]
-    if 'soft_accuracy' in metric_name.split(','):
+    if 'soft_accuracy' in dataset.metric.split(','):
         metric_vars += [tfe.metrics.Accuracy('Accuracy')]
         update_fns += [lambda accuracy, pred, label: accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))]
         result_fns += [lambda accuracy: accuracy.result()]
-    if 'logistic_accuracy' in metric_name.split(','):
+    if 'logistic_accuracy' in dataset.metric.split(','):
         metric_vars += [tfe.metrics.Accuracy('Accuracy')]
         update_fns += [lambda accuracy, pred, label: accuracy(tf.cast(pred > 0.5, tf.int32), tf.cast(label, tf.int32))]
         result_fns += [lambda accuracy: accuracy.result()]
 
-    for (inputs, outputs) in tfe.Iterator(test_data.batch(args['batch_size'])):
-        obj_func, _ = gp.inference(inputs['input'], outputs, False)
-        pred_mean, _ = gp.predict(inputs['input'])
+    for (features, outputs) in tfe.Iterator(dataset.test_fn().batch(args['batch_size'])):
+        inputs = tf.feature_column.input_layer(features, dataset.test_feature_columns)
+        obj_func, _ = gp.inference(inputs, outputs, False)
+        pred_mean, _ = gp.predict(inputs)
         avg_loss(sum(obj_func.values()))
         for metric_variable, update in zip(metric_vars, update_fns):
             update(metric_variable, pred_mean, outputs)
