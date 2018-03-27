@@ -43,7 +43,7 @@ def train_gp(dataset, args):
         # Gather parameters
         cov_func = [getattr(cov, args['cov'])(dataset.input_dim, args['length_scale'], iso=not args['use_ard'])
                     for _ in range(dataset.output_dim)]
-        lik_func = getattr(lik, dataset.lik)()
+        lik_func = getattr(lik, dataset.lik)(args)
         hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
         gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs, args)
@@ -177,7 +177,7 @@ def predict(test_inputs, saved_model, dataset_info, args):
         # Creating the inference object here will restore the variables from the saved model
         cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], iso=not args['use_ard'])
                     for _ in range(dataset_info.output_dim)]
-        lik_func = getattr(lik, dataset_info.lik)()
+        lik_func = getattr(lik, dataset_info.lik)(args)
         gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset_info.num_train, num_inducing, args)
 
     test_inputs = np.array_split(test_inputs, num_batches)

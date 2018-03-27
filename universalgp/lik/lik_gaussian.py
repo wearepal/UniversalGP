@@ -8,10 +8,13 @@ Created on Sun Jan 28 18:56:08 2018
 import numpy as np
 import tensorflow as tf
 
+tf.app.flags.DEFINE_float('sn', 1.0, 'Initial standard dev for the Gaussian likelihood')
+
 
 class LikelihoodGaussian:
-    def __init__(self, sn=1.0):
-        self.sn = tf.get_variable("Likelihood_param", initializer=tf.constant(sn))
+    def __init__(self, args):
+        init_sn = tf.constant_initializer(args['sn'], dtype=tf.float32) if 'sn' in args else None
+        self.sn = tf.get_variable("Likelihood_param", [], initializer=init_sn)
 
     def log_cond_prob(self, y, mu):
         var = self.sn ** 2

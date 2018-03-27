@@ -53,7 +53,7 @@ def build_sample_info(inf, kern_prods, kern_sums, means, covars):
 ###########################
 
 def construct_simple_full():
-    likelihood = lik.LikelihoodGaussian(1.0)
+    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
     # In most of our unit test, we will replace this value with something else.
     return inference.Variational(kernel, likelihood, 1, 1, PARAMS)
@@ -168,7 +168,7 @@ class TestSimpleFull:
 ###########################
 
 def construct_simple_diag():
-    likelihood = lik.LikelihoodGaussian(1.0)
+    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
     kernel = [cov.SquaredExponential(input_dim=1, length_scale=1.0, sf=1.0)]
     return inference.Variational(kernel, likelihood, 1, 1, {**PARAMS, 'diag_post': True})
 
@@ -246,7 +246,7 @@ class TestSimpleDiag:
 ###########################
 
 def construct_multi_full():
-    likelihood = lik.LikelihoodSoftmax()
+    likelihood = lik.LikelihoodSoftmax({'num_samples_pred': 100})
     kernels = [cov.SquaredExponential(input_dim=2, length_scale=1.0, sf=1.0) for _ in range(2)]
     return inference.Variational(kernels, likelihood, 1, 1, {**PARAMS, 'num_components': 2})
 

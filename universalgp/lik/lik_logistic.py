@@ -4,8 +4,8 @@ from universalgp import util
 
 
 class LikelihoodLogistic:
-    def __init__(self, num_samples=2000):
-        self.num_samples = num_samples
+    def __init__(self, args):
+        self.num_samples = args['num_samples_pred']
 
     def log_cond_prob(self, outputs, latent):
         # return latent * (outputs - 1) - tf.log(1 + tf.exp(-latent))

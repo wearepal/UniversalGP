@@ -45,7 +45,7 @@ def mat_square(mat):
 
 def construct_inf(input_dim, num_latents, num_components):
     """Construct a very basic inference object"""
-    lik = universalgp.lik.LikelihoodGaussian()
+    lik = universalgp.lik.LikelihoodGaussian({'sn': 1.0})
     cov = [universalgp.cov.SquaredExponential(input_dim) for _ in range(num_latents)]
     return universalgp.inf.Variational(cov, lik, 1, 1, {'num_components': num_components, 'optimize_inducing': True,
                                                         'num_samples': 10, 'diag_post': False, 'use_loo': False})
