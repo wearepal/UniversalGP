@@ -1,50 +1,33 @@
-import sys
 import numpy as np
-import tensorflow as tf
-from tensorflow.contrib import eager as tfe
 
-sys.path.append('..')
-from universalgp import inf, cov, lik
-from datasets import sensitive_example
+# importing is difficult because it depends on how the program is started
+# we try different methods here and hope that one works:
+try:
+    from scripts.load import parse_and_load
+except ModuleNotFoundError:
+    from load import parse_and_load
 
+COV = 'SquaredExponential'
+INF = 'Variational'
+FLAGS = {
+    'num_components': 1,
+    'num_samples_pred': 2000,
+    'diag_post': False,
+    'iso': False
+}
+DATASET = 'sensitive_example'
 CHECKPOINT_PATH = "/its/home/tk324/tensorflow/m1/ckpt-504"
-INPUT_DIM = 2
-OUTPUT_DIM = 1
-NUM_TRAIN = 300
-NUM_INDUCING = 300
-NUM_COMPONENTS = 1
-NUM_SAMPLES = 1000
-DIAG_POST = False
-ISO = False
-LIKELIHODD = lik.LikelihoodLogistic
 RESULT_PATH = "./predictions.npz"
 
-tfe.enable_eager_execution()
 
 def main():
-    """This scripts makes predictions from a trained model
-
-    First train the model like this:
-
-    ```
-    python gaussian_process.py --data=sensitive_example --save_dir=/its/home/tk324/tensorflow --model_name=m1
-    ```
-
-    You can of course also choose a different directory and model name.
-    """
     # load GP model from checkpoint
-    with tfe.restore_variables_on_create(CHECKPOINT_PATH):
-        gp = inf.Variational([cov.SquaredExponential(INPUT_DIM, {'iso': ISO}) for _ in range(OUTPUT_DIM)],
-                             LIKELIHODD({'num_samples_pred': NUM_SAMPLES}),
-                             NUM_TRAIN,
-                             NUM_INDUCING,
-                             {'num_components': NUM_COMPONENTS, 'diag_post': DIAG_POST})
+    gp, dataset = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
 
     # pred_means, pred_vars = gp.predict([[1., 1.]])
     # print(pred_means)
 
     # make predictions
-    dataset = sensitive_example()
     pred_means, pred_vars = gp.predict(dataset.xtest)
     # save in file
     np.savez_compressed(RESULT_PATH, **{'pred_means': pred_means, 'pred_vars': pred_vars})
