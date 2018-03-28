@@ -124,8 +124,7 @@ class Variational:
                               train_outputs)
         batch_size = tf.to_float(tf.shape(train_inputs)[0])
         nelbo = -((batch_size / self.num_train) * (entropy + cross_ent) + ell)
-        loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
-                                        train_inputs, train_outputs)
+        
 
         # Variables that will be changed during training
         vars_to_train = [self.means, self.raw_covars, self.raw_weights]
@@ -133,9 +132,10 @@ class Variational:
             vars_to_train += [self.inducing_inputs]
 
         if self.args['use_loo']:
+            loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
+                                            train_inputs, train_outputs)
             return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
-        else:
-            return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
+        return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
 
     def predict(self, test_inputs):
         """Construct predictive distribution
