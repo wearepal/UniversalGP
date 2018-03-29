@@ -47,15 +47,9 @@ def build_gaussian_process(features, labels, mode, params: dict):
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
     # Compute evaluation metrics.
-    metrics = {}
-    if 'rmse' in params['metric'].split(','):
-        metrics.update({'RMSE': tf.metrics.root_mean_squared_error(labels, pred_mean, name='rmse_op')})
-    if 'soft_accuracy' in params['metric'].split(','):
-        metrics.update({'accuracy': tf.metrics.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))})
-    if 'logistic_accuracy' in params['metric'].split(','):
-        metrics.update({'accuracy': tf.metrics.accuracy(tf.cast(pred_mean > 0.5, tf.int32), tf.cast(labels, tf.int32))})
-    for name, metric in metrics.items():
-        tf.summary.scalar(name, metric[0])
+    metrics = util.init_metrics(params['metric'], False)
+    util.update_metrics(metrics, features, labels, pred_mean, False)
+    util.record_metrics(metrics, False)
 
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)

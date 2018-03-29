@@ -17,3 +17,6 @@ from .util import matmul_br
 from .util import cholesky_solve_br
 from .util import broadcast
 from . import plot
+from .metrics import init_metrics
+from .metrics import update_metrics
+from .metrics import record_metrics

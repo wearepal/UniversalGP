@@ -125,31 +125,16 @@ def evaluate(gp, dataset, args):
         args: additional parameters
     """
     avg_loss = tfe.metrics.Mean('loss')
-    # Every metric needs to define a variable that holds the current value, an update function and a result function
-    metric_vars, update_fns, result_fns = [], [], []
-    if 'rmse' in dataset.metric.split(','):
-        metric_vars += [tfe.metrics.Mean('RMSE')]
-        update_fns += [lambda mse, pred, label: mse((pred - label)**2)]
-        result_fns += [lambda mse: np.sqrt(mse.result())]
-    if 'soft_accuracy' in dataset.metric.split(','):
-        metric_vars += [tfe.metrics.Accuracy('Accuracy')]
-        update_fns += [lambda accuracy, pred, label: accuracy(tf.argmax(pred, axis=1), tf.argmax(label, axis=1))]
-        result_fns += [lambda accuracy: accuracy.result()]
-    if 'logistic_accuracy' in dataset.metric.split(','):
-        metric_vars += [tfe.metrics.Accuracy('Accuracy')]
-        update_fns += [lambda accuracy, pred, label: accuracy(tf.cast(pred > 0.5, tf.int32), tf.cast(label, tf.int32))]
-        result_fns += [lambda accuracy: accuracy.result()]
+    metrics = util.init_metrics(dataset.metric, True)
 
     for (features, outputs) in tfe.Iterator(dataset.test_fn().batch(args['batch_size'])):
         inputs = tf.feature_column.input_layer(features, dataset.test_feature_columns)
         obj_func, _ = gp.inference(inputs, outputs, False)
         pred_mean, _ = gp.predict(inputs)
         avg_loss(sum(obj_func.values()))
-        for metric_variable, update in zip(metric_vars, update_fns):
-            update(metric_variable, pred_mean, outputs)
+        util.update_metrics(metrics, features, outputs, pred_mean, True)
     print(f"Test set: Average loss: {avg_loss.result()}")
-    for metric_variable, result in zip(metric_vars, result_fns):
-        print(f"{metric_variable.name}: {result(metric_variable)}")
+    util.record_metrics(metrics, True)
 
 
 def predict(test_inputs, saved_model, dataset_info, args):
