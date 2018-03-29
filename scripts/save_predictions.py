@@ -17,24 +17,24 @@ FLAGS = {
 }
 DATASET = 'sensitive_example'
 CHECKPOINT_PATH = "/its/home/tk324/tensorflow/m1/ckpt-504"
-RESULT_PATH = "./predictions.npz"
+RESULT_PATH = "./predictions.txt"
 
 
 def main():
     # load GP model from checkpoint
     gp, dataset = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
 
-    # pred_means, pred_vars = gp.predict([[1., 1.]])
-    # print(pred_means)
-
     # make predictions
     pred_means, pred_vars = gp.predict(dataset.xtest)
-    # save in file
-    np.savez_compressed(RESULT_PATH, **{'pred_means': pred_means, 'pred_vars': pred_vars})
 
-    ##### To load the file again:
-    # loaded_data = np.load("predictions.npz")
-    # pred_means = loaded_data['pred_means']
+    # save in file
+    # np.savez_compressed(RESULT_PATH, **{'pred_means': pred_means, 'pred_vars': pred_vars})
+    np.savetxt(RESULT_PATH, np.column_stack((dataset.xtest[:, 0], pred_means.numpy()[:, 0], pred_vars.numpy()[:, 0])),
+               header='xtest, pred_means, pred_vars')
+
+    ##### To load the contents from the file again:
+    # xtest, pred_means, pred_vars = np.loadtxt("predictions.txt", unpack=True)
+
 
 if __name__ == "__main__":
     main()
