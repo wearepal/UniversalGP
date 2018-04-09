@@ -48,11 +48,11 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     # Compute evaluation metrics.
     metrics = util.init_metrics(params['metric'], False)
-    util.update_metrics(metrics, features, labels, pred_mean, False)
-    util.record_metrics(metrics, False)
+    metric_ops = util.update_metrics(metrics, features, labels, pred_mean)
+    util.record_metrics(metrics)
 
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metrics)
+        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metric_ops)
 
     assert mode == tf.estimator.ModeKeys.TRAIN
 

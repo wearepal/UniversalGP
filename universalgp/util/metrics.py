@@ -17,23 +17,17 @@ def init_metrics(metric_flag, is_eager):
     metrics = {}
     if metric_flag == "":
         return metrics
-    metric_names = metric_flag.split(',')
 
-    if 'rmse' in metric_names:
-        metrics['rmse'] = tfe.metrics.Mean() if is_eager else None
-
-    if 'soft_accuracy' in metric_names:
-        metrics['soft_accuracy'] = tfe.metrics.Accuracy() if is_eager else None
-
-    if 'logistic_accuracy' in metric_names:
-        metrics['logistic_accuracy'] = tfe.metrics.Accuracy() if is_eager else None
-
-    if not metrics:
-        raise ValueError(f"Unknown metric \"{metric_flag}\"")
+    for name in metric_flag.split(','):
+        try:
+            metric = MAPPING[name]
+        except KeyError:
+            raise ValueError(f"Unknown metric \"{name}\"")
+        metrics[name] = metric(is_eager)
     return metrics
 
 
-def update_metrics(metrics, features, labels, pred_mean, is_eager):
+def update_metrics(metrics, features, labels, pred_mean):
     """Update metrics
 
     Args:
@@ -42,49 +36,115 @@ def update_metrics(metrics, features, labels, pred_mean, is_eager):
         labels: the correct labels
         pred_mean: the predicted mean
         is_eager: True if in eager execution
+    Returns:
+        dictionary of update ops if `is_eager` is False
     """
-    if 'rmse' in metrics:
-        if is_eager:
-            metrics['rmse']((pred_mean - labels)**2)
-        else:
-            metrics['rmse'] = tf.metrics.root_mean_squared_error(labels, pred_mean)
-
-    if 'soft_accuracy' in metrics:
-        argmax = [tf.argmax(pred_mean, axis=1), tf.argmax(labels, axis=1)]
-        if is_eager:
-            metrics['soft_accuracy'](*argmax)
-        else:
-            metrics['soft_accuracy'] = tf.metrics.accuracy(*argmax)
-
-    if 'logistic_accuracy' in metrics:
-        cast = [tf.cast(pred_mean > 0.5, tf.int32), tf.cast(labels, tf.int32)]
-        if is_eager:
-            metrics['logistic_accuracy'](*cast)
-        else:
-            metrics['logistic_accuracy'] = tf.metrics.accuracy(*cast)
+    update_ops = {}
+    for name, metric in metrics.items():
+        update_op = metric.update(features, labels, pred_mean)
+        if update_op is not None:
+            update_ops[name] = update_op
+    return update_ops
 
 
-def record_metrics(metrics, is_eager):
+def record_metrics(metrics):
     """Print the result or record it in the summary
 
     Args:
         metrics: a dictionary with the updated metrics
-        is_eager: True if in eager execution
     """
-    if 'rmse' in metrics:
-        if is_eager:
-            print(f"RMSE: {np.sqrt(metrics['rmse'].result())}")
-        else:
-            tf.summary.scalar('RMSE', metrics['rmse'][0])
+    for metric in metrics.values():
+        metric.record()
 
-    if 'soft_accuracy' in metrics:
-        if is_eager:
-            print(f"Accuracy: {metrics['soft_accuracy'].result()}")
-        else:
-            tf.summary.scalar('Accuracy', metrics['soft_accuracy'][0])
 
-    if 'logistic_accuracy' in metrics:
-        if is_eager:
-            print(f"Accuracy: {metrics['logistic_accuracy'].result()}")
+class Metric:
+    """Base class for metrics"""
+    def __init__(self, is_eager):
+        self.is_eager = is_eager
+
+    def update(self, features, labels, pred_mean):
+        """Update the metric based on the given input, label and prediction
+
+        Args:
+            features: the input
+            labels: the correct labels
+            pred_mean: the predicted mean
+        Returns:
+            update op if `is_eager` is False
+        """
+        pass
+
+    def record(self):
+        """Print the result or record it in the summary"""
+        pass
+
+
+class Rmse(Metric):
+    """Root mean squared error"""
+    def __init__(self, is_eager):
+        super(Rmse, self).__init__(is_eager)
+        self.metric = tfe.metrics.Mean() if is_eager else None
+
+    def update(self, features, labels, pred_mean):
+        if self.is_eager:
+            self.metric((pred_mean - labels)**2)
         else:
-            tf.summary.scalar('Accuracy', metrics['logistic_accuracy'][0])
+            self.metric = tf.metrics.root_mean_squared_error(labels, pred_mean)
+            return self.metric
+
+    def record(self):
+        if self.is_eager:
+            print(f"RMSE: {np.sqrt(self.metric.result())}")
+        else:
+            tf.summary.scalar('RMSE', self.metric[0])
+
+
+class SoftAccuracy(Metric):
+    """Accuracy for softmax output"""
+    def __init__(self, is_eager):
+        super(SoftAccuracy, self).__init__(is_eager)
+        self.metric = tfe.metrics.Accuracy() if is_eager else None
+
+    def update(self, features, labels, pred_mean):
+        argmax = [tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1)]
+        if self.is_eager:
+            self.metric(*argmax)
+        else:
+            self.metric = tf.metrics.accuracy(*argmax)
+            return self.metric
+
+    def record(self):
+        if self.is_eager:
+            print(f"Accuracy: {self.metric.result()}")
+        else:
+            tf.summary.scalar('Accuracy', self.metric[0])
+
+
+class LogisticAccuracy(Metric):
+    """Accuracy for output from the logistic function"""
+    def __init__(self, is_eager):
+        super(LogisticAccuracy, self).__init__(is_eager)
+        self.metric = tfe.metrics.Accuracy() if is_eager else None
+
+    def update(self, features, labels, pred_mean):
+        cast = [tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)]
+        if self.is_eager:
+            self.metric(*cast)
+        else:
+            self.metric = tf.metrics.accuracy(*cast)
+            return self.metric
+
+    def record(self):
+        if self.is_eager:
+            print(f"Accuracy: {self.metric.result()}")
+        else:
+            tf.summary.scalar('Accuracy', self.metric[0])
+
+
+# This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
+# this has to be at the end of the file because only here the metric classes have been defined.
+MAPPING = {
+    'rmse': Rmse,
+    'soft_accuracy': SoftAccuracy,
+    'logistic_accuracy': LogisticAccuracy,
+    }
