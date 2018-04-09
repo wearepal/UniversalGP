@@ -82,7 +82,7 @@ class Metric:
 class Rmse(Metric):
     """Root mean squared error"""
     def __init__(self, is_eager):
-        super(Rmse, self).__init__(is_eager)
+        super().__init__(is_eager)
         self.metric = tfe.metrics.Mean() if is_eager else None
 
     def update(self, features, labels, pred_mean):
@@ -102,7 +102,7 @@ class Rmse(Metric):
 class SoftAccuracy(Metric):
     """Accuracy for softmax output"""
     def __init__(self, is_eager):
-        super(SoftAccuracy, self).__init__(is_eager)
+        super().__init__(is_eager)
         self.metric = tfe.metrics.Accuracy() if is_eager else None
 
     def update(self, features, labels, pred_mean):
@@ -123,7 +123,7 @@ class SoftAccuracy(Metric):
 class LogisticAccuracy(Metric):
     """Accuracy for output from the logistic function"""
     def __init__(self, is_eager):
-        super(LogisticAccuracy, self).__init__(is_eager)
+        super().__init__(is_eager)
         self.metric = tfe.metrics.Accuracy() if is_eager else None
 
     def update(self, features, labels, pred_mean):
