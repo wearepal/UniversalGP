@@ -43,15 +43,17 @@ def select_training_and_test(num_train, inputs, outputs, sensitive_attr=None):
     """
     idx = np.arange(inputs.shape[0])
     np.random.shuffle(idx)
-    xtrain = inputs[idx[:num_train]]
-    ytrain = outputs[idx[:num_train]]
+    train_idx = idx[:num_train]
+    test_idx = np.sort(idx[num_train:])
 
-    xtest = inputs[np.sort(idx[num_train:])]
-    ytest = outputs[np.sort(idx[num_train:])]
+    xtrain = inputs[train_idx]
+    ytrain = outputs[train_idx]
+    xtest = inputs[test_idx]
+    ytest = outputs[test_idx]
 
     if sensitive_attr is not None:
-        strain = sensitive_attr[idx[:num_train]]
-        stest = sensitive_attr[idx[num_train:]]
+        strain = sensitive_attr[train_idx]
+        stest = sensitive_attr[test_idx]
         return xtrain, ytrain, xtest, ytest, strain, stest
 
     return xtrain, ytrain, xtest, ytest
