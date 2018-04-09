@@ -132,9 +132,9 @@ def evaluate(gp, dataset, args):
         obj_func, _ = gp.inference(inputs, outputs, False)
         pred_mean, _ = gp.predict(inputs)
         avg_loss(sum(obj_func.values()))
-        util.update_metrics(metrics, features, outputs, pred_mean, True)
+        util.update_metrics(metrics, features, outputs, pred_mean)
     print(f"Test set: Average loss: {avg_loss.result()}")
-    util.record_metrics(metrics, True)
+    util.record_metrics(metrics)
 
 
 def predict(test_inputs, saved_model, dataset_info, args):
