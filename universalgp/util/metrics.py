@@ -120,12 +120,8 @@ class SoftAccuracy(Metric):
             tf.summary.scalar('Accuracy', self.metric[0])
 
 
-class LogisticAccuracy(Metric):
+class LogisticAccuracy(SoftAccuracy):
     """Accuracy for output from the logistic function"""
-    def __init__(self, is_eager):
-        super().__init__(is_eager)
-        self.metric = tfe.metrics.Accuracy() if is_eager else None
-
     def update(self, features, labels, pred_mean):
         cast = [tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)]
         if self.is_eager:
@@ -133,12 +129,6 @@ class LogisticAccuracy(Metric):
         else:
             self.metric = tf.metrics.accuracy(*cast)
             return self.metric
-
-    def record(self):
-        if self.is_eager:
-            print(f"Accuracy: {self.metric.result()}")
-        else:
-            tf.summary.scalar('Accuracy', self.metric[0])
 
 
 # This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
