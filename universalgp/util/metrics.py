@@ -78,6 +78,11 @@ class Metric:
         """Print the result or record it in the summary"""
         pass
 
+    def _return_and_store(self, metric_op):
+        if not self.is_eager:
+            self.result = metric_op[0]
+            return metric_op
+
 
 class Rmse(Metric):
     """Root mean squared error"""
@@ -89,9 +94,7 @@ class Rmse(Metric):
         if self.is_eager:
             self.metric((pred_mean - labels)**2)
         else:
-            metric_op = self.metric(labels, pred_mean)
-            self.result = metric_op[0]
-            return metric_op
+            return self._return_and_store(self.metric(labels, pred_mean))
 
     def record(self):
         if self.is_eager:
@@ -107,10 +110,7 @@ class SoftAccuracy(Metric):
         self.accuracy = tfe.metrics.Accuracy() if is_eager else tf.metrics.accuracy
 
     def update(self, features, labels, pred_mean):
-        metric_op = self.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))
-        if not self.is_eager:
-            self.result = metric_op[0]
-            return metric_op
+        return self._return_and_store(self.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1)))
 
     def record(self):
         if self.is_eager:
@@ -122,10 +122,7 @@ class SoftAccuracy(Metric):
 class LogisticAccuracy(SoftAccuracy):
     """Accuracy for output from the logistic function"""
     def update(self, features, labels, pred_mean):
-        metric_op = self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32))
-        if not self.is_eager:
-            self.result = metric_op[0]
-            return metric_op
+        return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)))
 
 
 # This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
