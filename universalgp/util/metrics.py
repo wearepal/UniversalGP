@@ -78,67 +78,51 @@ class Metric:
         """Print the result or record it in the summary"""
         pass
 
+    def _return_and_store(self, metric_op):
+        if not self.is_eager:
+            self.result = metric_op[0]
+            return metric_op
+
 
 class Rmse(Metric):
     """Root mean squared error"""
     def __init__(self, is_eager):
-        super(Rmse, self).__init__(is_eager)
-        self.metric = tfe.metrics.Mean() if is_eager else None
+        super().__init__(is_eager)
+        self.metric = tfe.metrics.Mean() if is_eager else tf.metrics.root_mean_squared_error
 
     def update(self, features, labels, pred_mean):
         if self.is_eager:
             self.metric((pred_mean - labels)**2)
         else:
-            self.metric = tf.metrics.root_mean_squared_error(labels, pred_mean)
-            return self.metric
+            return self._return_and_store(self.metric(labels, pred_mean))
 
     def record(self):
         if self.is_eager:
             print(f"RMSE: {np.sqrt(self.metric.result())}")
         else:
-            tf.summary.scalar('RMSE', self.metric[0])
+            tf.summary.scalar('RMSE', self.result)
 
 
 class SoftAccuracy(Metric):
     """Accuracy for softmax output"""
     def __init__(self, is_eager):
-        super(SoftAccuracy, self).__init__(is_eager)
-        self.metric = tfe.metrics.Accuracy() if is_eager else None
+        super().__init__(is_eager)
+        self.accuracy = tfe.metrics.Accuracy() if is_eager else tf.metrics.accuracy
 
     def update(self, features, labels, pred_mean):
-        argmax = [tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1)]
-        if self.is_eager:
-            self.metric(*argmax)
-        else:
-            self.metric = tf.metrics.accuracy(*argmax)
-            return self.metric
+        return self._return_and_store(self.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1)))
 
     def record(self):
         if self.is_eager:
-            print(f"Accuracy: {self.metric.result()}")
+            print(f"Accuracy: {self.accuracy.result()}")
         else:
-            tf.summary.scalar('Accuracy', self.metric[0])
+            tf.summary.scalar('Accuracy', self.result)
 
 
-class LogisticAccuracy(Metric):
+class LogisticAccuracy(SoftAccuracy):
     """Accuracy for output from the logistic function"""
-    def __init__(self, is_eager):
-        super(LogisticAccuracy, self).__init__(is_eager)
-        self.metric = tfe.metrics.Accuracy() if is_eager else None
-
     def update(self, features, labels, pred_mean):
-        cast = [tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)]
-        if self.is_eager:
-            self.metric(*cast)
-        else:
-            self.metric = tf.metrics.accuracy(*cast)
-            return self.metric
-
-    def record(self):
-        if self.is_eager:
-            print(f"Accuracy: {self.metric.result()}")
-        else:
-            tf.summary.scalar('Accuracy', self.metric[0])
+        return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)))
 
 
 # This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
