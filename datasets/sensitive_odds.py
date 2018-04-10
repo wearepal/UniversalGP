@@ -17,20 +17,20 @@ from scipy.stats import multivariate_normal
 from .definition import Dataset
 
 
-SEED = 123
+SEED = 2345657
 seed(SEED)  # set the random seed, which can be reproduced again
 np.random.seed(SEED)
 
 
 def sensitive_odds_example():
     """Simple equality odds example with synthetic data."""
-    n_all = 500
+    n_all = 250
     inputs, outputs, sensi_attr = _generate_feature(n_all)
 
-    num_train = 450
+    num_train = 200
     xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test = _select_training_and_test(
         inputs, outputs[..., np.newaxis], sensi_attr, num_train)
-    num_inducing = 400
+    num_inducing = 200
 
     return Dataset(
         train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': _const(xtrain)}, _const(ytrain))),
@@ -64,30 +64,30 @@ def _gaussian_diff_generator(mean, cov, z_val, label, n):
 def _generate_feature(n, data_type=False):
     if data_type:
         """ Generate data: different false possitive rate, but the same false negative rate """
-        cov = [[3,1], [1,3]]
+        cov = [[3, 1], [1, 3]]
         mu1, sigma1 = [2, 2], cov  # z=1, +
         mu2, sigma2 = [2, 2], cov  # z=0, +
 
-        mu3, sigma3 = [-2,-2], cov # z=1, -
-        cov = [[3,3], [1,3]]
-        mu4, sigma4 = [-1,0], cov # z=0, -
+        mu3, sigma3 = [-2, -2], cov # z=1, -
+        cov = [[3, 3], [1, 3]]
+        mu4, sigma4 = [-1, 0], cov # z=0, -
 
     else:
         """ Generate data: different false possitive rate, and different false negative rate """
-        cov = [[10, 1], [1, 4]]
+        cov = [[3, 1], [1, 4]]
         mu1, sigma1 = [2, 3], cov  # z=1, +
         cov = [[5, 2], [2, 5]]
         mu2, sigma2 = [1, 2], cov  # z=0, +
 
         cov = [[5, 1], [1, 5]]
-        mu3, sigma3 = [-5, 0], cov  # z=1, -
-        cov = [[7, 1], [1, 7]]
-        mu4, sigma4 = [0, -1], cov  # z=0, -
+        mu3, sigma3 = [-5, -1], cov  # z=1, -
+        cov = [[3, 1], [1, 3]]
+        mu4, sigma4 = [-1, -1], cov  # z=0, -
 
-    nv1, X1, y1, z1 = _gaussian_diff_generator(mu1, sigma1, 1, +1, int(n * 1))  # z=1, +
-    nv2, X2, y2, z2 = _gaussian_diff_generator(mu2, sigma2, 0, +1, int(n * 1))  # z=0, +
-    nv3, X3, y3, z3 = _gaussian_diff_generator(mu3, sigma3, 1, -1, int(n * 1))  # z=1, -
-    nv4, X4, y4, z4 = _gaussian_diff_generator(mu4, sigma4, 0, -1, int(n * 1))  # z=0, -
+    nv1, X1, y1, z1 = _gaussian_diff_generator(mu1, sigma1, 1, 1, int(n * 1))  # z=1, +
+    nv2, X2, y2, z2 = _gaussian_diff_generator(mu2, sigma2, 0, 1, int(n * 1))  # z=0, +
+    nv3, X3, y3, z3 = _gaussian_diff_generator(mu3, sigma3, 1, 0, int(n * 1))  # z=1, -
+    nv4, X4, y4, z4 = _gaussian_diff_generator(mu4, sigma4, 0, 0, int(n * 1))  # z=0, -
 
     # merge the class clusters
     inputs = np.vstack((X1, X2, X3, X4))

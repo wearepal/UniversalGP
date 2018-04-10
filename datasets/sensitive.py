@@ -24,14 +24,14 @@ np.random.seed(SEED)
 
 def sensitive_example():
     """Simple example with synthetic data."""
-    n_all = 200
+    n_all = 250
     disc_factor = np.pi / 5.0  # discrimination in the data -- decraese it to generate more discrimination
     inputs, outputs, sensi_attr = _generate_feature(n_all, disc_factor)
 
-    num_train = 150
+    num_train = 200
     xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test = _select_training_and_test(
         inputs, outputs[..., np.newaxis], sensi_attr, num_train)
-    num_inducing = 150
+    num_inducing = 200
 
     return Dataset(
         train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input':_const(xtrain)}, _const(ytrain))),
@@ -75,7 +75,7 @@ def _generate_feature(n, disc_factor):
                          [np.sin(disc_factor), np.cos(disc_factor)]])
     inputs_aux = np.dot(inputs, rotation)
 
-    #### Generate the sensitive feature here ####
+    """ Generate the sensitive feature here """
     sensi_attr = []  # this array holds the sensitive feature value
     for i in range(len(inputs)):
         x = inputs_aux[i]
