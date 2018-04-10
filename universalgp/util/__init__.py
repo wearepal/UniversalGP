@@ -20,3 +20,4 @@ from . import plot
 from .metrics import init_metrics
 from .metrics import update_metrics
 from .metrics import record_metrics
+from .plot_classification import Classification
