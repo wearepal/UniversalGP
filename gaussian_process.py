@@ -44,11 +44,11 @@ def main(_):
     if FLAGS.tf_mode == 'graph':
         tf.logging.set_verbosity(tf.logging.INFO)
         train_func = universalgp.train_graph
-    if FLAGS.tf_mode == 'eager':
+    elif FLAGS.tf_mode == 'eager':
         train_func = universalgp.train_eager
         tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
     else:
-        ValueError('Unknown tf_mode: "{}"'.format(FLAGS.tf_mode))
+        raise ValueError(f"Unknown tf_mode: \"{FLAGS.tf_mode}\"")
     dataset = getattr(datasets, FLAGS.data)()
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary
     train_func.train_gp(dataset, args)
