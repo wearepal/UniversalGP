@@ -121,5 +121,5 @@ def train_gp(data, args):
             pred_var.append(prediction['var'])
         pred_mean = np.stack(pred_mean)
         pred_var = np.stack(pred_var)
-        getattr(util.plot, args['plot'])(pred_mean, pred_var, data.xtrain, data.ytrain, data.xtest, data.ytest)
+        getattr(util.plot, args['plot'])(pred_mean, pred_var, data)
     return gp

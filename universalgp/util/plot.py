@@ -3,6 +3,8 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.animation as animation
 
+from .plot_classification import Classification
+
 
 def simple_1d(pred_mean, pred_var, xtrain, ytrain, xtest, ytest, in_dim=0):
     """Plot train and test data and predicted data with uncertainty."""
@@ -63,3 +65,23 @@ def simple_2d(pred_mean, pred_var, xtrain, ytrain, xtest, ytest, in_dim_a=0, in_
         rot_animation.save('rotation.gif', dpi=80, writer='imagemagick')
     else:
         plt.show()
+
+
+def classification_2d(pred, _, data):
+    if data.lik == "LikelihoodLogistic":
+        pred = (pred > 0.5).astype(np.float)
+    elif data.lik == "LikelihoodSoftmax":
+        pred = np.argmax(pred, axis=1)
+
+    group = Classification(data.xtest, data.ytest)
+    group.plot_2d_prediction(pred)
+
+
+# def classification_2d_sensitive(pred, sensi_attr_test, pred_var, xtrain, ytrain, xtest, ytest):
+#     group = Classification(xtest, ytest)
+#     group.plot_2d_sensitive_prediction(pred, sensi_attr_test)
+
+
+
+
+

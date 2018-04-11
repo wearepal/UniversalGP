@@ -70,7 +70,7 @@ def train_gp(dataset, args):
             tf.reset_default_graph()
             # Create predictions
             mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
-            getattr(util.plot, args['plot'])(mean, var, dataset.xtrain, dataset.ytrain, dataset.xtest, dataset.ytest)
+            getattr(util.plot, args['plot'])(mean, var, dataset)
     return gp
 
 
