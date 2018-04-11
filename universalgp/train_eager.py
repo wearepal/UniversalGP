@@ -35,7 +35,7 @@ def train_gp(dataset, args):
         tf.gfile.MakeDirs(str(out_dir))
     else:
         out_dir = Path(mkdtemp())  # Create temporary directory
-    checkpoint_prefix = out_dir / Path('ckpt')
+    checkpoint_prefix = out_dir / Path('model.ckpt')
     step_counter = tf.train.get_or_create_global_step()
 
     # Restore from existing checkpoint
@@ -63,14 +63,14 @@ def train_gp(dataset, args):
                 tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
             epoch += 1
 
-        if args['save_vars'] and args['save_dir'] is not None:
-            var_collection = {var.name: var.numpy() for var in gp.get_all_variables() + hyper_params}
-            np.savez_compressed(out_dir / Path("vars"), **var_collection)
-        if args['plot'] is not None:
+        if args['plot'] or (args['save_preds'] and args['save_dir']):  # Create predictions
             tf.reset_default_graph()
-            # Create predictions
             mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
-            getattr(util.plot, args['plot'])(mean, var, dataset)
+
+    if args['save_preds'] and args['save_dir']:  # save predictions
+        np.savez_compressed(out_dir / Path("predictions"), pred_mean=mean, pred_var=var)
+    if args['plot']:  # plot
+        getattr(util.plot, args['plot'])(mean, var, dataset)
     return gp
 
 

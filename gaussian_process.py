@@ -33,7 +33,7 @@ tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
 tf.app.flags.DEFINE_string('plot', None, 'Which function to use for plotting (or None)')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
-tf.app.flags.DEFINE_boolean('save_vars', False, 'Whether to save the trained variables as numpy arrays in the end')
+tf.app.flags.DEFINE_boolean('save_preds', False, 'Whether to save the predictions for the test data')
 
 
 def main(_):
