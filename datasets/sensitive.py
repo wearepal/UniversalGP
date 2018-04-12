@@ -1,42 +1,35 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Thursday March 22 13:41:54 2018
-
-Usage: Generate the simple synthetic data with two non-sensitive features and one sensitive feature.
-       A sensitive feature, 0.0 : protected group (e.g., female)
-                            1.0 : non-protected group (e.g., male).
-       For parity demographic
+Generate the simple synthetic data with two non-sensitive features and one sensitive feature.
+A sensitive feature, 0.0 : protected group (e.g., female)
+                     1.0 : non-protected group (e.g., male).
+For parity demographic
 """
 
-from random import seed, shuffle
 import numpy as np
 import tensorflow as tf
 from scipy.stats import multivariate_normal
 
-from .definition import Dataset
-
-
-SEED = 123
-seed(SEED)  # set the random seed, which can be reproduced again
-np.random.seed(SEED)
+from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
 
 def sensitive_example():
-    """Simple example with synthetic data."""
+    """Synthetic data with bias"""
+    SEED = 123
+    np.random.seed(SEED)  # set the random seed, which can be reproduced again
+
     n_all = 250
-    disc_factor = np.pi / 5.0  # discrimination in the data -- decraese it to generate more discrimination
+    disc_factor = np.pi / 5.0  # discrimination in the data -- decrease it to generate more discrimination
     inputs, outputs, sensi_attr = _generate_feature(n_all, disc_factor)
 
     num_train = 200
-    xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test = _select_training_and_test(
-        inputs, outputs[..., np.newaxis], sensi_attr, num_train)
+    xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test = select_training_and_test(
+        2 * num_train, inputs, outputs[..., np.newaxis], sensi_attr)
     num_inducing = 200
 
     return Dataset(
-        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input':_const(xtrain)}, _const(ytrain))),
-        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input':_const(xtest)}, _const(ytest))),
-        num_train=num_train,
+        train_fn=to_tf_dataset_fn(xtrain, ytrain, sensi_attr_train),
+        test_fn=to_tf_dataset_fn(xtest, ytest, sensi_attr_test),
+        num_train=2 * num_train,
         input_dim=2,
         inducing_inputs=xtrain[::num_train // num_inducing],
         output_dim=1,
@@ -73,9 +66,9 @@ def _generate_feature(n, disc_factor):
 
     rotation = np.array([[np.cos(disc_factor), -np.sin(disc_factor)],
                          [np.sin(disc_factor), np.cos(disc_factor)]])
-    inputs_aux = np.dot(inputs, rotation)
+    inputs_aux = inputs @ rotation
 
-    """ Generate the sensitive feature here """
+    #### Generate the sensitive feature here ####
     sensi_attr = []  # this array holds the sensitive feature value
     for i in range(len(inputs)):
         x = inputs_aux[i]
@@ -99,22 +92,3 @@ def _generate_feature(n, disc_factor):
     sensi_attr = np.array(sensi_attr)
 
     return inputs, outputs, sensi_attr
-
-
-def _const(arr):
-    return tf.constant(arr, dtype=tf.float32)
-
-
-def _select_training_and_test(inputs, outputs, sensi_attr, num_train):
-    idx = np.arange(len(inputs))
-    np.random.shuffle(idx)
-    num_train = 2 * num_train
-    xtrain = inputs[idx[:num_train]]
-    ytrain = outputs[idx[:num_train]]
-    sensi_attr_train = sensi_attr[idx[:num_train]]
-
-    xtest = inputs[idx[num_train:]]
-    ytest = outputs[idx[num_train:]]
-    sensi_attr_test = sensi_attr[idx[num_train:]]
-
-    return xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test
