@@ -8,31 +8,25 @@ import matplotlib.animation as animation
 # importing is difficult because it depends on how the program is started
 # we try different methods here and hope that one works:
 try:
-    from scripts.load import parse_and_load
+    from scripts.load import get_dataset
 except ModuleNotFoundError:
-    from load import parse_and_load
+    from load import get_dataset
 
-COV = 'SquaredExponential'
-INF = 'Variational'
-FLAGS = {
-    'num_components': 1,
-    'num_samples_pred': 2000,
-    'diag_post': False,
-    'iso': False
-}
-DATASET = 'maize_yield'
-CHECKPOINT_PATH = "/its/home/tk324/tensorflow/maize1/model.ckpt-500"
+DATASET = "maize_yield"
+PREDICTIONS_PATH = "/its/home/tk324/tensorflow/maize1/predictions.npz"
 SAVE_ANIMATION = False
 IN_DIM_A = 0
 IN_DIM_B = 2
 
 
 def main():
-    # load GP model from checkpoint
-    gp, dataset = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
+    # load predictions from numpy file
+    preds = np.load(PREDICTIONS_PATH)
+    pred_mean, pred_var = preds['pred_mean'], preds['pred_var']
+    # load datset
+    dataset = get_dataset(DATASET)
     xtrain, ytrain = dataset.xtrain, dataset.ytrain
     xtest, ytest = dataset.xtest, dataset.ytest
-    pred_mean, pred_var = gp.predict(xtest)
 
     out_dims = dataset.output_dim
     fig = plt.figure()
