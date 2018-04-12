@@ -17,7 +17,8 @@ FLAGS = {
 }
 DATASET = 'sensitive_example'
 CHECKPOINT_PATH = "/its/home/tk324/tensorflow/m1/ckpt-504"
-RESULT_PATH = "./predictions.txt"
+AS_TXT_FILE = True
+RESULT_PATH = "./predictions"  # without file ending
 
 
 def main():
@@ -25,12 +26,15 @@ def main():
     gp, dataset = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
 
     # make predictions
-    pred_means, pred_vars = gp.predict(dataset.xtest)
+    pred_mean, pred_var = gp.predict(dataset.xtest)
 
     # save in file
-    # np.savez_compressed(RESULT_PATH, **{'pred_means': pred_means, 'pred_vars': pred_vars})
-    np.savetxt(RESULT_PATH, np.column_stack((dataset.xtest[:, 0], pred_means.numpy()[:, 0], pred_vars.numpy()[:, 0])),
-               header='xtest, pred_means, pred_vars')
+    if AS_TXT_FILE:
+        full_path = RESULT_PATH + ".txt"
+        np.savetxt(full_path, np.column_stack((dataset.xtest[:, 0], pred_mean.numpy()[:, 0], pred_var.numpy()[:, 0])),
+                   header='xtest, pred_mean, pred_var')
+    else:
+        np.savez_compressed(RESULT_PATH, pred_mean=pred_mean, pred_var=pred_var)
 
     ##### To load the contents from the file again:
     # xtest, pred_means, pred_vars = np.loadtxt("predictions.txt", unpack=True)

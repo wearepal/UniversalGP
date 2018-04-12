@@ -42,9 +42,14 @@ def load(checkpoint_path, config):
 
 def parse_and_load(checkpoint_path, dataset_name, inf_name, cov_name, flags):
     """Parse the config and then load a model from a checkpoint"""
-    dataset = getattr(datasets, dataset_name)()
+    dataset = get_dataset(dataset_name)
     gp = load(checkpoint_path,
               dict(input_dim=dataset.input_dim, output_dim=dataset.output_dim, num_train=dataset.num_train,
                    num_inducing=dataset.inducing_inputs.shape[0], lik=getattr(lik, dataset.lik),
                    cov=getattr(cov, cov_name), inf=getattr(inf, inf_name), **flags))
     return gp, dataset
+
+
+def get_dataset(dataset_name):
+    """Get a dataset by name"""
+    return getattr(datasets, dataset_name)()
