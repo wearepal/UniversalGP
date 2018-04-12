@@ -6,9 +6,9 @@ import matplotlib.animation as animation
 from .plot_classification import Classification
 
 
-def simple_1d(pred_mean, pred_var, xtrain, ytrain, xtest, ytest, in_dim=0):
+def simple_1d(pred_mean, pred_var, data, in_dim=0):
     """Plot train and test data and predicted data with uncertainty."""
-    flexible_1d(xtest, (pred_mean, pred_var), (xtrain, ytrain), (xtest, ytest), in_dim)
+    flexible_1d(data.xtest, (pred_mean, pred_var), (data.xtrain, data.ytrain), (data.xtest, data.ytest), in_dim)
 
 
 def flexible_1d(xpreds, preds, train, test, in_dim=0):
@@ -24,6 +24,10 @@ def flexible_1d(xpreds, preds, train, test, in_dim=0):
     xtrain, ytrain = train
     xtest, ytest = test
     pred_mean, pred_var = preds
+    sorted_index = np.argsort(xpreds[:, 0])
+    xpreds = xpreds[sorted_index]
+    pred_mean = pred_mean[sorted_index]
+    pred_var = pred_var[sorted_index]
     out_dims = len(ytrain[0])
     for i in range(out_dims):
         plt.subplot(out_dims, 1, i + 1)
@@ -39,8 +43,9 @@ def flexible_1d(xpreds, preds, train, test, in_dim=0):
     plt.show()
 
 
-def simple_2d(pred_mean, pred_var, xtrain, ytrain, xtest, ytest, in_dim_a=0, in_dim_b=2, save_animation=False):
+def simple_2d(pred_mean, pred_var, data, in_dim_a=0, in_dim_b=1, save_animation=False):
     """Plot train and test data and predicted data with uncertainty."""
+    xtrain, ytrain, xtest, ytest = data.xtrain, data.ytrain, data.xtest, data.ytest
     out_dims = len(ytrain[0])
     fig = plt.figure()
     for i in range(out_dims):
@@ -80,8 +85,3 @@ def classification_2d(pred, _, data):
 # def classification_2d_sensitive(pred, sensi_attr_test, pred_var, xtrain, ytrain, xtest, ytest):
 #     group = Classification(xtest, ytest)
 #     group.plot_2d_sensitive_prediction(pred, sensi_attr_test)
-
-
-
-
-
