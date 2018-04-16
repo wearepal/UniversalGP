@@ -1,5 +1,7 @@
 --data=simple_example
+# --data=simple_multi_out
 --inf=Variational
+# --inf=Exact
 --cov=SquaredExponential
 
 # Eager mode
@@ -12,6 +14,7 @@
 
 # No plotting
 --plot=
+# --plot=simple_1d
 
 --num_samples=100
 --num_samples_pred=2000

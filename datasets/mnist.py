@@ -7,7 +7,7 @@ from tensorflow.examples.tutorials.mnist import input_data
 
 import sklearn.cluster
 
-from .definition import Dataset, default_feat_col
+from .definition import Dataset, to_tf_dataset_fn
 
 NUM_INDUCING = 100
 
@@ -29,11 +29,10 @@ def mnist():
     return Dataset(
         input_dim=28 * 28,
         output_dim=10,
-        train_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': data.train.images}, data.train.labels)),
-        test_fn=lambda: tf.data.Dataset.from_tensor_slices(({'input': data.test.images}, data.test.labels)),
+        train_fn=to_tf_dataset_fn(data.train.images, data.train.labels),
+        test_fn=to_tf_dataset_fn(data.test.images, data.test.labels),
         inducing_inputs=_init_z(data.train.images, NUM_INDUCING),
         num_train=data.train.num_examples,
         lik="LikelihoodSoftmax",
         metric="soft_accuracy",
-        **default_feat_col(28 * 28),
     )

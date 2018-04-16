@@ -91,8 +91,7 @@ def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
         with tfe.GradientTape() as tape:
-            inputs = tf.feature_column.input_layer(features, dataset.train_feature_columns)
-            obj_func, inf_params = gp.inference(inputs, outputs, True)
+            obj_func, inf_params = gp.inference(features, outputs, True)
             loss = sum(obj_func.values())
         # Compute gradients
         all_params = inf_params + hyper_params
@@ -128,9 +127,8 @@ def evaluate(gp, dataset, args):
     metrics = util.init_metrics(dataset.metric, True)
 
     for (features, outputs) in tfe.Iterator(dataset.test_fn().batch(args['batch_size'])):
-        inputs = tf.feature_column.input_layer(features, dataset.test_feature_columns)
-        obj_func, _ = gp.inference(inputs, outputs, False)
-        pred_mean, _ = gp.predict(inputs)
+        obj_func, _ = gp.inference(features, outputs, False)
+        pred_mean, _ = gp.predict(features)
         avg_loss(sum(obj_func.values()))
         util.update_metrics(metrics, features, outputs, pred_mean)
     print(f"Test set: Average loss: {avg_loss.result()}")
@@ -169,6 +167,6 @@ def predict(test_inputs, saved_model, dataset_info, args):
     pred_vars = [0.0] * num_batches
 
     for i in range(num_batches):
-        pred_means[i], pred_vars[i] = gp.predict(test_inputs[i])
+        pred_means[i], pred_vars[i] = gp.predict({'input': test_inputs[i]})
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)

@@ -4,7 +4,7 @@ import tensorflow as tf
 import numpy as np
 from scipy.stats import zscore
 
-from .definition import Dataset, to_tf_dataset_fn, default_feat_col
+from .definition import Dataset, to_tf_dataset_fn
 
 DATA_PATH = Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
 
@@ -29,7 +29,6 @@ def maize_yield():
         num_train=len(ytrain),
         lik="LikelihoodGaussian",
         metric="rmse",
-        **default_feat_col(8),
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,

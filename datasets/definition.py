@@ -20,8 +20,8 @@ class Dataset(NamedTuple):
     output_dim: int  # number of output dimensions
     lik: str  # name of likelihood function
     metric: str # name of the metric to use for evaluation during training
-    train_feature_columns: list  # a list of feature columns that describe the input during training time
-    test_feature_columns: list  # a list of feature columns that describe the input during test time
+    train_feature_columns: list = None  # a list of feature columns that describe the input during training time
+    test_feature_columns: list = None  # a list of feature columns that describe the input during test time
     xtrain: np.ndarray = None  # (optional) the training input as numpy array
     ytrain: np.ndarray = None  # (optional) the training output as numpy array
     xtest: np.ndarray = None  # (optional) the test input as numpy array
@@ -87,9 +87,3 @@ def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dt
         return tf.data.Dataset.from_tensor_slices((inputs_dict, outputs_tensor))
 
     return dataset_function
-
-
-def default_feat_col(input_dim):
-    """The default feature column is just a numeric input"""
-    feature_columns = [tf.feature_column.numeric_column('input', shape=input_dim)]
-    return {'train_feature_columns': feature_columns, 'test_feature_columns': feature_columns}

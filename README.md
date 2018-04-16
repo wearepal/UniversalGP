@@ -155,7 +155,7 @@ with tfe.restore_variables_on_create("save_dir/model_name/chkpt-500"):
                    lik.LikelihoodGaussian(),
                    num_train=3756)
 
-prediction = gp.predict(test_inputs=np.array([[3.2], [4.6]]))
+prediction = gp.predict({'input': np.array([[3.2], [4.6]])})
 print(prediction)
 print(gp.get_all_variables())  # print the values of all train variables
 ```

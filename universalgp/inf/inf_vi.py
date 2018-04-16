@@ -105,7 +105,7 @@ class Variational:
         return weights, chol_covars, kernel_chol
 
 
-    def inference(self, train_inputs, train_outputs, _):
+    def inference(self, features, outputs, _):
         """Build graph for computing negative evidence lower bound and predictive mean and variance
 
         Args:
@@ -120,11 +120,10 @@ class Variational:
         # Build the objective function.
         entropy = self._build_entropy(weights, self.means, chol_covars)
         cross_ent = self._build_cross_ent(weights, self.means, chol_covars, kernel_chol)
-        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol, train_inputs,
-                              train_outputs)
-        batch_size = tf.to_float(tf.shape(train_inputs)[0])
+        inputs = features['input']
+        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol, inputs, outputs)
+        batch_size = tf.to_float(tf.shape(inputs)[0])
         nelbo = -((batch_size / self.num_train) * (entropy + cross_ent) + ell)
-        
 
         # Variables that will be changed during training
         vars_to_train = [self.means, self.raw_covars, self.raw_weights]
@@ -132,8 +131,9 @@ class Variational:
             vars_to_train += [self.inducing_inputs]
 
         if self.args['use_loo']:
+            # Compute LOO loss only when necessary
             loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
-                                            train_inputs, train_outputs)
+                                            inputs, outputs)
             return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
         return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
 
@@ -154,7 +154,7 @@ class Variational:
         # Transform all raw variables into their internal form.
         weights, chol_covars, kernel_chol = self._transform_variables()
 
-        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, self.inducing_inputs, test_inputs)
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, self.inducing_inputs, test_inputs['input'])
         sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, self.means, chol_covars)
         pred_means, pred_vars = self.lik.predict(sample_means, sample_vars)
 
@@ -274,7 +274,7 @@ class Variational:
             chold_covars: shape: (num_components, num_latent, num_inducing[, num_inducing])
             inducing_inputs: (num_latent, num_inducing, input_dim)
             kernel_chol: (num_latent, num_inducing, num_inducing)
-            test_inputs: (batch_size, input_dim)
+            train_inputs: (batch_size, input_dim)
             train_outputs: (batch_size, num_latent)
         Returns:
             LOO loss
