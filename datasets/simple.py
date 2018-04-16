@@ -4,7 +4,7 @@ Simple datasets for testing
 
 import numpy as np
 
-from .definition import Dataset, select_training_and_test, to_tf_dataset_fn, default_feat_col
+from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
 
 def simple_example():
@@ -24,7 +24,6 @@ def simple_example():
                    output_dim=1,
                    lik="LikelihoodGaussian",
                    metric="rmse",
-                   **default_feat_col(input_dim=1),
                    xtrain=xtrain,
                    ytrain=ytrain,
                    xtest=xtest,
@@ -51,7 +50,6 @@ def simple_multi_out():
                    output_dim=2,
                    lik="LikelihoodGaussian",
                    metric="rmse",
-                   **default_feat_col(input_dim=1),
                    xtrain=xtrain,
                    ytrain=ytrain,
                    xtest=xtest,
@@ -79,7 +77,6 @@ def simple_multi_in():
                    output_dim=1,
                    lik="LikelihoodGaussian",
                    metric="rmse",
-                   **default_feat_col(input_dim=2),
                    xtrain=xtrain,
                    ytrain=ytrain,
                    xtest=xtest,

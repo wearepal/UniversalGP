@@ -20,7 +20,7 @@ def construct_input():
     test_inputs = tf.constant([[0]], dtype=tf.float32)
     num_train = 2
     inducing_inputs = np.array([[-1], [1]])
-    return train_inputs, train_outputs, test_inputs, num_train, inducing_inputs
+    return {'input': train_inputs}, train_outputs, {'input': test_inputs}, num_train, inducing_inputs
 
 
 def test_variational_complete():

@@ -15,7 +15,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
     mode == TRAIN, mode == EVAL and mode == PREDICT.
 
     Args:
-        features: the inputs (has to be decoded with `tf.feature_column.input_layer()`)
+        features: a dictionary of the inputs
         labels: the outputs
         mode: TRAIN, EVAL or PREDICT
         params: a dictionary of parameters
@@ -27,21 +27,19 @@ def build_gaussian_process(features, labels, mode, params: dict):
     lik_func = getattr(lik, params['lik'])(params)
     if mode == tf.estimator.ModeKeys.TRAIN:
         inducing_param = params['inducing_inputs']
-        inputs = tf.feature_column.input_layer(features, params['train_feature_columns'])  # recover inputs
     else:
         inducing_param = params['inducing_inputs'].shape[-2]  # not training -> only need shape of the inducing inputs
-        inputs = tf.feature_column.input_layer(features, params['test_feature_columns'])  # recover inputs
 
     # Initialize GP
     inf_func = getattr(inf, params['inf'])(cov_func, lik_func, params['num_train'], inducing_param, params)
 
-    pred_mean, pred_var = inf_func.predict(inputs)
+    pred_mean, pred_var = inf_func.predict(features)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})
 
     # Do inference
-    obj_func, inf_param = inf_func.inference(inputs, labels, mode == tf.estimator.ModeKeys.TRAIN)
+    obj_func, inf_param = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
     loss = sum(obj_func.values())
     # Get hyper parameters
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])

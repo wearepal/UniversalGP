@@ -35,8 +35,6 @@ def sensitive_example():
         output_dim=1,
         lik="LikelihoodLogistic",
         metric="logistic_accuracy",
-        train_feature_columns=[tf.feature_column.numeric_column('input', shape=2)],
-        test_feature_columns=[tf.feature_column.numeric_column('input', shape=2)],
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
