@@ -105,6 +105,8 @@ class Rmse(Metric):
 
 class SoftAccuracy(Metric):
     """Accuracy for softmax output"""
+    display_name = "Accuracy"
+
     def __init__(self, is_eager):
         super().__init__(is_eager)
         self.accuracy = tfe.metrics.Accuracy() if is_eager else tf.metrics.accuracy
@@ -114,15 +116,63 @@ class SoftAccuracy(Metric):
 
     def record(self):
         if self.is_eager:
-            print(f"Accuracy: {self.accuracy.result()}")
+            print(f"{self.display_name}: {self.accuracy.result()}")
         else:
-            tf.summary.scalar('Accuracy', self.result)
+            tf.summary.scalar(self.display_name, self.result)
 
 
 class LogisticAccuracy(SoftAccuracy):
     """Accuracy for output from the logistic function"""
+    display_name = "Accuracy"
+
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)))
+
+
+class PredictionRateY1S0(Metric):
+    """Acceptance Rate, group 1"""
+    display_name = "Prediction_rate_y1_s0"
+
+    def __init__(self, is_eager):
+        super().__init__(is_eager)
+        self.mean = tfe.metrics.Mean() if is_eager else tf.metrics.mean
+
+    def update(self, features, labels, pred_mean):
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(tf.equal(features['sensitive'], 0)))
+        return self._return_and_store(self.mean(accepted))
+
+    def record(self):
+        if self.is_eager:
+            print(f"{self.display_name}: {self.mean.result()}")
+        else:
+            tf.summary.scalar(self.display_name, self.result)
+
+
+class PredictionRateY1S1(PredictionRateY1S0):
+    """Acceptance Rate, group 2"""
+    display_name = "Prediction_rate_y1_s1"
+
+    def update(self, features, labels, pred_mean):
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(tf.equal(features['sensitive'], 1)))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseRateY1S0(PredictionRateY1S0):
+    """Base acceptance rate, group 1"""
+    display_name = "Base_rate_y1_s0"
+
+    def update(self, features, labels, pred_mean):
+        accepted = tf.gather_nd(labels, tf.where(tf.equal(features['sensitive'], 0)))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseRateY1S1(PredictionRateY1S0):
+    """Base acceptance rate, group 2"""
+    display_name = "Base_rate_y1_s1"
+
+    def update(self, features, labels, pred_mean):
+        accepted = tf.gather_nd(labels, tf.where(tf.equal(features['sensitive'], 1)))
+        return self._return_and_store(self.mean(accepted))
 
 
 # This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
@@ -131,4 +181,8 @@ MAPPING = {
     'rmse': Rmse,
     'soft_accuracy': SoftAccuracy,
     'logistic_accuracy': LogisticAccuracy,
-    }
+    'pred_rate_y1_s0': PredictionRateY1S0,
+    'pred_rate_y1_s1': PredictionRateY1S1,
+    'base_rate_y1_s0': BaseRateY1S0,
+    'base_rate_y1_s1': BaseRateY1S1,
+}
