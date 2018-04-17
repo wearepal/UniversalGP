@@ -35,24 +35,28 @@ tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging 
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.app.flags.DEFINE_boolean('save_preds', False, 'Whether to save the predictions for the test data')
 
+# you can specify a flag file here where you can put your flags instead of passing them from the command line
+FLAGFILE = ""  # "scripts/flagfiles/simple_example.sh"
+
 
 def main(_):
-    """The main entry point
+    """
+    The main entry point
 
     This functions constructs the data set and then calls the requested training loop.
     """
     if FLAGS.tf_mode == 'graph':
-        tf.logging.set_verbosity(tf.logging.INFO)
         train_func = universalgp.train_graph
+        tf.logging.set_verbosity(tf.logging.INFO)  # print logging information (e.g. the current loss)
     elif FLAGS.tf_mode == 'eager':
         train_func = universalgp.train_eager
         tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
     else:
         raise ValueError(f"Unknown tf_mode: \"{FLAGS.tf_mode}\"")
-    dataset = getattr(datasets, FLAGS.data)()
+    dataset = getattr(datasets, FLAGS.data)()  # take dataset function from the module `datasets` and execute it
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary
     train_func.train_gp(dataset, args)
 
 
 if __name__ == '__main__':
-    tf.app.run(main=main, argv=sys.argv)
+    tf.app.run(main=main, argv=[sys.argv[0], f"--flagfile={FLAGFILE}"] if FLAGFILE else sys.argv)
