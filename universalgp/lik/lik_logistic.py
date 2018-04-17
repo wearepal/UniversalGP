@@ -9,7 +9,9 @@ class LikelihoodLogistic:
 
     def log_cond_prob(self, outputs, latent):
         # return latent * (outputs - 1) - tf.log(1 + tf.exp(-latent))
-        outputs_expanded = util.broadcast(outputs, latent)
+        # in order to use the logistic likelihood, the last dimension of both output and latent function should be 1
+        latent = tf.squeeze(latent, axis=-1)
+        outputs_expanded = util.broadcast(tf.squeeze(outputs, axis=-1), latent)
         return -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs_expanded, logits=latent)
 
     def get_params(self):
