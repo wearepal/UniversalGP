@@ -104,8 +104,7 @@ class Variational:
         kernel_chol = tf.cholesky(kernel_mat + jitter)
         return weights, chol_covars, kernel_chol
 
-
-    def inference(self, features, outputs, _):
+    def inference(self, features, outputs, is_train):
         """Build graph for computing negative evidence lower bound and predictive mean and variance
 
         Args:
@@ -120,9 +119,9 @@ class Variational:
         # Build the objective function.
         entropy = self._build_entropy(weights, self.means, chol_covars)
         cross_ent = self._build_cross_ent(weights, self.means, chol_covars, kernel_chol)
-        inputs = features['input']
-        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol, inputs, outputs)
-        batch_size = tf.to_float(tf.shape(inputs)[0])
+        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol, features, outputs,
+                              is_train)
+        batch_size = tf.to_float(tf.shape(outputs)[0])
         nelbo = -((batch_size / self.num_train) * (entropy + cross_ent) + ell)
 
         # Variables that will be changed during training
@@ -133,7 +132,7 @@ class Variational:
         if self.args['use_loo']:
             # Compute LOO loss only when necessary
             loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
-                                            inputs, outputs)
+                                            features, outputs)
             return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
         return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
 
@@ -266,7 +265,7 @@ class Variational:
 
         return cross_ent
 
-    def _build_loo_loss(self, weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
+    def _build_loo_loss(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features, train_outputs):
         """Construct leave out one loss
         Args:
             weights: (num_components,)
@@ -279,7 +278,7 @@ class Variational:
         Returns:
             LOO loss
         """
-        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, features['input'])
         loss = 0
         latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
         # output of log_cond_prob: (num_components, num_samples, batch_size, num_latent)
@@ -289,7 +288,7 @@ class Variational:
         loss = tf.reduce_sum(weights[:, tf.newaxis, tf.newaxis] * loss_by_component, axis=0)
         return tf.reduce_sum(tf.log(loss))
 
-    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, train_inputs, train_outputs):
+    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features, train_outputs, _):
         """Construct the Expected Log Likelihood
 
         Args:
@@ -303,7 +302,7 @@ class Variational:
         Returns:
             Expected log likelihood as scalar
         """
-        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, train_inputs)
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, features['input'])
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latents)
         latent_samples = self._build_samples(kern_prods, kern_sums, means, chol_covars)
         ell_by_component = tf.reduce_sum(self.lik.log_cond_prob(train_outputs, latent_samples), axis=[1, 2])
