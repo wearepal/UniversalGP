@@ -1,12 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Tue Jan 23 15:57:59 2018
-
-@author: zc223
+Squared exponential kernel
 """
-
-import numpy as np
 import tensorflow as tf
 from .. import util
 
@@ -39,7 +33,7 @@ class SquaredExponential:
             point1: Tensor(input_dim) or Tensor(batch_size, input_dim)
             point2: Tensor(batch_size, input_dim)
         Returns:
-            Tensor of shape (batch_size)
+            Tensor of shape (batch_size, batch_size)
         """
         length_scale_br = tf.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
         if point2 is None:
