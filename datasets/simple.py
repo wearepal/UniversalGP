@@ -1,10 +1,11 @@
 """
 Simple datasets for testing
 """
-
 import numpy as np
 
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
+
+SEED = 1234
 
 
 def simple_example(flags):
@@ -15,6 +16,8 @@ def simple_example(flags):
 
     inputs = np.linspace(0, 5, num=n_all)[:, np.newaxis]
     outputs = np.cos(inputs)
+
+    np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
@@ -42,6 +45,7 @@ def simple_multi_out(flags):
     output2 = np.sin(inputs)
     outputs = np.concatenate((output1, output2), axis=1)
 
+    np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
@@ -70,6 +74,7 @@ def simple_multi_in(flags):
     # outputs = np.cos(input1 + input2)
     outputs = input1**2 + input2**2
 
+    np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),

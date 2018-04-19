@@ -4,17 +4,16 @@ Usage: Generate the simple synthetic data with two non-sensitive features and on
                             1.0 : non-protected group (e.g., male).
        For equality odds fairness
 """
-
 import numpy as np
-import tensorflow as tf
 from scipy.stats import multivariate_normal
 
 from .definition import Dataset, to_tf_dataset_fn, select_training_and_test
 
+SEED = 2345657
+
 
 def sensitive_odds_example(_):
     """Simple equality odds example with synthetic data."""
-    SEED = 2345657
     np.random.seed(SEED)  # set the random seed, which can be reproduced again
 
     n_all = 250
