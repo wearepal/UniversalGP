@@ -30,33 +30,26 @@ class Dataset(NamedTuple):
     strain: np.ndarray = None  # sensitive attribute for train
 
 
-def select_training_and_test(num_train, inputs, outputs, sensitive_attr=None):
+def select_training_and_test(num_train, *data_parts):
     """Randomly devide a dataset into training and test
-
     Args:
-        num_train: desired number of examples in training set
-        inputs: inputs of the dataset
-        outputs: outputs of the dataset
-        sensitive_attr: (optional) sensitive attributes
+        num_train: Desired number of examples in training set
+        *data_parts: Parts of the dataset. The * means that the function can take an arbitrary number of arguments.
     Returns:
-        train input, train output, test input, test output
+        Two lists: data_parts_train, data_parts_test
     """
-    idx = np.arange(inputs.shape[0])
+    idx = np.arange(data_parts[0].shape[0])
     np.random.shuffle(idx)
     train_idx = idx[:num_train]
     test_idx = np.sort(idx[num_train:])
 
-    xtrain = inputs[train_idx]
-    ytrain = outputs[train_idx]
-    xtest = inputs[test_idx]
-    ytest = outputs[test_idx]
+    data_parts_train = []
+    data_parts_test = []
+    for data_part in data_parts:  # data_parts is a list of the arguments passed to the function
+        data_parts_train.append(data_part[train_idx])
+        data_parts_test.append(data_part[test_idx])
 
-    if sensitive_attr is not None:
-        strain = sensitive_attr[train_idx]
-        stest = sensitive_attr[test_idx]
-        return xtrain, ytrain, xtest, ytest, strain, stest
-
-    return xtrain, ytrain, xtest, ytest
+    return data_parts_train, data_parts_test
 
 
 def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=tf.float32, dtype_out=tf.float32,
