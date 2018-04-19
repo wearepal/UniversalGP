@@ -12,7 +12,7 @@ from scipy.stats import multivariate_normal
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
 
-def sensitive_example():
+def sensitive_example(_):
     """Synthetic data with bias"""
     SEED = 123
     np.random.seed(SEED)  # set the random seed, which can be reproduced again

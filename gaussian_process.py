@@ -21,6 +21,7 @@ tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
 tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
+tf.app.flags.DEFINE_integer('num_inducing', 50, 'Suggested number of inducing inputs (datasets don\'t have to use it)')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
 tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
@@ -53,8 +54,8 @@ def main(_):
         tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
     else:
         raise ValueError(f"Unknown tf_mode: \"{FLAGS.tf_mode}\"")
-    dataset = getattr(datasets, FLAGS.data)()  # take dataset function from the module `datasets` and execute it
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary
+    dataset = getattr(datasets, FLAGS.data)(args)  # take dataset function from the module `datasets` and execute it
     train_func.train_gp(dataset, args)
 
 

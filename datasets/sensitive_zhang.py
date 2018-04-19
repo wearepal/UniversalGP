@@ -5,14 +5,14 @@ import tensorflow as tf
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
 
-def sensitive_zhang():
+def sensitive_zhang(flags):
     """
     Toy dataset from Zhang (2017) 'Mitigating Unwanted Biases with Adversarial Learning'
     """
     # parameters
     n_all = 1000
     num_train = 750
-    num_inducing = 250
+    num_inducing = flags['num_inducing']  # 250
     latent_std = 2.  # standard dev of the latent variable that we're trying to predict. bigger -> easier to predict
     features_std = .5  # standard dev of the features with respect to latent var. smaller -> easier to predict
     raw_output_std = .5  # standard dev of the raw output with respect to latent var. smaller -> easier to predict
