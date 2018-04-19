@@ -1,8 +1,10 @@
+"""Synthetic dataset with bias"""
 import numpy as np
 from numpy import random
-import tensorflow as tf
 
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
+
+SEED = 1234
 
 
 def sensitive_zhang(flags):
@@ -18,6 +20,7 @@ def sensitive_zhang(flags):
     raw_output_std = .5  # standard dev of the raw output with respect to latent var. smaller -> easier to predict
 
     # construction
+    np.random.seed(SEED)
     sensitive_attr = random.random_integers(0, 1, n_all)
     latent = random.normal(sensitive_attr, latent_std)
     features = random.normal(latent, features_std)

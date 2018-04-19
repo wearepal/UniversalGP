@@ -1,6 +1,5 @@
 """Maize dataset"""
 from pathlib import Path
-import tensorflow as tf
 import numpy as np
 from scipy.stats import zscore
 

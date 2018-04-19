@@ -4,17 +4,16 @@ A sensitive feature, 0.0 : protected group (e.g., female)
                      1.0 : non-protected group (e.g., male).
 For parity demographic
 """
-
 import numpy as np
-import tensorflow as tf
 from scipy.stats import multivariate_normal
 
 from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
 
+SEED = 123
+
 
 def sensitive_example(_):
     """Synthetic data with bias"""
-    SEED = 123
     np.random.seed(SEED)  # set the random seed, which can be reproduced again
 
     n_all = 250

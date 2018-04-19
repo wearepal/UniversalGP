@@ -13,8 +13,8 @@
 --tf_mode=graph
 
 # No plotting
---plot=
-# --plot=simple_1d
+# --plot=
+--plot=simple_1d
 
 --num_samples=100
 --num_samples_pred=2000
