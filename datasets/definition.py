@@ -2,7 +2,7 @@
 This file defines what a dataset should look like.
 """
 
-from typing import NamedTuple, Callable
+from typing import NamedTuple, Callable, Dict
 import numpy as np
 import tensorflow as tf
 
@@ -52,8 +52,8 @@ def select_training_and_test(num_train, *data_parts):
     return data_parts_train, data_parts_test
 
 
-def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=tf.float32, dtype_out=tf.float32,
-                     dtype_sen=tf.float32):
+def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=np.float32, dtype_out=np.float32,
+                     dtype_sen=np.float32):
     """Create a dataset function out of input and output numpy arrays
 
     It is necessary to wrap the tensorflow code into a function because we have to make sure it's only executed when
@@ -63,21 +63,32 @@ def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dt
     Args:
         inputs: the features as a numpy array
         outputs: the labels as a numpy array
-        sensitive: the sensitive attributes as a numpy array
+        sensitive: (optional) the sensitive attributes as a numpy array
         dtype_in: (optional) the desired type of the input tensor
         dtype_out: (optional) the desired type of the output tensor
         dtype_sen: (optional) the desired type of the sensitive attribute tensor
     Returns:
-        a function that returns the dataset
+        a function that returns the Tensorflow dataset
     """
+    inputs_dict = {'input': inputs.astype(dtype_in)}  # the inputs are in a dict so you can add more
+    if sensitive is not None:
+        inputs_dict.update({'sensitive': sensitive.astype(dtype_sen)})  # add sensitive to input
+    return wrap_in_function(inputs_dict, outputs.astype(dtype_out))
 
+
+def wrap_in_function(inputs_dict: Dict[str, np.ndarray], outputs: np.ndarray) -> Callable:
+    """Wrap the given values in a function that creates a Tensorflow dataset from them
+
+    Args:
+        input_dict: a dictionary with numpy arrays that must already have the correct type
+        output: a numpy array that must already have the correct type
+    Returns:
+        a function that returns the Tensorflow dataset
+    """
     def dataset_function():
         """This function will be called by the training loop"""
-        inputs_dict = {'input': tf.constant(inputs, dtype=dtype_in)}  # the inputs are in a dict so you can add more
-        outputs_tensor = tf.constant(outputs, dtype=dtype_out)
-        if sensitive is not None:
-            inputs_dict.update({'sensitive': tf.constant(sensitive, dtype=dtype_sen)})  # add sensitive to input
-        return tf.data.Dataset.from_tensor_slices((inputs_dict, outputs_tensor))
+        typed_inputs_dict = {input_name: tf.constant(input_value) for input_name, input_value in inputs_dict.items()}
+        return tf.data.Dataset.from_tensor_slices((typed_inputs_dict, tf.constant(outputs)))
 
     return dataset_function
 
