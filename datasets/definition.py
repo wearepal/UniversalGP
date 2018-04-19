@@ -80,3 +80,18 @@ def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dt
         return tf.data.Dataset.from_tensor_slices((inputs_dict, outputs_tensor))
 
     return dataset_function
+
+
+def sensitive_statistics(ytrain, strain, ytest, stest):
+    """Compute and print simple statistics about the bias in the dataset
+    Args:
+        ytrain: labels for training set
+        strain: sensitive attritube for training set
+        ytest: labels for test set
+        stest: sensitive attritube for test set
+    """
+    for mode, y, s in [("train", ytrain, strain), ("test", ytest, stest)]:
+        rate_y1_s0 = np.sum(y[s == 0] == 1) / np.sum(s == 0)
+        rate_y1_s1 = np.sum(y[s == 1] == 1) / np.sum(s == 1)
+        print(f"{mode} set: P(y=1|s=0) = {rate_y1_s0 * 100:.2f}%")
+        print(f"{mode} set: P(y=1|s=1) = {rate_y1_s1 * 100:.2f}%")
