@@ -24,7 +24,7 @@ def sensitive_zhang():
     raw_output = random.normal(latent, raw_output_std)
     labels = (raw_output > 0).astype(np.int)
 
-    xtrain, ytrain, xtest, ytest, strain, stest = select_training_and_test(
+    (xtrain, ytrain, strain), (xtest, ytest, stest) = select_training_and_test(
         num_train, features[..., np.newaxis], labels[..., np.newaxis], sensitive_attr[..., np.newaxis])
 
     return Dataset(

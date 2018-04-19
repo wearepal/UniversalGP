@@ -22,7 +22,7 @@ def sensitive_example():
     inputs, outputs, sensi_attr = _generate_feature(n_all, disc_factor)
 
     num_train = 200
-    xtrain, ytrain, xtest, ytest, sensi_attr_train, sensi_attr_test = select_training_and_test(
+    (xtrain, ytrain, sensi_attr_train), (xtest, ytest, sensi_attr_test) = select_training_and_test(
         2 * num_train, inputs, outputs[..., np.newaxis], sensi_attr)
     num_inducing = 200
 

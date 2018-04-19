@@ -13,7 +13,7 @@ def simple_example():
     num_train = 50
     inputs = np.linspace(0, 5, num=n_all)[:, np.newaxis]
     outputs = np.cos(inputs)
-    xtrain, ytrain, xtest, ytest = select_training_and_test(num_train, inputs, outputs)
+    (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
     num_inducing = 50
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
@@ -40,7 +40,7 @@ def simple_multi_out():
     outputs = np.concatenate((output1, output2), axis=1)
     num_inducing = 50
 
-    xtrain, ytrain, xtest, ytest = select_training_and_test(num_train, inputs, outputs)
+    (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
                    test_fn=to_tf_dataset_fn(xtest, ytest),
@@ -67,7 +67,7 @@ def simple_multi_in():
     outputs = input1**2 + input2**2
     num_inducing = 50
 
-    xtrain, ytrain, xtest, ytest = select_training_and_test(num_train, inputs, outputs)
+    (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
     return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
                    test_fn=to_tf_dataset_fn(xtest, ytest),
