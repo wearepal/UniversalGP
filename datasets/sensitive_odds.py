@@ -12,7 +12,7 @@ from scipy.stats import multivariate_normal
 from .definition import Dataset, to_tf_dataset_fn, select_training_and_test
 
 
-def sensitive_odds_example():
+def sensitive_odds_example(_):
     """Simple equality odds example with synthetic data."""
     SEED = 2345657
     np.random.seed(SEED)  # set the random seed, which can be reproduced again

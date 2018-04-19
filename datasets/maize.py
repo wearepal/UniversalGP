@@ -9,7 +9,7 @@ from .definition import Dataset, to_tf_dataset_fn
 DATA_PATH = Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
 
 
-def maize_yield():
+def maize_yield(_):
     """Maize dataset"""
     data = np.loadtxt(DATA_PATH, delimiter=',', skiprows=1).astype(np.float32)
     x = data[:, 1:]
