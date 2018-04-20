@@ -5,7 +5,7 @@ import numpy as np
 import tensorflow as tf
 from scipy.stats import multivariate_normal
 
-from .definition import Dataset, select_training_and_test, to_tf_dataset_fn, sensitive_statistics
+from .definition import Dataset, select_training_and_test, sensitive_statistics, wrap_in_function
 
 tf.app.flags.DEFINE_float('reject_flip_probability', 0.3, '')
 tf.app.flags.DEFINE_float('accept_flip_probability', 0.3, '')
@@ -21,9 +21,9 @@ def flipped_labels(flags):
     n_all = 3000
     num_train = 1500
     num_inducing = 500
-    data, ybar = _generate_biased_data(n_all, flags['reject_flip_probability'], flags['accept_flip_probability'])
+    data = _generate_biased_data(num_all, flags['reject_flip_probability'], flags['accept_flip_probability'])
 
-    (xtrain, ytrain, strain, _), (xtest, ytest, stest, ybartest) = select_training_and_test(num_train, *data, ybar)
+    (xtrain, ytrain, strain, ybartrain), (xtest, ytest, stest, ybartest) = select_training_and_test(num_train, *data)
     sensitive_statistics(ytrain, strain, ytest, stest)
 
     if flags['test_on_ybar']:
@@ -42,8 +42,10 @@ def flipped_labels(flags):
         input_dim = 2
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(xtrain, ytrain, strain),
-        test_fn=to_tf_dataset_fn(xtest, ytest, stest),
+        train_fn=wrap_in_function({'input': xtrain.astype(np.float32), 'sensitive': strain.astype(np.float32),
+                                   'ybar': ybartrain.astype(np.float32)}, ytrain.astype(np.float32)),
+        test_fn=wrap_in_function({'input': xtest.astype(np.float32), 'sensitive': stest.astype(np.float32),
+                                  'ybar': ybartest.astype(np.float32)}, ytest.astype(np.float32)),
         num_train=num_train,
         input_dim=input_dim,
         inducing_inputs=inducing_inputs,
@@ -98,4 +100,4 @@ def _generate_biased_data(n_all, flip_prob_y1_s0, flip_prob_y0_s1):
     outputs = np.concatenate((y_for_ybar0, y_for_ybar1))[:, np.newaxis]
     sensi_attr = np.concatenate((s_for_ybar0, s_for_ybar1))[:, np.newaxis]
 
-    return (inputs, outputs, sensi_attr), ybar
+    return inputs, outputs, sensi_attr, ybar
