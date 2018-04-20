@@ -18,9 +18,9 @@ def flipped_labels(flags):
     """Synthetic data with bias"""
     np.random.seed(SEED)  # set the random seed, which can be reproduced again
 
-    n_all = 3000
-    num_train = 1500
-    num_inducing = 500
+    num_all = flags['num_all']
+    num_train = flags['num_train']
+    num_inducing = flags['num_inducing']
     data = _generate_biased_data(num_all, flags['reject_flip_probability'], flags['accept_flip_probability'])
 
     (xtrain, ytrain, strain, ybartrain), (xtest, ytest, stest, ybartest) = select_training_and_test(num_train, *data)
