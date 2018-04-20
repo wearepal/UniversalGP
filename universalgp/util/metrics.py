@@ -18,6 +18,7 @@ def init_metrics(metric_flag, is_eager):
     if metric_flag == "":
         return metrics
 
+    # TODO: allow metrics to be defined as a list instead of one long string
     for name in metric_flag.split(','):
         try:
             metric = MAPPING[name]
@@ -79,6 +80,10 @@ class Metric:
         pass
 
     def _return_and_store(self, metric_op):
+        """In graph mode stores the result in `self.result` and returns the op so that it can be updated
+
+        Does currently nothing in eager mode.
+        """
         if not self.is_eager:
             self.result = metric_op[0]
             return metric_op
@@ -101,6 +106,24 @@ class Rmse(Metric):
             print(f"RMSE: {np.sqrt(self.metric.result())}")
         else:
             tf.summary.scalar('RMSE', self.result)
+
+
+class Mae(Metric):
+    """Mean absolute error"""
+    display_name = "MAE"
+
+    def __init__(self, is_eager):
+        super().__init__(is_eager)
+        self.mean = tfe.metrics.Mean() if is_eager else tf.metrics.mean
+
+    def update(self, features, labels, pred_mean):
+        return self._return_and_store(self.mean(tf.abs(pred_mean - labels)))
+
+    def record(self):
+        if self.is_eager:
+            print(f"{self.display_name}: {self.mean.result()}")
+        else:
+            tf.summary.scalar(self.display_name, self.result)
 
 
 class SoftAccuracy(Metric):
@@ -129,26 +152,24 @@ class LogisticAccuracy(SoftAccuracy):
         return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)))
 
 
-class PredictionRateY1S0(Metric):
+class LogisticAccuracyYbar(SoftAccuracy):
+    """Accuracy for output from the logistic function"""
+    display_name = "Accuracy"
+
+    def update(self, features, labels, pred_mean):
+        return self._return_and_store(self.accuracy(features['ybar'], tf.cast(pred_mean > 0.5, tf.float32)))
+
+
+class PredictionRateY1S0(Mae):
     """Acceptance Rate, group 1"""
     display_name = "Prediction_rate_y1_s0"
-
-    def __init__(self, is_eager):
-        super().__init__(is_eager)
-        self.mean = tfe.metrics.Mean() if is_eager else tf.metrics.mean
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(tf.equal(features['sensitive'], 0)))
         return self._return_and_store(self.mean(accepted))
 
-    def record(self):
-        if self.is_eager:
-            print(f"{self.display_name}: {self.mean.result()}")
-        else:
-            tf.summary.scalar(self.display_name, self.result)
 
-
-class PredictionRateY1S1(PredictionRateY1S0):
+class PredictionRateY1S1(Mae):
     """Acceptance Rate, group 2"""
     display_name = "Prediction_rate_y1_s1"
 
@@ -157,7 +178,7 @@ class PredictionRateY1S1(PredictionRateY1S0):
         return self._return_and_store(self.mean(accepted))
 
 
-class BaseRateY1S0(PredictionRateY1S0):
+class BaseRateY1S0(Mae):
     """Base acceptance rate, group 1"""
     display_name = "Base_rate_y1_s0"
 
@@ -166,7 +187,7 @@ class BaseRateY1S0(PredictionRateY1S0):
         return self._return_and_store(self.mean(accepted))
 
 
-class BaseRateY1S1(PredictionRateY1S0):
+class BaseRateY1S1(Mae):
     """Base acceptance rate, group 2"""
     display_name = "Base_rate_y1_s1"
 
@@ -175,14 +196,60 @@ class BaseRateY1S1(PredictionRateY1S0):
         return self._return_and_store(self.mean(accepted))
 
 
+class OpportunityS0(Mae):
+    """Opportunity P(yhat=1|s,ybar=1), group 1"""
+    display_name = "Opportunity_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class OpportunityS1(Mae):
+    """Opportunity P(yhat=1|s,ybar=1), group 2"""
+    display_name = "Opportunity_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s1))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseOpportunityS0(Mae):
+    """Opportunity P(y=1|s,ybar=1), group 1"""
+    display_name = "Base_opportunity_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseOpportunityS1(Mae):
+    """Opportunity P(y=1|s,ybar=1), group 2"""
+    display_name = "Base_opportunity_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s1))
+        return self._return_and_store(self.mean(accepted))
+
+
 # This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
 # this has to be at the end of the file because only here the metric classes have been defined.
 MAPPING = {
     'rmse': Rmse,
+    'mae': Mae,
     'soft_accuracy': SoftAccuracy,
     'logistic_accuracy': LogisticAccuracy,
+    'logistic_accuracy_ybar': LogisticAccuracyYbar,
     'pred_rate_y1_s0': PredictionRateY1S0,
     'pred_rate_y1_s1': PredictionRateY1S1,
     'base_rate_y1_s0': BaseRateY1S0,
     'base_rate_y1_s1': BaseRateY1S1,
+    'opportunity_s0': OpportunityS0,
+    'opportunity_s1': OpportunityS1,
+    'base_opportunity_s0': BaseOpportunityS0,
+    'base_opportunity_s1': BaseOpportunityS1,
 }
