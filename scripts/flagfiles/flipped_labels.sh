@@ -16,10 +16,16 @@
 --target_rate2=0.5
 # --biased_acceptance1=0.35
 # --biased_acceptance2=0.50
---label_flip_probability=0.3
+--reject_flip_probability=0.3
+--accept_flip_probability=0.3
 --s_as_input=True
 --probs_from_flipped=True
+--flip_sensitive_attribute=False
+--test_on_ybar=False
 
 # --save_dir=/its/home/tk324/tensorflow/
 # --model_name=fair2
 # --save_preds=True
+--logging_steps=1
+--summary_steps=100
+--chkpnt_steps=5000
