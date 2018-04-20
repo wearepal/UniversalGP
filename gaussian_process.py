@@ -21,6 +21,8 @@ tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
 tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
+tf.app.flags.DEFINE_integer('num_all', 200, 'Suggested total number of examples (datasets don\'t have to use it)')
+tf.app.flags.DEFINE_integer('num_train', 50, 'Suggested number of training examples (datasets don\'t have to use it)')
 tf.app.flags.DEFINE_integer('num_inducing', 50, 'Suggested number of inducing inputs (datasets don\'t have to use it)')
 ### Tensorflow flags
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')

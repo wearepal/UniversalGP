@@ -11,6 +11,9 @@
 --plot=simple_1d
 --num_samples=1000
 --num_samples_pred=2000
+--num_all=3000
+--num_train=1500
+--num_inducing=500
 # --cov=Linear
 --target_rate1=0.5
 --target_rate2=0.5
