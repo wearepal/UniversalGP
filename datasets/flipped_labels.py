@@ -52,7 +52,8 @@ def flipped_labels(flags):
         output_dim=1,
         lik="LikelihoodLogistic",
         metric=("logistic_accuracy,pred_rate_y1_s0,pred_rate_y1_s1,base_rate_y1_s0,base_rate_y1_s1,"
-                "logistic_accuracy_ybar,opportunity_s0,opportunity_s1,base_opportunity_s0,base_opportunity_s1"),
+                "logistic_accuracy_ybar,pred_odds_yybar1_s0,pred_odds_yybar1_s1,base_odds_yybar1_s0,"
+                "base_odds_yybar1_s1,pred_odds_yybar0_s0,pred_odds_yybar0_s1,base_odds_yybar0_s0,base_odds_yybar0_s1"),
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,

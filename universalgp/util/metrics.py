@@ -3,6 +3,8 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
+# TODO: split into several files
+# TODO: after splitting it into several files in a separate dictionary it should be possible to get rid of MAPPING
 
 
 def init_metrics(metric_flag, is_eager):
@@ -196,7 +198,7 @@ class BaseRateY1S1(Mae):
         return self._return_and_store(self.mean(accepted))
 
 
-class OpportunityS0(Mae):
+class PredictionOddsYYbar1S0(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 1"""
     display_name = "Opportunity_s0"
 
@@ -206,7 +208,7 @@ class OpportunityS0(Mae):
         return self._return_and_store(self.mean(accepted))
 
 
-class OpportunityS1(Mae):
+class PredictionOddsYYbar1S1(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 2"""
     display_name = "Opportunity_s1"
 
@@ -216,7 +218,7 @@ class OpportunityS1(Mae):
         return self._return_and_store(self.mean(accepted))
 
 
-class BaseOpportunityS0(Mae):
+class BaseOddsYYbar1S0(Mae):
     """Opportunity P(y=1|s,ybar=1), group 1"""
     display_name = "Base_opportunity_s0"
 
@@ -226,13 +228,53 @@ class BaseOpportunityS0(Mae):
         return self._return_and_store(self.mean(accepted))
 
 
-class BaseOpportunityS1(Mae):
+class BaseOddsYYbar1S1(Mae):
     """Opportunity P(y=1|s,ybar=1), group 2"""
     display_name = "Base_opportunity_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s1))
+        return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYYbar0S0(Mae):
+    """Opportunity P(yhat=1|s,ybar=1), group 1"""
+    display_name = "Opportunity_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYYbar0S1(Mae):
+    """Opportunity P(yhat=1|s,ybar=1), group 2"""
+    display_name = "Opportunity_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s1))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseOddsYYbar0S0(Mae):
+    """Opportunity P(y=1|s,ybar=1), group 1"""
+    display_name = "Base_opportunity_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class BaseOddsYYbar0S1(Mae):
+    """Opportunity P(y=1|s,ybar=1), group 2"""
+    display_name = "Base_opportunity_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -248,8 +290,12 @@ MAPPING = {
     'pred_rate_y1_s1': PredictionRateY1S1,
     'base_rate_y1_s0': BaseRateY1S0,
     'base_rate_y1_s1': BaseRateY1S1,
-    'opportunity_s0': OpportunityS0,
-    'opportunity_s1': OpportunityS1,
-    'base_opportunity_s0': BaseOpportunityS0,
-    'base_opportunity_s1': BaseOpportunityS1,
+    'pred_odds_yybar1_s0': PredictionOddsYYbar1S0,
+    'pred_odds_yybar1_s1': PredictionOddsYYbar1S1,
+    'base_odds_yybar1_s0': BaseOddsYYbar1S0,
+    'base_odds_yybar1_s1': BaseOddsYYbar1S1,
+    'pred_odds_yybar0_s0': PredictionOddsYYbar0S0,
+    'pred_odds_yybar0_s1': PredictionOddsYYbar0S1,
+    'base_odds_yybar0_s0': BaseOddsYYbar0S0,
+    'base_odds_yybar0_s1': BaseOddsYYbar0S1,
 }
