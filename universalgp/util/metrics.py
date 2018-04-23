@@ -87,7 +87,7 @@ class Metric:
         Does currently nothing in eager mode.
         """
         if not self.is_eager:
-            self.result = metric_op[0]
+            self.result = metric_op[1]
             return metric_op
 
 
@@ -156,7 +156,7 @@ class LogisticAccuracy(SoftAccuracy):
 
 class LogisticAccuracyYbar(SoftAccuracy):
     """Accuracy for output from the logistic function"""
-    display_name = "Accuracy"
+    display_name = "Accuracy_ybar"
 
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.accuracy(features['ybar'], tf.cast(pred_mean > 0.5, tf.float32)))
@@ -200,7 +200,7 @@ class BaseRateY1S1(Mae):
 
 class PredictionOddsYYbar1S0(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 1"""
-    display_name = "Opportunity_s0"
+    display_name = "Prediction_odds_yybar1_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
@@ -210,7 +210,7 @@ class PredictionOddsYYbar1S0(Mae):
 
 class PredictionOddsYYbar1S1(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 2"""
-    display_name = "Opportunity_s1"
+    display_name = "Prediction_odds_yybar1_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
@@ -220,7 +220,7 @@ class PredictionOddsYYbar1S1(Mae):
 
 class BaseOddsYYbar1S0(Mae):
     """Opportunity P(y=1|s,ybar=1), group 1"""
-    display_name = "Base_opportunity_s0"
+    display_name = "Base_odds_yybar1_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
@@ -230,7 +230,7 @@ class BaseOddsYYbar1S0(Mae):
 
 class BaseOddsYYbar1S1(Mae):
     """Opportunity P(y=1|s,ybar=1), group 2"""
-    display_name = "Base_opportunity_s1"
+    display_name = "Base_odds_yybar1_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
@@ -240,7 +240,7 @@ class BaseOddsYYbar1S1(Mae):
 
 class PredictionOddsYYbar0S0(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 1"""
-    display_name = "Opportunity_s0"
+    display_name = "Prediction_odds_yybar0_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
@@ -250,7 +250,7 @@ class PredictionOddsYYbar0S0(Mae):
 
 class PredictionOddsYYbar0S1(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 2"""
-    display_name = "Opportunity_s1"
+    display_name = "Prediction_odds_yybar0_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
@@ -260,7 +260,7 @@ class PredictionOddsYYbar0S1(Mae):
 
 class BaseOddsYYbar0S0(Mae):
     """Opportunity P(y=1|s,ybar=1), group 1"""
-    display_name = "Base_opportunity_s0"
+    display_name = "Base_odds_yybar0_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
@@ -270,7 +270,7 @@ class BaseOddsYYbar0S0(Mae):
 
 class BaseOddsYYbar0S1(Mae):
     """Opportunity P(y=1|s,ybar=1), group 2"""
-    display_name = "Base_opportunity_s1"
+    display_name = "Base_odds_yybar0_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
