@@ -3,8 +3,9 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
-# TODO: split into several files
-# TODO: after splitting it into several files in a separate dictionary it should be possible to get rid of MAPPING
+from universalgp import util
+
+# TODO: split this file into several files
 
 
 def init_metrics(metric_flag, is_eager):
@@ -18,13 +19,24 @@ def init_metrics(metric_flag, is_eager):
     """
     metrics = {}
     if metric_flag == "":
-        return metrics
+        return metrics  # No metric names given -> return empty dictionary
 
-    # TODO: allow metrics to be defined as a list instead of one long string
-    for name in metric_flag.split(','):
+    # First, find all metrics
+    dict_of_metrics = {}
+    for class_name in dir(util.metrics):  # Loop over everything that is defined in `metrics`
+        class_ = getattr(util.metrics, class_name)
+        # Here, we filter out all functions and other classes which are not metrics
+        if isinstance(class_, type(Metric)) and issubclass(class_, Metric):
+            dict_of_metrics[class_.name] = class_
+
+    if isinstance(metric_flag, list):
+        metric_list = metric_flag  # `metric_flag` is already a list
+    else:
+        metric_list = metric_flag.split(',')  # Split `metric_flag` into a list
+    for name in metric_list:
         try:
-            metric = MAPPING[name]
-        except KeyError:
+            metric = dict_of_metrics[name]  # Now we can just look up the metrics in the dictionary we created
+        except KeyError:  # No metric found with the name `name`
             raise ValueError(f"Unknown metric \"{name}\"")
         metrics[name] = metric(is_eager)
     return metrics
@@ -45,7 +57,7 @@ def update_metrics(metrics, features, labels, pred_mean):
     update_ops = {}
     for name, metric in metrics.items():
         update_op = metric.update(features, labels, pred_mean)
-        if update_op is not None:
+        if update_op is not None:  # `update_op` is only not `None` in graph mode
             update_ops[name] = update_op
     return update_ops
 
@@ -62,6 +74,8 @@ def record_metrics(metrics):
 
 class Metric:
     """Base class for metrics"""
+    name = "empty_metric"
+
     def __init__(self, is_eager):
         self.is_eager = is_eager
 
@@ -93,6 +107,8 @@ class Metric:
 
 class Rmse(Metric):
     """Root mean squared error"""
+    name = "rmse"
+
     def __init__(self, is_eager):
         super().__init__(is_eager)
         self.metric = tfe.metrics.Mean() if is_eager else tf.metrics.root_mean_squared_error
@@ -105,14 +121,14 @@ class Rmse(Metric):
 
     def record(self):
         if self.is_eager:
-            print(f"RMSE: {np.sqrt(self.metric.result())}")
+            print(f"{self.name}: {np.sqrt(self.metric.result())}")
         else:
-            tf.summary.scalar('RMSE', self.result)
+            tf.summary.scalar(self.name, self.result)
 
 
 class Mae(Metric):
     """Mean absolute error"""
-    display_name = "MAE"
+    name = "MAE"
 
     def __init__(self, is_eager):
         super().__init__(is_eager)
@@ -123,14 +139,14 @@ class Mae(Metric):
 
     def record(self):
         if self.is_eager:
-            print(f"{self.display_name}: {self.mean.result()}")
+            print(f"{self.name}: {self.mean.result()}")
         else:
-            tf.summary.scalar(self.display_name, self.result)
+            tf.summary.scalar(self.name, self.result)
 
 
 class SoftAccuracy(Metric):
     """Accuracy for softmax output"""
-    display_name = "Accuracy"
+    name = "soft_accuracy"
 
     def __init__(self, is_eager):
         super().__init__(is_eager)
@@ -141,14 +157,14 @@ class SoftAccuracy(Metric):
 
     def record(self):
         if self.is_eager:
-            print(f"{self.display_name}: {self.accuracy.result()}")
+            print(f"{self.name}: {self.accuracy.result()}")
         else:
-            tf.summary.scalar(self.display_name, self.result)
+            tf.summary.scalar(self.name, self.result)
 
 
 class LogisticAccuracy(SoftAccuracy):
     """Accuracy for output from the logistic function"""
-    display_name = "Accuracy"
+    name = "logistic_accuracy"
 
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32)))
@@ -156,7 +172,7 @@ class LogisticAccuracy(SoftAccuracy):
 
 class LogisticAccuracyYbar(SoftAccuracy):
     """Accuracy for output from the logistic function"""
-    display_name = "Accuracy_ybar"
+    name = "logistic_accuracy_ybar"
 
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.accuracy(features['ybar'], tf.cast(pred_mean > 0.5, tf.float32)))
@@ -164,7 +180,7 @@ class LogisticAccuracyYbar(SoftAccuracy):
 
 class PredictionRateY1S0(Mae):
     """Acceptance Rate, group 1"""
-    display_name = "Prediction_rate_y1_s0"
+    name = "pred_rate_y1_s0"
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(tf.equal(features['sensitive'], 0)))
@@ -173,7 +189,7 @@ class PredictionRateY1S0(Mae):
 
 class PredictionRateY1S1(Mae):
     """Acceptance Rate, group 2"""
-    display_name = "Prediction_rate_y1_s1"
+    name = "pred_rate_y1_s1"
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(tf.equal(features['sensitive'], 1)))
@@ -182,7 +198,7 @@ class PredictionRateY1S1(Mae):
 
 class BaseRateY1S0(Mae):
     """Base acceptance rate, group 1"""
-    display_name = "Base_rate_y1_s0"
+    name = "base_rate_y1_s0"
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(labels, tf.where(tf.equal(features['sensitive'], 0)))
@@ -191,7 +207,7 @@ class BaseRateY1S0(Mae):
 
 class BaseRateY1S1(Mae):
     """Base acceptance rate, group 2"""
-    display_name = "Base_rate_y1_s1"
+    name = "base_rate_y1_s1"
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(labels, tf.where(tf.equal(features['sensitive'], 1)))
@@ -200,7 +216,7 @@ class BaseRateY1S1(Mae):
 
 class PredictionOddsYYbar1S0(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 1"""
-    display_name = "Prediction_odds_yybar1_s0"
+    name = "pred_odds_yybar1_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
@@ -210,7 +226,7 @@ class PredictionOddsYYbar1S0(Mae):
 
 class PredictionOddsYYbar1S1(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 2"""
-    display_name = "Prediction_odds_yybar1_s1"
+    name = "pred_odds_yybar1_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
@@ -220,7 +236,7 @@ class PredictionOddsYYbar1S1(Mae):
 
 class BaseOddsYYbar1S0(Mae):
     """Opportunity P(y=1|s,ybar=1), group 1"""
-    display_name = "Base_odds_yybar1_s0"
+    name = "base_odds_yybar1_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 0))
@@ -230,7 +246,7 @@ class BaseOddsYYbar1S0(Mae):
 
 class BaseOddsYYbar1S1(Mae):
     """Opportunity P(y=1|s,ybar=1), group 2"""
-    display_name = "Base_odds_yybar1_s1"
+    name = "base_odds_yybar1_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tf.logical_and(tf.equal(features['ybar'], 1), tf.equal(features['sensitive'], 1))
@@ -240,7 +256,7 @@ class BaseOddsYYbar1S1(Mae):
 
 class PredictionOddsYYbar0S0(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 1"""
-    display_name = "Prediction_odds_yybar0_s0"
+    name = "pred_odds_yybar0_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
@@ -250,7 +266,7 @@ class PredictionOddsYYbar0S0(Mae):
 
 class PredictionOddsYYbar0S1(Mae):
     """Opportunity P(yhat=1|s,ybar=1), group 2"""
-    display_name = "Prediction_odds_yybar0_s1"
+    name = "pred_odds_yybar0_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
@@ -260,7 +276,7 @@ class PredictionOddsYYbar0S1(Mae):
 
 class BaseOddsYYbar0S0(Mae):
     """Opportunity P(y=1|s,ybar=1), group 1"""
-    display_name = "Base_odds_yybar0_s0"
+    name = "base_odds_yybar0_s0"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 0))
@@ -270,32 +286,9 @@ class BaseOddsYYbar0S0(Mae):
 
 class BaseOddsYYbar0S1(Mae):
     """Opportunity P(y=1|s,ybar=1), group 2"""
-    display_name = "Base_odds_yybar0_s1"
+    name = "base_odds_yybar0_s1"
 
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
         return self._return_and_store(self.mean(accepted))
-
-
-# This is the mapping from string to metric class that is used to find a metric based on the metric flag. Unfortunately,
-# this has to be at the end of the file because only here the metric classes have been defined.
-MAPPING = {
-    'rmse': Rmse,
-    'mae': Mae,
-    'soft_accuracy': SoftAccuracy,
-    'logistic_accuracy': LogisticAccuracy,
-    'logistic_accuracy_ybar': LogisticAccuracyYbar,
-    'pred_rate_y1_s0': PredictionRateY1S0,
-    'pred_rate_y1_s1': PredictionRateY1S1,
-    'base_rate_y1_s0': BaseRateY1S0,
-    'base_rate_y1_s1': BaseRateY1S1,
-    'pred_odds_yybar1_s0': PredictionOddsYYbar1S0,
-    'pred_odds_yybar1_s1': PredictionOddsYYbar1S1,
-    'base_odds_yybar1_s0': BaseOddsYYbar1S0,
-    'base_odds_yybar1_s1': BaseOddsYYbar1S1,
-    'pred_odds_yybar0_s0': PredictionOddsYYbar0S0,
-    'pred_odds_yybar0_s1': PredictionOddsYYbar0S1,
-    'base_odds_yybar0_s0': BaseOddsYYbar0S0,
-    'base_odds_yybar0_s1': BaseOddsYYbar0S1,
-}
