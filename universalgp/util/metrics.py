@@ -107,7 +107,7 @@ class Metric:
 
 class Rmse(Metric):
     """Root mean squared error"""
-    name = "rmse"
+    name = "RMSE"
 
     def __init__(self, is_eager):
         super().__init__(is_eager)

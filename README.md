@@ -112,7 +112,7 @@ def my_dataset():
                    inducing_inputs=inducing_inputs_numpy,
                    output_dim=1,
                    lik="LikelihoodGaussian",
-                   metric="rmse")
+                   metric="RMSE")
 ```
 
 The last step is to import the new function in `datasets/__init__.py`.  
