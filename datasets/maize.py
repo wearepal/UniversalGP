@@ -27,7 +27,7 @@ def maize_yield(_):
         inducing_inputs=xtrain,
         num_train=len(ytrain),
         lik="LikelihoodGaussian",
-        metric="rmse",
+        metric="RMSE",
         xtrain=xtrain,
         ytrain=ytrain,
         xtest=xtest,
