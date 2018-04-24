@@ -3,7 +3,7 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
-from universalgp import util
+from .. import util
 
 # TODO: split this file into several files
 

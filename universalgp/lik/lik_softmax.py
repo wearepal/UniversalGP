@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from universalgp import util
+from .. import util
 
 tf.app.flags.DEFINE_integer('num_samples_pred', 2000, 'Number of samples for mean and variance estimate for prediction')
 

@@ -1,6 +1,6 @@
 import tensorflow as tf
 
-from universalgp import util
+from .. import util
 
 
 class LikelihoodLogistic:
