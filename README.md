@@ -28,7 +28,23 @@ many developments and improvements.
 
 Dependencies: Tensorflow, SciPy, sklearn, matplotlib
 
-After installing all dependencies just clone the repository.
+After installing all dependencies clone the repository and do (inside 
+the top directory):
+```sh
+pip install .
+```
+This will install a copy of the code as a package. If you want to 
+install a package that links to the cloned code, run
+```sh
+pip install -e .
+```
+This makes changes to the source files in the cloned directory 
+immediately available to everything that imports the package.
+
+Anywhere on the system you can then import the package:
+```python
+import universalgp as ugp
+```
 
 ## Usage
 
@@ -39,7 +55,7 @@ To train the GP with one of the included datasets, run for example
 python gaussian_process.py --data=mnist
 ```
 This will train on the MNIST dataset. For other included datasets see 
-the files in `datasets/`.
+the files in `universalgp/datasets/`.
 
 By default, the code uses *Variational Inference*. In order to use a 
 different method, specify the `--inf` parameter. For example
@@ -92,9 +108,10 @@ train_gp.py --helpfull`.
 
 ### Add a new dataset
 
-To add a new dataset, create a new python file in `datasets/`. In this 
-file, create a function which returns a dataset according to the 
-definition in `datasets/definition.py`. The resulting file should look 
+To add a new dataset, create a new python file in 
+`universalgp/datasets/`. In this file, create a function which returns a 
+dataset according to the definition in 
+`universalgp/datasets/definition.py`.  The resulting file should look 
 something like this:
 ```python
 from .definition import Dataset
@@ -115,9 +132,10 @@ def my_dataset():
                    metric="RMSE")
 ```
 
-The last step is to import the new function in `datasets/__init__.py`.  
-If you named the file `my_dataset` and the function also `my_dataset()` 
-then add the following line to `datasets/__init__.py`:
+The last step is to import the new function in 
+`universalgp/datasets/__init__.py`.  If you named the file `my_dataset` 
+and the function also `my_dataset()` then add the following line to 
+`universalgp/datasets/__init__.py`:
 ```python
 from .my_dataset import my_dataset
 ```

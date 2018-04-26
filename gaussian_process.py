@@ -5,13 +5,11 @@ This file is mainly for defining flags and choosing the right dataset.
 """
 import sys
 import tensorflow as tf
-import tensorflow.contrib.eager as tfe
 
-import datasets
-import universalgp
+from universalgp import train_graph, train_eager, datasets
 
 FLAGS = tf.app.flags.FLAGS
-### GP flags
+# ---GP flags---
 tf.app.flags.DEFINE_string('tf_mode', 'graph', 'The mode in which Tensorflow is run. Either `graph` or `eager`.')
 # tf.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
 tf.app.flags.DEFINE_string('data', 'sensitive_odds_example', 'Dataset to use')
@@ -24,7 +22,7 @@ tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing L
 tf.app.flags.DEFINE_integer('num_all', 200, 'Suggested total number of examples (datasets don\'t have to use it)')
 tf.app.flags.DEFINE_integer('num_train', 50, 'Suggested number of training examples (datasets don\'t have to use it)')
 tf.app.flags.DEFINE_integer('num_inducing', 50, 'Suggested number of inducing inputs (datasets don\'t have to use it)')
-### Tensorflow flags
+# ---Tensorflow flags---
 tf.app.flags.DEFINE_string('model_name', 'local', 'Name of model (used for name of checkpoints)')
 tf.app.flags.DEFINE_integer('batch_size', 50, 'Batch size')
 tf.app.flags.DEFINE_integer('train_steps', 500, 'Number of training steps')
@@ -49,11 +47,11 @@ def main(_):
     This functions constructs the data set and then calls the requested training loop.
     """
     if FLAGS.tf_mode == 'graph':
-        train_func = universalgp.train_graph
+        train_func = train_graph
         tf.logging.set_verbosity(tf.logging.INFO)  # print logging information (e.g. the current loss)
     elif FLAGS.tf_mode == 'eager':
-        train_func = universalgp.train_eager
-        tfe.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
+        train_func = train_eager
+        tf.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately, no sessions)
     else:
         raise ValueError(f"Unknown tf_mode: \"{FLAGS.tf_mode}\"")
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary

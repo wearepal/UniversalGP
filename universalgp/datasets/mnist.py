@@ -22,7 +22,7 @@ def _init_z(train_inputs, num_inducing):
 
 def mnist(_):
     """MNIST dataset with one hot labels"""
-    data = input_data.read_data_sets('./datasets/data/', one_hot=True)
+    data = input_data.read_data_sets('./universalgp/datasets/data/', one_hot=True)
 
     return Dataset(
         input_dim=28 * 28,

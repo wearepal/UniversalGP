@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 
-datasets/data/
+universalgp/datasets/data/
 
 # directories that start with a dot
 .*/
