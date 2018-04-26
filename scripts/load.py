@@ -5,8 +5,7 @@ from tensorflow.contrib import eager as tfe
 # importing is difficult because it depends on how the program is started
 # we try different methods here and hope that one works:
 sys.path.append('..')
-from universalgp import inf, cov, lik
-import datasets
+from universalgp import inf, cov, lik, datasets
 
 
 def load(checkpoint_path, config):

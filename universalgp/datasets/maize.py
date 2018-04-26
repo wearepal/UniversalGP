@@ -5,7 +5,7 @@ from scipy.stats import zscore
 
 from .definition import Dataset, to_tf_dataset_fn
 
-DATA_PATH = Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
+DATA_PATH = Path("universalgp") / Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
 
 
 def maize_yield(_):
