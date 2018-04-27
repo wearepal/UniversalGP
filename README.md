@@ -36,7 +36,7 @@ pip install .
 This will install a copy of the code as a package. If you want to 
 install a package that links to the cloned code, run
 ```sh
-pip install -e .
+pip install --editable .
 ```
 This makes changes to the source files in the cloned directory 
 immediately available to everything that imports the package.
