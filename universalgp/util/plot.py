@@ -82,6 +82,11 @@ def classification_2d(pred, _, data):
     group.plot_2d_prediction(pred)
 
 
-# def classification_2d_sensitive(pred, sensi_attr_test, pred_var, xtrain, ytrain, xtest, ytest):
-#     group = Classification(xtest, ytest)
-#     group.plot_2d_sensitive_prediction(pred, sensi_attr_test)
+def classification_2d_sensitive(pred, _, data):
+    if data.lik == "LikelihoodLogistic":
+        pred = (pred > 0.5).astype(np.float)
+    elif data.lik == "LikelihoodSoftmax":
+        pred = np.argmax(pred, axis=1)
+
+    group = Classification(data.xtest, data.ytest)
+    group.plot_2d_sensitive_prediction(pred, data.stest)
