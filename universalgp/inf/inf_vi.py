@@ -218,11 +218,16 @@ class Variational:
             variational_dist = MultivariateNormalDiag(
                 means, tf.sqrt(chol_covars[tf.newaxis, ...] + chol_covars[:, tf.newaxis, ...]))
         else:
-            # here we use the original component_covar directly
-            component_covar = util.mat_square(chol_covars)
-            chol_covars_sum = tf.cholesky(component_covar[tf.newaxis, ...] +
-                                          component_covar[:, tf.newaxis, ...])
-            # class MultivariateNormalTriL only accepts cholesky covariances instead of covariances
+            if self.args['num_components'] == 1:
+                # Use the fact that chol(S + S) = sqrt(2) * chol(S)
+                chol_covars_sum = tf.sqrt(2.) * chol_covars[tf.newaxis, ...]
+            else:
+                # Here we use the original component_covar directly
+                # TODO: Can we just stay in cholesky space somehow?
+                component_covar = util.mat_square(chol_covars)
+                chol_covars_sum = tf.cholesky(component_covar[tf.newaxis, ...] +
+                                              component_covar[:, tf.newaxis, ...])
+            # The class MultivariateNormalTriL only accepts cholesky covariances instead of covariances
             variational_dist = MultivariateNormalTriL(means[tf.newaxis, ...], chol_covars_sum)
 
         # compute log probability of all means in all normal distributions
