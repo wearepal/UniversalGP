@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Created on Tue Jan 23 17:33:47 2018
 
@@ -21,3 +19,4 @@ from .metrics import init_metrics
 from .metrics import update_metrics
 from .metrics import record_metrics
 from .plot_classification import Classification
+from .train_helper import construct_gp

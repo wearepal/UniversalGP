@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.eager as tfe
 
-from . import inf, util, cov, lik
+from . import util
 
 
 def train_gp(dataset, args):
@@ -40,12 +40,8 @@ def train_gp(dataset, args):
 
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-        # Gather parameters
-        cov_func = [getattr(cov, args['cov'])(dataset.input_dim, args) for _ in range(dataset.output_dim)]
-        lik_func = getattr(lik, dataset.lik)(args)
-        hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
-
-        gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset.num_train, dataset.inducing_inputs, args)
+        gp, hyper_params = util.construct_gp(args, dataset.input_dim, dataset.output_dim, dataset.lik,
+                                             dataset.inducing_inputs, dataset.num_train)
 
     with tf.device(device):
         step = 0
@@ -158,9 +154,8 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        cov_func = [getattr(cov, args['cov'])(test_inputs.shape[1], args) for _ in range(dataset_info.output_dim)]
-        lik_func = getattr(lik, dataset_info.lik)(args)
-        gp = getattr(inf, args['inf'])(cov_func, lik_func, dataset_info.num_train, num_inducing, args)
+        gp, _ = util.construct_gp(args, test_inputs.shape[1], dataset_info.output_dim, dataset_info.lik, num_inducing,
+                                  dataset_info.num_train)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
