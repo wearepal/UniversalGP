@@ -5,7 +5,7 @@ from pathlib import Path
 import tensorflow as tf
 import numpy as np
 
-from . import inf, cov, lik, util
+from . import util
 
 
 def build_gaussian_process(features, labels, mode, params: dict):
@@ -22,16 +22,13 @@ def build_gaussian_process(features, labels, mode, params: dict):
     Returns:
         a `tf.EstimatorSpec`
     """
-    # Gather parameters
-    cov_func = [getattr(cov, params['cov'])(params['input_dim'], params) for _ in range(params['output_dim'])]
-    lik_func = getattr(lik, params['lik'])(params)
     if mode == tf.estimator.ModeKeys.TRAIN:
         inducing_param = params['inducing_inputs']
     else:
         inducing_param = params['inducing_inputs'].shape[-2]  # not training -> only need shape of the inducing inputs
 
-    # Initialize GP
-    inf_func = getattr(inf, params['inf'])(cov_func, lik_func, params['num_train'], inducing_param, params)
+    inf_func, hyper_params = util.construct_gp(params, params['input_dim'], params['output_dim'], params['lik'],
+                                               inducing_param, params['num_train'])
 
     pred_mean, pred_var = inf_func.predict(features)
 
@@ -41,8 +38,6 @@ def build_gaussian_process(features, labels, mode, params: dict):
     # Do inference
     obj_func, inf_param = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
     loss = sum(obj_func.values())
-    # Get hyper parameters
-    hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
     # Compute evaluation metrics.
     metrics = util.init_metrics(params['metric'], False)
