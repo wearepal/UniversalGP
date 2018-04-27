@@ -16,11 +16,11 @@ def sensitive_example(_):
     """Synthetic data with bias"""
     np.random.seed(SEED)  # set the random seed, which can be reproduced again
 
-    n_all = 500
+    n_all = 250
     disc_factor = np.pi / 5.0  # discrimination in the data -- decrease it to generate more discrimination
     inputs, outputs, sensi_attr = _generate_feature(n_all, disc_factor)
 
-    num_train = 300
+    num_train = 200
     (xtrain, ytrain, sensi_attr_train), (xtest, ytest, sensi_attr_test) = select_training_and_test(
         2 * num_train, inputs, outputs[..., np.newaxis], sensi_attr[..., np.newaxis])
     num_inducing = 200
@@ -31,9 +31,8 @@ def sensitive_example(_):
         train_fn=to_tf_dataset_fn(xtrain, ytrain, sensi_attr_train),
         test_fn=to_tf_dataset_fn(xtest, ytest, sensi_attr_test),
         num_train=2 * num_train,
-        input_dim=3,
-        inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],
-                                        sensi_attr_train[::num_train // num_inducing]), -1),
+        input_dim=2,
+        inducing_inputs=xtrain[::num_train // num_inducing],
         output_dim=1,
         lik="LikelihoodLogistic",
         metric="logistic_accuracy,pred_rate_y1_s0,pred_rate_y1_s1,base_rate_y1_s0,base_rate_y1_s1",
