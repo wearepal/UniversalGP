@@ -13,4 +13,3 @@ from . import inf
 from . import util
 from . import train_graph
 from . import train_eager
-from . import train_graph_scipy
