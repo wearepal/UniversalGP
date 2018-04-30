@@ -33,12 +33,14 @@ class Exact:
             negative log marginal likelihood
         """
         inputs = features['input']
+        assignments = []
         if is_train:
             # During training, we have to store the training data for computing the predictions later on
-            inputs = self.train_inputs.assign(inputs)
-            outputs = self.train_outputs.assign(outputs)
+            assignments.append(self.train_inputs.assign(inputs))
+            assignments.append(self.train_outputs.assign(outputs))
 
-        chol, alpha = self._build_interim_vals(inputs, outputs)
+        with tf.control_dependencies(assignments):  # this makes sure that the assigments are executed
+            chol, alpha = self._build_interim_vals(inputs, outputs)
         # negative log marginal likelihood
         nlml = - self._build_log_marginal_likelihood(outputs, chol, alpha)
 
