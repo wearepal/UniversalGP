@@ -7,12 +7,11 @@ import scipy.linalg as sl
 import scipy.special
 
 import tensorflow as tf
-import tensorflow.contrib.eager as tfe
 
 import universalgp
 
 try:
-    tfe.enable_eager_execution()
+    tf.enable_eager_execution()
 except ValueError:
     pass
 
