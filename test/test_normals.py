@@ -1,10 +1,8 @@
 import numpy as np
 import tensorflow as tf
 
-import tensorflow.contrib.eager as tfe
-
 try:
-    tfe.enable_eager_execution()
+    tf.enable_eager_execution()
 except ValueError:
     pass
 
