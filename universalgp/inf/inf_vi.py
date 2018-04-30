@@ -2,7 +2,7 @@
 Variational inference for generic Gaussian process models
 """
 import tensorflow as tf
-from tensorflow.contrib.distributions import MultivariateNormalDiag, MultivariateNormalTriL
+from tensorflow.contrib.distributions import MultivariateNormalDiag, MultivariateNormalTriL, matrix_diag_transform
 import numpy as np
 from .. import util
 
@@ -89,13 +89,8 @@ class Variational:
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
-            covars_list = [None] * self.args['num_components']
-            for i in range(self.args['num_components']):
-                mat = util.vec_to_tri(self.raw_covars[i, :, :])
-                diag_mat = tf.matrix_diag(tf.matrix_diag_part(mat))
-                exp_diag_mat = tf.matrix_diag(tf.exp(tf.matrix_diag_part(mat)))
-                covars_list[i] = mat - diag_mat + exp_diag_mat
-            chol_covars = tf.stack(covars_list, 0)
+            triangle = util.vec_to_tri(self.raw_covars)
+            chol_covars = matrix_diag_transform(triangle, transform=tf.exp)
 
         # Build the matrices of covariances between inducing inputs.
         kernel_mat = tf.stack([self.cov[i].cov_func(self.inducing_inputs[i, :, :]) for i in range(self.num_latents)], 0)
