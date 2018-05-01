@@ -1,3 +1,5 @@
+"""This test does a complete run of the inference function"""
+
 import numpy as np
 import tensorflow as tf
 
@@ -10,7 +12,7 @@ except ValueError:
     pass
 
 
-SIG_FIGS = 5
+RTOL = 1e-5
 
 
 def construct_input():
@@ -38,10 +40,10 @@ def test_variational_complete():
     pred_mean, pred_var = vi.predict(test_inputs)
 
     # check results
-    np.testing.assert_almost_equal(nelbo.numpy(), 4.1, decimal=1)
-    np.testing.assert_allclose(loo.numpy(), 9.9, rtol=0.01)  # test with a relative tolerance of 1%
-    np.testing.assert_almost_equal(pred_mean.numpy(), 0.0, SIG_FIGS)
-    np.testing.assert_almost_equal(tf.squeeze(pred_var).numpy(), 2.0, decimal=3)
+    np.testing.assert_allclose(nelbo.numpy(), 3.844, rtol=1e-3)
+    np.testing.assert_allclose(loo.numpy(), 4.45, rtol=1e-2)  # test with a relative tolerance of 1%
+    np.testing.assert_allclose(pred_mean.numpy(), 0.0, RTOL)
+    np.testing.assert_allclose(tf.squeeze(pred_var).numpy(), 2.0, 1e-2)
 
 
 def test_exact_complete():
@@ -57,6 +59,6 @@ def test_exact_complete():
     pred_mean, pred_var = exact.predict(test_inputs)
 
     # check results
-    np.testing.assert_almost_equal(nlml.numpy(), 2.34046, SIG_FIGS)
-    np.testing.assert_almost_equal(pred_mean.numpy(), 0.0, SIG_FIGS)
-    np.testing.assert_almost_equal(tf.squeeze(pred_var).numpy(), 1.981779, SIG_FIGS)
+    np.testing.assert_allclose(nlml.numpy(), 2.34046, RTOL)
+    np.testing.assert_allclose(pred_mean.numpy(), 0.0, RTOL)
+    np.testing.assert_allclose(tf.squeeze(pred_var).numpy(), 1.981779, RTOL)
