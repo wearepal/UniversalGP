@@ -84,13 +84,13 @@ class Variational:
         weights = tf.nn.softmax(self.raw_weights)
 
         if self.args['diag_post']:
-            # Use exp(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
-            chol_covars = tf.exp(self.raw_covars)
+            # Use softplus(raw_covars) so as to guarantee the diagonal matrix remains positive definite.
+            chol_covars = tf.nn.softplus(self.raw_covars)
         else:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
             triangle = util.vec_to_tri(self.raw_covars)
-            chol_covars = matrix_diag_transform(triangle, transform=tf.exp)
+            chol_covars = matrix_diag_transform(triangle, transform=tf.nn.softplus)
 
         # Build the matrices of covariances between inducing inputs.
         kernel_mat = tf.stack([self.cov[i].cov_func(self.inducing_inputs[i, :, :]) for i in range(self.num_latents)], 0)
