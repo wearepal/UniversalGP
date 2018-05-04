@@ -1,6 +1,5 @@
 """Dataset with sensitive attribute from numpy files"""
 from pathlib import Path
-import json
 
 import numpy as np
 import tensorflow as tf
@@ -15,15 +14,12 @@ MAX_NUM_INDUCING = 500  # maximum number of inducing inputs
 def sensitive_from_numpy(flags):
     """Load all data from `dataset_dir` and then construct a dataset
 
-    You must specify a path to a directory in the flag `dataset_dir`. In this directory there must be two files:
-    'settings.json' and 'data.npz'. The settings file must be a JSON file that contains the following information:
-    a boolean 's_as_input' and a boolean 'is_fair'. The data file must be a numpy file with the following numpy arrays:
-    'xtrain', 'ytrain', 'strain', 'xtest', 'ytest', 'stest'.
+    You must specify a path to a directory in the flag `dataset_dir`. In this directory there must be the file
+    'data.npz'. This file must be a numpy file with the following numpy arrays: 'xtrain', 'ytrain', 'strain', 'xtest',
+    'ytest', 'stest'.
     """
     data_path = Path(flags['dataset_dir'])
-    # Load settings from `<dataset_dir>/settings.json`
-    with open(data_path / Path('settings.json'), 'r') as fp:
-        settings = json.load(fp)
+
     # Load data from `<dataset_dir>/data.npz`
     raw_data = np.load(data_path / Path("data.npz"))
 
@@ -35,8 +31,8 @@ def sensitive_from_numpy(flags):
     # The following is a bit complicated and could be improved. First, we construct the inducing inputs from the
     # separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we have. The problem here is that
     # sometimes we want the inducing inputs to have merged input but not the training data.
-    inducing_inputs = _inducing_inputs(train, settings['s_as_input'])
-    if not settings['is_fair'] and settings['s_as_input']:
+    inducing_inputs = _inducing_inputs(train, flags.get('s_as_input', False))
+    if flags['inf'] != 'VariationalYbar' and flags.get('s_as_input', False):
         train, test = [_merge_x_and_s(prepared_data) for prepared_data in [train, test]]
 
     return Dataset(
