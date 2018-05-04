@@ -3,8 +3,12 @@ This file defines what a dataset should look like.
 """
 
 from typing import NamedTuple, Callable, Dict
+from collections import namedtuple
 import numpy as np
 import tensorflow as tf
+
+DATA = namedtuple('Data', ['x', 'y', 's'])
+
 
 class Dataset(NamedTuple):
     """
@@ -19,7 +23,7 @@ class Dataset(NamedTuple):
     input_dim: int  # number of input dimensions
     output_dim: int  # number of output dimensions
     lik: str  # name of likelihood function
-    metric: str # name of the metric to use for evaluation during training
+    metric: str  # name of the metric to use for evaluation during training
     train_feature_columns: list = None  # a list of feature columns that describe the input during training time
     test_feature_columns: list = None  # a list of feature columns that describe the input during test time
     xtrain: np.ndarray = None  # (optional) the training input as numpy array
