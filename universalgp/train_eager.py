@@ -59,12 +59,13 @@ def train_gp(dataset, args):
                 tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
             epoch += 1
 
-        if args['plot'] or (args['save_preds'] and args['save_dir']):  # Create predictions
+        if args['plot'] or args['preds_path']:  # Create predictions
             tf.reset_default_graph()
             mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
 
-    if args['save_preds'] and args['save_dir']:  # save predictions
-        np.savez_compressed(out_dir / Path("predictions"), pred_mean=mean, pred_var=var)
+    if args['preds_path']:  # save predictions
+        working_dir = out_dir if args['save_dir'] else Path(".")
+        np.savez_compressed(working_dir / Path(args['preds_path']), pred_mean=mean, pred_var=var)
     if args['plot']:  # plot
         getattr(util.plot, args['plot'])(mean, var, dataset)
     return gp

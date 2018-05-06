@@ -100,7 +100,7 @@ def train_gp(data, args):
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 
-    if args['plot'] or (args['save_preds'] and args['save_dir']):
+    if args['plot'] or args['preds_path']:
         print("Making predictions...")
         predictions_gen = gp.predict(input_fn=lambda: data.test_fn().batch(len(data.xtest)))
         pred_mean = []
@@ -110,9 +110,9 @@ def train_gp(data, args):
             pred_var.append(prediction['var'])
         pred_mean = np.stack(pred_mean)
         pred_var = np.stack(pred_var)
-    if args['save_preds'] and args['save_dir']:
-        np.savez_compressed(Path(args['save_dir']) / Path(args['model_name']) / Path("predictions"),
-                            pred_mean=pred_mean, pred_var=pred_var)
+    if args['preds_path']:
+        working_dir = Path(args['save_dir']) / Path(args['model_name']) if args['save_dir'] else Path(".")
+        np.savez_compressed(working_dir / Path(args['preds_path']), pred_mean=pred_mean, pred_var=pred_var)
     if args['plot']:
         getattr(util.plot, args['plot'])(pred_mean, pred_var, data)
     return gp
