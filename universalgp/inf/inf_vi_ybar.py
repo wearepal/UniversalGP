@@ -7,12 +7,19 @@ import numpy as np
 from .. import util
 from .inf_vi import Variational
 
-tf.app.flags.DEFINE_float('target_rate1', 0.601, '')
-tf.app.flags.DEFINE_float('target_rate2', 0.601, '')
+# General fairness
 tf.app.flags.DEFINE_float('biased_acceptance1', 0.503, '')
 tf.app.flags.DEFINE_float('biased_acceptance2', 0.700, '')
 tf.app.flags.DEFINE_boolean('s_as_input', True, 'Whether the sensitive attribute is treated as part of the input')
+# Demographic parity
+tf.app.flags.DEFINE_float('target_rate1', 0.601, '')
+tf.app.flags.DEFINE_float('target_rate2', 0.601, '')
 tf.app.flags.DEFINE_boolean('probs_from_flipped', True, 'Whether to take the target rates from the flipping probs')
+# Equalized Odds
+tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
+tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
+tf.app.flags.DEFINE_float('p_ybary0_s1', 1.0, '')
+tf.app.flags.DEFINE_float('p_ybary1_s1', 1.0, '')
 
 
 class VariationalYbar(Variational):
@@ -97,3 +104,33 @@ class VariationalYbar(Variational):
         # P(y|y',s) shape: (y, s, y')
         joint_trans = np.transpose(joint, [0, 2, 1])  # transpose for convenience
         return tf.constant(joint_trans, dtype=tf.float32)
+
+
+class VariationalYbarEqOdds(VariationalYbar):
+    """
+    Defines inference for Variational Inference that enforces Equalized Odds
+    """
+    def _debiasing_parameters(self):
+        # P(y=1|s)
+        positive_prior = np.array([self.args['biased_acceptance1'], self.args['biased_acceptance2']])
+        # P(y=0|s)
+        negative_prior = 1 - positive_prior
+        # P(y|s) shape: (y, s, 1)
+        label_prior = np.stack([negative_prior, positive_prior], axis=0)[..., np.newaxis]
+        # P(y'=1|y=1,s)
+        positive_predictive_value = np.array([self.args['p_ybary1_s0'], self.args['p_ybary1_s1']])
+        # P(y'=0|y=0,s)
+        negative_predictive_value = np.array([self.args['p_ybary0_s0'], self.args['p_ybary0_s1']])
+        # P(y'=1|y=0,s)
+        false_omission_rate = 1 - negative_predictive_value
+        # P(y'=1|y,s) shape: (y, s)
+        positive_value = np.stack([false_omission_rate, positive_predictive_value], axis=0)
+        # P(y'|y,s) shape: (y, s, y')
+        label_likelihood = np.stack([1 - positive_value, positive_value], axis=-1)
+        # P(y',y|s) shape: (y, s, y')
+        joint = label_likelihood * label_prior
+        # P(y'|s) shape: (s, y')
+        label_evidence = np.sum(joint, axis=0)
+        # P(y|y',s) shape: (y, s, y')
+        label_posterior = joint / label_evidence
+        return tf.constant(label_posterior, dtype=tf.float32)
