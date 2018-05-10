@@ -28,7 +28,7 @@
 
 # --save_dir=/its/home/tk324/tensorflow/
 # --model_name=fair2
-# --save_preds=True
+# --preds_path='predictions.npz'
 --logging_steps=1
 --summary_steps=100
 --chkpnt_steps=5000
