@@ -32,7 +32,7 @@ def sensitive_from_numpy(flags):
     # separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we have. The problem here is that
     # sometimes we want the inducing inputs to have merged input but not the training data.
     inducing_inputs = _inducing_inputs(train, flags.get('s_as_input', False))
-    if flags['inf'] != 'VariationalYbar' and flags.get('s_as_input', False):
+    if flags['inf'] not in ['VariationalYbar', 'VariationalYbarEqOdds'] and flags.get('s_as_input', False):
         train, test = [_merge_x_and_s(prepared_data) for prepared_data in [train, test]]
 
     return Dataset(
