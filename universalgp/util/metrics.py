@@ -292,3 +292,43 @@ class BaseOddsYYbar0S1(Mae):
         test_for_ybar0_s1 = tf.logical_and(tf.equal(features['ybar'], 0), tf.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
         return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYhatY1S0(Mae):
+    """Opportunity P(yhat=1|s,y=1), group 1"""
+    name = "pred_odds_yhaty1_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_y1_s0 = tf.logical_and(tf.equal(labels, 1), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYhatY1S1(Mae):
+    """Opportunity P(yhat=1|s,y=1), group 2"""
+    name = "pred_odds_yhaty1_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_y1_s1 = tf.logical_and(tf.equal(labels, 1), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s1))
+        return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYhatY0S0(Mae):
+    """Opportunity P(yhat=0|s,y=0), group 1"""
+    name = "pred_odds_yhaty0_s0"
+
+    def update(self, features, labels, pred_mean):
+        test_for_y0_s0 = tf.logical_and(tf.equal(labels, 0), tf.equal(features['sensitive'], 0))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s0))
+        return self._return_and_store(self.mean(accepted))
+
+
+class PredictionOddsYhatY0S1(Mae):
+    """Opportunity P(yhat=0|s,y=0), group 2"""
+    name = "pred_odds_yhaty0_s1"
+
+    def update(self, features, labels, pred_mean):
+        test_for_y0_s1 = tf.logical_and(tf.equal(labels, 0), tf.equal(features['sensitive'], 1))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s1))
+        return self._return_and_store(self.mean(accepted))
