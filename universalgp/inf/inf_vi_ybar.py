@@ -33,7 +33,7 @@ class VariationalYbar(Variational):
             if self.args['average_prediction']:
                 preds_s0 = super().predict({'input': tf.concat((test_inputs['input'], tf.zeros_like(s)), axis=1)})
                 preds_s1 = super().predict({'input': tf.concat((test_inputs['input'], tf.ones_like(s)), axis=1)})
-                return 0.5 * (preds_s0 + preds_s1)
+                return 0.5 * (preds_s0[0] + preds_s1[0]), 0.5 * (preds_s0[1] + preds_s1[1])
             return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
         return super().predict(test_inputs)
 
