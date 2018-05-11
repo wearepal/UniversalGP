@@ -15,6 +15,7 @@ tf.app.flags.DEFINE_boolean('s_as_input', True, 'Whether the sensitive attribute
 tf.app.flags.DEFINE_float('target_rate1', 0.601, '')
 tf.app.flags.DEFINE_float('target_rate2', 0.601, '')
 tf.app.flags.DEFINE_boolean('probs_from_flipped', True, 'Whether to take the target rates from the flipping probs')
+tf.app.flags.DEFINE_boolean('average_prediction', False, 'Whether to take the average of both sensitive attributes')
 # Equalized Odds
 tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
@@ -28,8 +29,12 @@ class VariationalYbar(Variational):
     """
     def predict(self, test_inputs):
         if self.args['s_as_input']:
-            return super().predict({'input': tf.concat((test_inputs['input'], test_inputs['sensitive']), axis=1)})
-            # return super().predict({'input': tf.concat((test_inputs['input'], test_inputs['sensitive'] * 0 + .5), 1)})
+            s = test_inputs['sensitive']
+            if self.args['average_prediction']:
+                preds_s0 = super().predict({'input': tf.concat((test_inputs['input'], tf.zeros_like(s)), axis=1)})
+                preds_s1 = super().predict({'input': tf.concat((test_inputs['input'], tf.ones_like(s)), axis=1)})
+                return 0.5 * (preds_s0 + preds_s1)
+            return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
         return super().predict(test_inputs)
 
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features, outputs, is_train):
