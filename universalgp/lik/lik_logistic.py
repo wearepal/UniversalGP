@@ -36,7 +36,7 @@ class LikelihoodLogistic:
         logistic = tf.sigmoid(latent)
 
         # Estimate the expected value of the softmax and the variance through sampling.
-        pred_means = tf.reduce_mean(logistic, 1)
+        pred_means = tf.reduce_mean(logistic, 1, keepdims=True)
         pred_vars = tf.reduce_sum((logistic - pred_means) ** 2, 1) / (self.num_samples - 1.0)
 
-        return pred_means, pred_vars
+        return tf.squeeze(pred_means, 1), pred_vars
