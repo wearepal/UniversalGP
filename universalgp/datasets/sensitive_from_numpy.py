@@ -8,8 +8,6 @@ from .definition import Dataset, to_tf_dataset_fn, DATA
 
 tf.app.flags.DEFINE_string('dataset_dir', '', 'Directory where the the data is')
 
-MAX_NUM_INDUCING = 500  # maximum number of inducing inputs
-
 
 def sensitive_from_numpy(flags):
     """Load all data from `dataset_dir` and then construct a dataset
@@ -31,7 +29,7 @@ def sensitive_from_numpy(flags):
     # The following is a bit complicated and could be improved. First, we construct the inducing inputs from the
     # separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we have. The problem here is that
     # sometimes we want the inducing inputs to have merged input but not the training data.
-    inducing_inputs = _inducing_inputs(train, flags.get('s_as_input', False))
+    inducing_inputs = _inducing_inputs(flags['num_inducing'], train, flags.get('s_as_input', False))
     if flags['inf'] not in ['VariationalYbar', 'VariationalYbarEqOdds'] and flags.get('s_as_input', False):
         train, test = [_merge_x_and_s(prepared_data) for prepared_data in [train, test]]
 
@@ -59,7 +57,7 @@ def _merge_x_and_s(data):
     return DATA(x=merged_input, y=data.y, s=data.s)
 
 
-def _inducing_inputs(train, s_as_input):
+def _inducing_inputs(max_num_inducing, train, s_as_input):
     """Construct inducing inputs
 
     This could be done more cleverly with k means
@@ -72,7 +70,7 @@ def _inducing_inputs(train, s_as_input):
         inducing inputs
     """
     num_train = train.x.shape[0]
-    num_inducing = min(num_train, MAX_NUM_INDUCING)
+    num_inducing = min(num_train, max_num_inducing)
     if s_as_input:
         return np.concatenate((train.x[::num_train // num_inducing], train.s[::num_train // num_inducing]), -1)
     return train.x[::num_train // num_inducing]
