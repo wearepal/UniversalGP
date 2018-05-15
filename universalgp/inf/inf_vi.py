@@ -128,8 +128,11 @@ class Variational:
             # Compute LOO loss only when necessary
             loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
                                             features, outputs)
-            return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss}, vars_to_train
-        return {'NELBO': tf.squeeze(nelbo)}, vars_to_train
+            return {'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss, 'loss': tf.squeeze(nelbo) + loo_loss,
+                    'entropy': (batch_size / self.num_train) * entropy,
+                    'cross_ent': (batch_size / self.num_train) * cross_ent, 'ell': ell}, vars_to_train
+        return {'loss': tf.squeeze(nelbo), 'elbo': -nelbo, 'entropy': (batch_size / self.num_train) * entropy,
+                'cross_ent': (batch_size / self.num_train) * cross_ent, 'ell': ell}, vars_to_train
 
     def predict(self, test_inputs):
         """Construct predictive distribution

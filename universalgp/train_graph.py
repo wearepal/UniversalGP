@@ -37,7 +37,6 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     # Do inference
     obj_func, inf_param = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
-    loss = sum(obj_func.values())
 
     # Compute evaluation metrics.
     metrics = util.init_metrics(params['metric'], False)
@@ -45,11 +44,14 @@ def build_gaussian_process(features, labels, mode, params: dict):
     util.record_metrics(metrics)
 
     if mode == tf.estimator.ModeKeys.EVAL:
-        return tf.estimator.EstimatorSpec(mode, loss=loss, eval_metric_ops=metric_ops)
+        return tf.estimator.EstimatorSpec(mode, loss=obj_func['loss'], eval_metric_ops=metric_ops)
 
     assert mode == tf.estimator.ModeKeys.TRAIN
 
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=params['lr'])
+    # optimizer = tf.train.GradientDescentOptimizer(params['lr'])
+    # optimizer = tf.train.AdagradOptimizer(params['lr'])
+    # optimizer = tf.train.RMSPropOptimizer(params['lr'])
+    optimizer = tf.train.AdamOptimizer()
     if params['loo_steps'] is not None:
         # Alternate the loss function
         global_step = tf.train.get_global_step()
@@ -60,9 +62,11 @@ def build_gaussian_process(features, labels, mode, params: dict):
         train_loo = optimizer.minimize(loo_loss, global_step=global_step, var_list=hyper_params)
         train_op = tf.group(train_nelbo, train_loo)
     else:
-        train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step(), var_list=inf_param + hyper_params)
-    return tf.estimator.EstimatorSpec(mode, loss=loss, train_op=train_op, training_hooks=[
-        tf.train.LoggingTensorHook(obj_func, every_n_iter=params['logging_steps'])])
+        train_op = optimizer.minimize(obj_func['loss'], global_step=tf.train.get_global_step(),
+                                      var_list=inf_param + hyper_params)
+    return tf.estimator.EstimatorSpec(mode, loss=obj_func['loss'], train_op=train_op, training_hooks=[
+        tf.train.LoggingTensorHook({**obj_func, 'accuracy': metric_ops['logistic_accuracy'][1]},
+                                   every_n_iter=params['logging_steps'])])
 
 
 def train_gp(data, args):
@@ -96,7 +100,8 @@ def train_gp(data, args):
                                      max_steps=args['train_steps'])
 
     # Settings for evaluation
-    evaluator = tf.estimator.EvalSpec(input_fn=lambda: data.test_fn().batch(args['batch_size']))
+    evaluator = tf.estimator.EvalSpec(input_fn=lambda: data.test_fn().batch(args['batch_size']),
+                                      throttle_secs=args['eval_throttle'])
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # this can be replaced by a loop that calls gp.train()
 

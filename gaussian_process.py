@@ -35,6 +35,7 @@ tf.app.flags.DEFINE_string('plot', None, 'Which function to use for plotting (or
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.app.flags.DEFINE_string('preds_path', '', 'Path where the predictions for the test data will be save (or "")')
+tf.app.flags.DEFINE_integer('eval_throttle', 600, 'How long to wait before evaluating in seconds')
 
 # you can specify a flag file here where you can put your flags instead of passing them from the command line
 FLAGFILE = ""  # "scripts/flagfiles/simple_example.sh"
