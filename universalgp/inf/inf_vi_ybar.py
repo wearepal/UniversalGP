@@ -11,6 +11,8 @@ from .inf_vi import Variational
 tf.app.flags.DEFINE_float('biased_acceptance1', 0.503, '')
 tf.app.flags.DEFINE_float('biased_acceptance2', 0.700, '')
 tf.app.flags.DEFINE_boolean('s_as_input', True, 'Whether the sensitive attribute is treated as part of the input')
+tf.app.flags.DEFINE_float('p_s0', 0.5, '')
+tf.app.flags.DEFINE_float('p_s1', 0.5, '')
 # Demographic parity
 tf.app.flags.DEFINE_float('target_rate1', 0.601, '')
 tf.app.flags.DEFINE_float('target_rate2', 0.601, '')
@@ -33,7 +35,7 @@ class VariationalYbar(Variational):
             if self.args['average_prediction']:
                 preds_s0 = super().predict({'input': tf.concat((test_inputs['input'], tf.zeros_like(s)), axis=1)})
                 preds_s1 = super().predict({'input': tf.concat((test_inputs['input'], tf.ones_like(s)), axis=1)})
-                return 0.5 * (preds_s0[0] + preds_s1[0]), 0.5 * (preds_s0[1] + preds_s1[1])
+                return [self.args['p_s0'] * r_s0 + self.args['p_s1'] * r_s1 for r_s0, r_s1 in zip(preds_s0, preds_s1)]
             return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
         return super().predict(test_inputs)
 
