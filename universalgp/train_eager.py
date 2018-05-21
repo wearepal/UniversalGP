@@ -21,12 +21,6 @@ def train_gp(dataset, args):
         trained GP
     """
 
-    # Select device
-    device = '/gpu:' + args['gpus']
-    if args['gpus'] is None or tfe.num_gpus() <= 0:
-        device = '/cpu:0'
-    print('Using device {}'.format(device))
-
     optimizer = tf.train.RMSPropOptimizer(learning_rate=args['lr'])
 
     # Set checkpoint path
@@ -43,25 +37,24 @@ def train_gp(dataset, args):
         gp, hyper_params = util.construct_gp(args, dataset.input_dim, dataset.output_dim, dataset.lik,
                                              dataset.inducing_inputs, dataset.num_train)
 
-    with tf.device(device):
-        step = 0
-        epoch = 1
-        while step < args['train_steps']:
-            start = time.time()
-            fit(gp, optimizer, dataset, step_counter, hyper_params, args)  # train for one epoch
-            end = time.time()
-            step = step_counter.numpy()
-            if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
-                print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-                evaluate(gp, dataset, args)
-            if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
-                all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
-                tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
-            epoch += 1
+    step = 0
+    epoch = 1
+    while step < args['train_steps']:
+        start = time.time()
+        fit(gp, optimizer, dataset, step_counter, hyper_params, args)  # train for one epoch
+        end = time.time()
+        step = step_counter.numpy()
+        if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
+            print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
+            evaluate(gp, dataset, args)
+        if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
+            all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
+            tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
+        epoch += 1
 
-        if args['plot'] or args['preds_path']:  # Create predictions
-            tf.reset_default_graph()
-            mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
+    if args['plot'] or args['preds_path']:  # Create predictions
+        tf.reset_default_graph()
+        mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
 
     if args['preds_path']:  # save predictions
         working_dir = out_dir if args['save_dir'] else Path(".")
@@ -84,10 +77,10 @@ def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
     """
 
     start = time.time()
-    for (batch_num, (features, outputs)) in enumerate(tfe.Iterator(dataset.train_fn().batch(args['batch_size']))):
+    for (batch_num, (features, outputs)) in enumerate(dataset.train_fn().batch(args['batch_size'])):
         # Record the operations used to compute the loss given the input, so that the gradient of the loss with
         # respect to the variables can be computed.
-        with tfe.GradientTape() as tape:
+        with tf.GradientTape() as tape:
             obj_func, inf_params = gp.inference(features, outputs, True)
         # Compute gradients
         all_params = inf_params + hyper_params
@@ -123,7 +116,7 @@ def evaluate(gp, dataset, args):
     avg_loss = tfe.metrics.Mean('loss')
     metrics = util.init_metrics(dataset.metric, True)
 
-    for (features, outputs) in tfe.Iterator(dataset.test_fn().batch(args['batch_size'])):
+    for (features, outputs) in dataset.test_fn().batch(args['batch_size']):
         obj_func, _ = gp.inference(features, outputs, False)
         pred_mean, _ = gp.predict(features)
         avg_loss(sum(obj_func.values()))
