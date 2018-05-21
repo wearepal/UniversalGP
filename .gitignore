@@ -108,3 +108,4 @@ ENV/
 
 # project specific
 universalgp/datasets/data/
+/flag_*.txt

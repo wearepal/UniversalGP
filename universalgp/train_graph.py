@@ -50,7 +50,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     assert mode == tf.estimator.ModeKeys.TRAIN
 
-    if params['loo_steps'] is not None:
+    if params['loo_steps']:
         # Alternate the loss function
         global_step = tf.train.get_global_step()
         mask = tf.equal((global_step // params['loo_steps']) % 2, 0)
@@ -84,8 +84,7 @@ def train_gp(data, args):
     params = {param: getattr(data, param) for param in [
         'train_feature_columns', 'test_feature_columns', 'input_dim', 'output_dim', 'num_train',
         'inducing_inputs', 'metric', 'lik']}
-    out_dir = None if args['save_dir'] is None else str(
-        Path(args['save_dir']) / Path(args['model_name']))
+    out_dir = str(Path(args['save_dir']) / Path(args['model_name'])) if args['save_dir'] else None
     gp = tf.estimator.Estimator(
         model_fn=build_gaussian_process,
         params={**params, **args},

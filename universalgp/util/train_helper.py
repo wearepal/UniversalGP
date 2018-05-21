@@ -38,8 +38,10 @@ def post_training(pred_mean, pred_var, out_dir, dataset, args):
         dataset: dataset object
         args: additional arguments
     """
+    working_dir = Path(out_dir) if args['save_dir'] else Path(".")
+    with open(working_dir / Path(f"flag_{args['model_name']}.txt"), 'w') as f:
+        f.write("\n".join([f"--{k}={v}" for k, v in args.items()]))
     if args['preds_path']:
-        working_dir = Path(out_dir) if args['save_dir'] else Path(".")
         np.savez_compressed(working_dir / Path(args['preds_path']),
                             pred_mean=pred_mean, pred_var=pred_var)
     if args['plot']:
