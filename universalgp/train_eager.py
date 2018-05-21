@@ -34,23 +34,27 @@ def train_gp(dataset, args):
 
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-        gp, hyper_params = util.construct_gp(args, dataset.input_dim, dataset.output_dim, dataset.lik,
-                                             dataset.inducing_inputs, dataset.num_train)
+        gp, hyper_params = util.construct_gp(
+            args, dataset.input_dim, dataset.output_dim, dataset.lik, dataset.inducing_inputs,
+            dataset.num_train)
 
     step = 0
-    epoch = 1
+    train_data = dataset.train_fn().batch(args['batch_size'])
     while step < args['train_steps']:
         start = time.time()
-        fit(gp, optimizer, dataset, step_counter, hyper_params, args)  # train for one epoch
+        # repeat for the required number of epochs but then take *at most* (train_steps - step)
+        fit(gp, optimizer, train_data.repeat(args['eval_epochs']).take(args['train_steps'] - step),
+            step_counter, hyper_params, args)
         end = time.time()
         step = step_counter.numpy()
-        if epoch % args['eval_epochs'] == 0 or not step < args['train_steps']:
-            print(f"Train time for epoch #{epoch} (global step {step}): {end - start:0.2f}s")
-            evaluate(gp, dataset, args)
-        if step % args['chkpnt_steps'] == 0 or not step < args['train_steps']:
-            all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] + hyper_params)
-            tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
-        epoch += 1
+        print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"
+              f" {end - start:0.2f}s")
+        evaluate(gp, dataset.test_fn().batch(args['batch_size']), dataset.metric)
+        all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] +
+                         hyper_params)
+        # TODO: don't ignore the 'chkpnt_steps' flag
+        ckpt_path = tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
+        print(f"Saved checkpoint in '{ckpt_path}'")
 
     if args['plot'] or args['preds_path']:  # Create predictions
         tf.reset_default_graph()
@@ -64,22 +68,22 @@ def train_gp(dataset, args):
     return gp
 
 
-def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
+def fit(gp, optimizer, data, step_counter, hyper_params, args):
     """Trains model on `train_data` using `optimizer`.
 
     Args:
         gp: gaussian process
         optimizer: tensorflow optimizer
-        dataset: dataset
+        data: a `tf.data.Dataset` object
         step_counter: variable to keep track of the training step
         hyper_params: hyper params that should be updated during training
         args: additional parameters
     """
 
     start = time.time()
-    for (batch_num, (features, outputs)) in enumerate(dataset.train_fn().batch(args['batch_size'])):
-        # Record the operations used to compute the loss given the input, so that the gradient of the loss with
-        # respect to the variables can be computed.
+    for (batch_num, (features, outputs)) in enumerate(data):
+        # Record the operations used to compute the loss given the input, so that the gradient of
+        # the loss with respect to the variables can be computed.
         with tf.GradientTape() as tape:
             obj_func, inf_params = gp.inference(features, outputs, True)
         # Compute gradients
@@ -90,7 +94,8 @@ def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
             if (step_counter.numpy() // args['loo_steps']) % 2 == 0:
                 grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
             else:
-                grads_and_params = zip(tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
+                grads_and_params = zip(
+                    tape.gradient(obj_func['LOO_VARIATIONAL'], hyper_params), hyper_params)
         else:
             grads_and_params = zip(tape.gradient(obj_func['loss'], all_params), all_params)
         # Apply gradients
@@ -104,19 +109,18 @@ def fit(gp, optimizer, dataset, step_counter, hyper_params, args):
             start = time.time()
 
 
-
-def evaluate(gp, dataset, args):
+def evaluate(gp, data, dataset_metric):
     """Perform an evaluation of `inf_func` on the examples from `dataset`.
 
     Args:
         gp: gaussian process
-        dataset: dataset
-        args: additional parameters
+        data: a `tf.data.Dataset` object
+        dataset_metric: the metrics that are supposed to be evaluated
     """
     avg_loss = tfe.metrics.Mean('loss')
-    metrics = util.init_metrics(dataset.metric, True)
+    metrics = util.init_metrics(dataset_metric, True)
 
-    for (features, outputs) in dataset.test_fn().batch(args['batch_size']):
+    for (features, outputs) in data:
         obj_func, _ = gp.inference(features, outputs, False)
         pred_mean, _ = gp.predict(features)
         avg_loss(sum(obj_func.values()))
@@ -131,7 +135,8 @@ def predict(test_inputs, saved_model, dataset_info, args):
     This function can be called from a different module and should still work.
 
     Args:
-        test_inputs: ndarray. Points on which we wish to make predictions. Dimensions: num_test * input_dim.
+        test_inputs: ndarray. Points on which we wish to make predictions.
+            Dimensions: num_test * input_dim.
         saved_model: path to saved model
         dataset_info: info about the dataset
         args: additional parameters
@@ -148,8 +153,8 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        gp, _ = util.construct_gp(args, test_inputs.shape[1], dataset_info.output_dim, dataset_info.lik, num_inducing,
-                                  dataset_info.num_train)
+        gp, _ = util.construct_gp(args, dataset_info.input_dim, dataset_info.output_dim,
+                                  dataset_info.lik, num_inducing, dataset_info.num_train)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
