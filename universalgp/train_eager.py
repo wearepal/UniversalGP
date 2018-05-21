@@ -31,7 +31,7 @@ def fit(gp, optimizer, data, step_counter, hyper_params, args):
             obj_func, inf_params = gp.inference(features, outputs, True)
         # Compute gradients
         all_params = inf_params + hyper_params
-        if args['loo_steps'] is not None:
+        if args['loo_steps']:
             # Alternate loss between NELBO and LOO
             # TODO: allow `nelbo_steps` to be different from `loo_steps`
             if (step_counter.numpy() // args['loo_steps']) % 2 == 0:
@@ -120,7 +120,7 @@ def train_gp(dataset, args):
     """
 
     # Set checkpoint path
-    if args['save_dir'] is not None:
+    if args['save_dir']:
         out_dir = Path(args['save_dir']) / Path(args['model_name'])
         tf.gfile.MakeDirs(str(out_dir))
     else:

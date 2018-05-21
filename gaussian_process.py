@@ -20,7 +20,7 @@ tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
-tf.app.flags.DEFINE_integer('loo_steps', None, 'Number of steps for optimizing LOO loss')
+tf.app.flags.DEFINE_integer('loo_steps', 0, 'Number of steps for optimizing LOO loss, 0 disables')
 tf.app.flags.DEFINE_integer('num_all', 200,
                             'Suggested total number of examples (datasets don\'t have to use it)')
 tf.app.flags.DEFINE_integer('num_train', 50,
@@ -36,9 +36,9 @@ tf.app.flags.DEFINE_integer('train_steps', 500, 'Number of training steps')
 tf.app.flags.DEFINE_integer('eval_epochs', 10000, 'Number of epochs between evaluations')
 tf.app.flags.DEFINE_integer('summary_steps', 100, 'How many steps between saving summary')
 tf.app.flags.DEFINE_integer('chkpnt_steps', 5000, 'How many steps between saving checkpoints')
-tf.app.flags.DEFINE_string('save_dir', None,  # '/its/home/tk324/tensorflow/',
-                           'Directory where the checkpoints and summaries are saved')
-tf.app.flags.DEFINE_string('plot', None, 'Which function to use for plotting (or None)')
+tf.app.flags.DEFINE_string('save_dir', '',  # '/its/home/tk324/tensorflow/',
+                           'Directory where the checkpoints and summaries are saved (or \'\')')
+tf.app.flags.DEFINE_string('plot', '', 'Which function to use for plotting (or \'\')')
 tf.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.app.flags.DEFINE_string('preds_path', '',
