@@ -20,7 +20,7 @@
 --num_samples_pred=2000
 
 # Don't save predictions
---preds_path=''
+--preds_path=
 
 # Uncomment this to save the trained model
 # --save_dir=/its/home/tk324/tensorflow/
