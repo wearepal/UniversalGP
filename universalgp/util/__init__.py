@@ -19,4 +19,4 @@ from .metrics import init_metrics
 from .metrics import update_metrics
 from .metrics import record_metrics
 from .plot_classification import Classification
-from .train_helper import construct_gp
+from .train_helper import construct_from_flags, post_training
