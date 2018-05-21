@@ -11,63 +11,6 @@ import tensorflow.contrib.eager as tfe
 from . import util
 
 
-def train_gp(dataset, args):
-    """Train a GP model and return it. This function uses Tensorflow's eager execution.
-
-    Args:
-        dataset: a NamedTuple that contains information about the dataset
-        args: parameters in form of a dictionary
-    Returns:
-        trained GP
-    """
-
-    optimizer = tf.train.RMSPropOptimizer(learning_rate=args['lr'])
-
-    # Set checkpoint path
-    if args['save_dir'] is not None:
-        out_dir = Path(args['save_dir']) / Path(args['model_name'])
-        tf.gfile.MakeDirs(str(out_dir))
-    else:
-        out_dir = Path(mkdtemp())  # Create temporary directory
-    checkpoint_prefix = out_dir / Path('model.ckpt')
-    step_counter = tf.train.get_or_create_global_step()
-
-    # Restore from existing checkpoint
-    with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-        gp, hyper_params = util.construct_gp(
-            args, dataset.input_dim, dataset.output_dim, dataset.lik, dataset.inducing_inputs,
-            dataset.num_train)
-
-    step = 0
-    train_data = dataset.train_fn().batch(args['batch_size'])
-    while step < args['train_steps']:
-        start = time.time()
-        # repeat for the required number of epochs but then take *at most* (train_steps - step)
-        fit(gp, optimizer, train_data.repeat(args['eval_epochs']).take(args['train_steps'] - step),
-            step_counter, hyper_params, args)
-        end = time.time()
-        step = step_counter.numpy()
-        print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"
-              f" {end - start:0.2f}s")
-        evaluate(gp, dataset.test_fn().batch(args['batch_size']), dataset.metric)
-        all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] +
-                         hyper_params)
-        # TODO: don't ignore the 'chkpnt_steps' flag
-        ckpt_path = tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
-        print(f"Saved checkpoint in '{ckpt_path}'")
-
-    if args['plot'] or args['preds_path']:  # Create predictions
-        tf.reset_default_graph()
-        mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
-
-    if args['preds_path']:  # save predictions
-        working_dir = out_dir if args['save_dir'] else Path(".")
-        np.savez_compressed(working_dir / Path(args['preds_path']), pred_mean=mean, pred_var=var)
-    if args['plot']:  # plot
-        getattr(util.plot, args['plot'])(mean, var, dataset)
-    return gp
-
-
 def fit(gp, optimizer, data, step_counter, hyper_params, args):
     """Trains model on `train_data` using `optimizer`.
 
@@ -153,8 +96,8 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        gp, _ = util.construct_gp(args, dataset_info.input_dim, dataset_info.output_dim,
-                                  dataset_info.lik, num_inducing, dataset_info.num_train)
+        gp, _, _ = util.construct_from_flags(args, dataset_info.input_dim, dataset_info.output_dim,
+                                             dataset_info.lik, num_inducing, dataset_info.num_train)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
@@ -164,3 +107,53 @@ def predict(test_inputs, saved_model, dataset_info, args):
         pred_means[i], pred_vars[i] = gp.predict({'input': test_inputs[i]})
 
     return np.concatenate(pred_means, axis=0), np.concatenate(pred_vars, axis=0)
+
+
+def train_gp(dataset, args):
+    """Train a GP model and return it. This function uses Tensorflow's eager execution.
+
+    Args:
+        dataset: a NamedTuple that contains information about the dataset
+        args: parameters in form of a dictionary
+    Returns:
+        trained GP
+    """
+
+    # Set checkpoint path
+    if args['save_dir'] is not None:
+        out_dir = Path(args['save_dir']) / Path(args['model_name'])
+        tf.gfile.MakeDirs(str(out_dir))
+    else:
+        out_dir = Path(mkdtemp())  # Create temporary directory
+    checkpoint_prefix = out_dir / Path('model.ckpt')
+    step_counter = tf.train.get_or_create_global_step()
+
+    # Restore from existing checkpoint
+    with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
+        gp, hyper_params, optimizer = util.construct_from_flags(
+            args, dataset.input_dim, dataset.output_dim, dataset.lik, dataset.inducing_inputs,
+            dataset.num_train)
+
+    step = 0
+    train_data = dataset.train_fn().batch(args['batch_size'])
+    while step < args['train_steps']:
+        start = time.time()
+        # repeat for the required number of epochs but then take *at most* (train_steps - step)
+        fit(gp, optimizer, train_data.repeat(args['eval_epochs']).take(args['train_steps'] - step),
+            step_counter, hyper_params, args)
+        end = time.time()
+        step = step_counter.numpy()
+        print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"
+              f" {end - start:0.2f}s")
+        evaluate(gp, dataset.test_fn().batch(args['batch_size']), dataset.metric)
+        all_variables = (gp.get_all_variables() + optimizer.variables() + [step_counter] +
+                         hyper_params)
+        # TODO: don't ignore the 'chkpnt_steps' flag
+        ckpt_path = tfe.Saver(all_variables).save(checkpoint_prefix, global_step=step_counter)
+        print(f"Saved checkpoint in '{ckpt_path}'")
+
+    if args['plot'] or args['preds_path']:  # Create predictions
+        tf.reset_default_graph()
+        mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
+        util.post_training(mean, var, out_dir, dataset, args)
+    return gp
