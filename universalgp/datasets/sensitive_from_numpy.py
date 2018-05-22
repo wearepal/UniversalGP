@@ -6,31 +6,30 @@ import tensorflow as tf
 
 from .definition import Dataset, to_tf_dataset_fn, DATA
 
-tf.app.flags.DEFINE_string('dataset_dir', '', 'Directory where the the data is')
+tf.app.flags.DEFINE_string('dataset_path', '', 'Path to the numpy file that contains the data')
 
 
 def sensitive_from_numpy(flags):
-    """Load all data from `dataset_dir` and then construct a dataset
+    """Load all data from `dataset_path` and then construct a dataset
 
-    You must specify a path to a directory in the flag `dataset_dir`. In this directory there must be the file
-    'data.npz'. This file must be a numpy file with the following numpy arrays: 'xtrain', 'ytrain', 'strain', 'xtest',
-    'ytest', 'stest'.
+    You must specify a path to a numpy file in the flag `dataset_dir`. This file must contain the
+    following numpy arrays: 'xtrain', 'ytrain', 'strain', 'xtest', 'ytest', 'stest'.
     """
-    data_path = Path(flags['dataset_dir'])
-
-    # Load data from `<dataset_dir>/data.npz`
-    raw_data = np.load(data_path / Path("data.npz"))
+    # Load data from `dataset_path`
+    raw_data = np.load(Path(flags['dataset_path']))
 
     # Normalize input and create DATA tuples for easier handling
     input_normalizer = _get_normalizer(raw_data['xtrain'])
     train = DATA(x=input_normalizer(raw_data['xtrain']), y=raw_data['ytrain'], s=raw_data['strain'])
     test = DATA(x=input_normalizer(raw_data['xtest']), y=raw_data['ytest'], s=raw_data['stest'])
 
-    # The following is a bit complicated and could be improved. First, we construct the inducing inputs from the
-    # separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we have. The problem here is that
-    # sometimes we want the inducing inputs to have merged input but not the training data.
+    # The following is a bit complicated and could be improved. First, we construct the inducing
+    # inputs from the separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we
+    # have. The problem here is that sometimes we want the inducing inputs to have merged input but
+    # not the training data.
     inducing_inputs = _inducing_inputs(flags['num_inducing'], train, flags.get('s_as_input', False))
-    if flags['inf'] not in ['VariationalYbar', 'VariationalYbarEqOdds'] and flags.get('s_as_input', False):
+    if flags['inf'] not in ['VariationalYbar', 'VariationalYbarEqOdds'] and (
+            flags.get('s_as_input', False)):
         train, test = [_merge_x_and_s(prepared_data) for prepared_data in [train, test]]
 
     return Dataset(
@@ -72,7 +71,8 @@ def _inducing_inputs(max_num_inducing, train, s_as_input):
     num_train = train.x.shape[0]
     num_inducing = min(num_train, max_num_inducing)
     if s_as_input:
-        return np.concatenate((train.x[::num_train // num_inducing], train.s[::num_train // num_inducing]), -1)
+        return np.concatenate((train.x[::num_train // num_inducing],
+                               train.s[::num_train // num_inducing]), -1)
     return train.x[::num_train // num_inducing]
 
 
