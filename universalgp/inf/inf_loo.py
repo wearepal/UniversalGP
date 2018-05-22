@@ -5,11 +5,7 @@ Reference:
 Carl Edward Rasmussen and Christopher K. I. Williams
 The MIT Press, 2006. ISBN 0-262-18253-X. p116.
 """
-
-import numpy as np
 import tensorflow as tf
-from .. import lik
-from .. import util
 
 JITTER = 1e-2
 
@@ -22,8 +18,10 @@ class Loo:
         self.lik = lik_func
         self.sn = self.lik.get_params()[0]
         with tf.variable_scope(None, "loo_inference"):
-            self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim], trainable=False)
-            self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)], trainable=False)
+            self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim],
+                                                trainable=False)
+            self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)],
+                                                 trainable=False)
 
     def inference(self, features, outputs, is_train):
         """Build graph for computing predictive mean and variance and negative log probability.
@@ -36,12 +34,14 @@ class Loo:
             negative log marginal likelihood
         """
         inputs = features['input']
+        assignments = []
         if is_train:
-            # During training, we have to store the training data for computing the predictions later on
-            inputs = self.train_inputs.assign(inputs)
-            outputs = self.train_outputs.assign(outputs)
+            # During training, we have to store the training data to compute predictions later on
+            assignments.append(self.train_inputs.assign(inputs))
+            assignments.append(self.train_outputs.assign(outputs))
 
-        chol, alpha = self._build_interim_vals(inputs, outputs)
+        with tf.control_dependencies(assignments):  # this ensures that the assigments are executed
+            chol, alpha = self._build_interim_vals(inputs, outputs)
         # precision = inv(kxx)
         precision = tf.cholesky_solve(chol, tf.eye(tf.shape(inputs)[-2]))
         precision_diag = tf.matrix_diag_part(precision)
@@ -49,10 +49,10 @@ class Loo:
         loo_fmu = outputs - alpha / precision_diag   # GMPL book eq. 5.12
         loo_fs2 = 1.0 / precision_diag               # GMPL book eq. 5.12
 
-        # negative log probability (nlp), also called log pseudo-likelihood)
-        nlp = - self._build_loo(outputs, loo_fmu, loo_fs2)
+        # log probability (lp), also called log pseudo-likelihood)
+        lp = self._build_loo(outputs, loo_fmu, loo_fs2)
 
-        return {'NLP': nlp}, []
+        return {'loss': -lp, 'LP': lp}, []
 
     def predict(self, test_inputs):
         """Build graph for computing predictive mean and variance
