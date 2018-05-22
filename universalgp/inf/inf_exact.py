@@ -6,8 +6,8 @@ import numpy as np
 import tensorflow as tf
 from .. import util
 
-# A jitter (diagonal) has to be added in the training covariance matrix in order to make Cholesky decomposition
-# successfully
+# A jitter (diagonal) has to be added in the training covariance matrix in order to make Cholesky
+# decomposition successfully
 JITTER = 1e-2
 
 
@@ -19,11 +19,13 @@ class Exact:
         self.lik = lik_func
         self.sn = self.lik.get_params()[0]
         with tf.variable_scope(None, "exact_inference"):
-            self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim], trainable=False)
-            self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)], trainable=False)
+            self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim],
+                                                trainable=False)
+            self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)],
+                                                 trainable=False)
 
     def inference(self, features, outputs, is_train):
-        """Build graph for computing predictive mean and variance and negative log marginal likelihood.
+        """Build graph for computing predictive mean and variance and log marginal likelihood.
 
         Args:
             train_inputs: inputs
@@ -35,16 +37,16 @@ class Exact:
         inputs = features['input']
         assignments = []
         if is_train:
-            # During training, we have to store the training data for computing the predictions later on
+            # During training, we have to store the training data to compute predictions later on
             assignments.append(self.train_inputs.assign(inputs))
             assignments.append(self.train_outputs.assign(outputs))
 
-        with tf.control_dependencies(assignments):  # this makes sure that the assigments are executed
+        with tf.control_dependencies(assignments):  # this ensures that the assigments are executed
             chol, alpha = self._build_interim_vals(inputs, outputs)
-        # negative log marginal likelihood
-        nlml = - self._build_log_marginal_likelihood(outputs, chol, alpha)
+        # log marginal likelihood
+        lml = self._build_log_marginal_likelihood(outputs, chol, alpha)
 
-        return {'NLML': nlml}, []
+        return {'loss': -lml, 'LML': lml}, []
 
     def predict(self, test_inputs):
         """Build graph for computing predictive mean and variance
@@ -91,9 +93,9 @@ class Exact:
         #   tf.reduce_sum(tf.log(tf.matrix_diag_part(chol)), -1)
         # log_marginal_likelihood (num_latent,)
         num_train = tf.to_float(tf.shape(chol)[-1])
-        log_marginal_likelihood = -0.5 * quad_form - 0.5 * log_trace - 0.5 * num_train * tf.log(np.pi)
-        # sum over num_latent in the end to get a scalar, this corresponds to mutliplying the marginal likelihoods
-        # of all the latent functions
+        log_marginal_likelihood = -0.5 * (quad_form + log_trace + num_train * tf.log(np.pi))
+        # Sum over num_latent in the end to get a scalar, this corresponds to mutliplying the
+        # marginal likelihoods of all the latent functions
         return tf.reduce_sum(log_marginal_likelihood)
 
     def get_all_variables(self):
