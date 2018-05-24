@@ -49,10 +49,11 @@ def build_gaussian_process(features, labels, mode, params: dict):
         return tf.estimator.EstimatorSpec(mode, loss=obj_func['loss'], eval_metric_ops=metric_ops)
 
     assert mode == tf.estimator.ModeKeys.TRAIN
+    global_step = tf.train.get_global_step()
+    for_logging = {'step': global_step, **obj_func, **{k: v[1] for k, v in metric_ops.items()}}
 
     if params['loo_steps']:
         # Alternate the loss function
-        global_step = tf.train.get_global_step()
         mask = tf.equal((global_step // params['loo_steps']) % 2, 0)
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)
         loo_loss = tf.where(mask, 0.0, obj_func['LOO_VARIATIONAL'])
@@ -61,12 +62,11 @@ def build_gaussian_process(features, labels, mode, params: dict):
         train_loo = optimizer.minimize(loo_loss, global_step=global_step, var_list=hyper_params)
         train_op = tf.group(train_nelbo, train_loo)
     else:
-        train_op = optimizer.minimize(obj_func['loss'], global_step=tf.train.get_global_step(),
-                                      var_list=inf_param + hyper_params)
+        train_op = optimizer.minimize(obj_func['loss'],
+                                      global_step=global_step, var_list=inf_param + hyper_params)
     return tf.estimator.EstimatorSpec(
         mode, loss=obj_func['loss'], train_op=train_op, training_hooks=[
-            tf.train.LoggingTensorHook({**obj_func, **{k: v[1] for k, v in metric_ops.items()}},
-                                       every_n_iter=params['logging_steps'])])
+            tf.train.LoggingTensorHook(for_logging, every_n_iter=params['logging_steps'])])
 
 
 def train_gp(data, args):
