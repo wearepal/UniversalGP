@@ -69,7 +69,7 @@ Other useful parameters:
 
 * `--train_steps`: the number of training steps (default: 500)
 * `--plot`: if the result is supposed to be plotted after training, 
-  specify a plotting function here or give `None` for no plotting
+  specify a plotting function here or leave empty for no plotting
 * `--tf_mode`: either "eager" to use Tensorflow in Eager Execution mode 
   or "graph" to use Tensorflow in the normal mode based on computational 
   graphs
@@ -95,8 +95,8 @@ import universalgp as ugp
 data = ...
 gp = ugp.train_eager.train_gp(
         data,
-        {'inf': 'Variational', 'cov': 'SquaredExponential', 'plot': 
-        None, 'train_steps': 500, 'lr': 0.005, 'length_scale': 1.0,
+        {'inf': 'Variational', 'cov': 'SquaredExponential', 'plot': '', 
+        'train_steps': 500, 'lr': 0.005, 'length_scale': 1.0,
         ...  # many more...
         }
     )
