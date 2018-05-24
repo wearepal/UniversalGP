@@ -135,12 +135,14 @@ def train_gp(dataset, args):
             dataset.num_train)
 
     step = 0
-    train_data = dataset.train_fn().batch(args['batch_size'])
+    # shuffle and repeat for the required number of epochs
+    train_data = dataset.train_fn().shuffle(50_000).repeat(args['eval_epochs']).batch(
+        args['batch_size'])
     while step < args['train_steps']:
         start = time.time()
-        # repeat for the required number of epochs but then take *at most* (train_steps - step)
-        fit(gp, optimizer, train_data.repeat(args['eval_epochs']).take(args['train_steps'] - step),
-            step_counter, hyper_params, args)
+        # take *at most* (train_steps - step) batches so that we don't run longer than `train_steps`
+        fit(gp, optimizer, train_data.take(args['train_steps'] - step), step_counter, hyper_params,
+            args)
         end = time.time()
         step = step_counter.numpy()
         print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"

@@ -100,7 +100,8 @@ def train_gp(data, args):
 
     # Settings for training
     trainer = tf.estimator.TrainSpec(
-        input_fn=lambda: data.train_fn().repeat(args['eval_epochs']).batch(args['batch_size']),
+        input_fn=lambda: data.train_fn().shuffle(50_000).repeat(args['eval_epochs'])
+        .batch(args['batch_size']),
         max_steps=args['train_steps'])
 
     # Settings for evaluation
