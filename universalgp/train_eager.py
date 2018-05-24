@@ -44,7 +44,7 @@ def fit(gp, optimizer, data, step_counter, hyper_params, args):
         # Apply gradients
         optimizer.apply_gradients(grads_and_params, global_step=step_counter)
 
-        if args['logging_steps'] is not None and batch_num % args['logging_steps'] == 0:
+        if args['logging_steps'] != 0 and batch_num % args['logging_steps'] == 0:
             print(f"Step #{step_counter.numpy()} ({time.time() - start:.4f} sec)\t", end=' ')
             for loss_name, loss_value in obj_func.items():
                 print(f"{loss_name}: {loss_value:.2f}", end=' ')
@@ -66,7 +66,7 @@ def evaluate(gp, data, dataset_metric):
     for (features, outputs) in data:
         obj_func, _ = gp.inference(features, outputs, False)
         pred_mean, _ = gp.predict(features)
-        avg_loss(sum(obj_func.values()))
+        avg_loss(obj_func['loss'])
         util.update_metrics(metrics, features, outputs, pred_mean)
     print(f"Test set: Average loss: {avg_loss.result()}")
     util.record_metrics(metrics)
