@@ -69,7 +69,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
             tf.train.LoggingTensorHook(for_logging, every_n_iter=params['logging_steps'])])
 
 
-def train_gp(data, args):
+def train_gp(dataset, args):
     """Train a GP model and return it. This function uses Tensorflow's Estimator API which
     constructs graphs. This functions calls other functions as necessary to construct a graph and
     then runs the training loop.
@@ -80,8 +80,8 @@ def train_gp(data, args):
     Returns:
         the trained GP as `tf.estimator.Estimator`
     """
-    # Get certain parameters from `data`
-    params = {param: getattr(data, param) for param in [
+    # Get certain parameters from `dataset`
+    params = {param: getattr(dataset, param) for param in [
         'train_feature_columns', 'test_feature_columns', 'input_dim', 'output_dim', 'num_train',
         'inducing_inputs', 'metric', 'lik']}
     out_dir = str(Path(args['save_dir']) / Path(args['model_name'])) if args['save_dir'] else None
@@ -100,19 +100,19 @@ def train_gp(data, args):
 
     # Settings for training
     trainer = tf.estimator.TrainSpec(
-        input_fn=lambda: data.train_fn().shuffle(50_000).repeat(args['eval_epochs'])
+        input_fn=lambda: dataset.train_fn().shuffle(50_000).repeat(args['eval_epochs'])
         .batch(args['batch_size']),
         max_steps=args['train_steps'])
 
     # Settings for evaluation
-    evaluator = tf.estimator.EvalSpec(input_fn=lambda: data.test_fn().batch(args['batch_size']),
+    evaluator = tf.estimator.EvalSpec(input_fn=lambda: dataset.test_fn().batch(args['batch_size']),
                                       throttle_secs=args['eval_throttle'])
 
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # replaceable by a loop over gp.train()
 
     if args['plot'] or args['preds_path']:
         print("Making predictions...")
-        predictions_gen = gp.predict(input_fn=lambda: data.test_fn().batch(len(data.xtest)))
+        predictions_gen = gp.predict(input_fn=lambda: dataset.test_fn().batch(len(dataset.xtest)))
         predictions = np.array([(p['mean'], p['var']) for p in predictions_gen])
-        util.post_training(predictions[:, 0], predictions[:, 1], out_dir, data, args)
+        util.post_training(predictions[:, 0], predictions[:, 1], out_dir, dataset, args)
     return gp
