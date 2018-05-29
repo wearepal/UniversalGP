@@ -44,6 +44,8 @@ tf.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only
 tf.app.flags.DEFINE_string('preds_path', '',
                            'Path where the predictions for the test data will be save (or "")')
 tf.app.flags.DEFINE_integer('eval_throttle', 600, 'How long to wait before evaluating in seconds')
+tf.app.flags.DEFINE_integer('lr_drop_steps', 0, 'Number of steps before doing a learning rate drop')
+tf.app.flags.DEFINE_float('lr_drop_factor', 0.2, 'For learning rate drop multiply by this factor')
 
 # you can specify a flag file here where you can put your flags instead of passing them from the
 # command line

@@ -22,6 +22,12 @@
 # Don't save predictions
 --preds_path=
 
+--lr=0.05
+--optimizer=RMSPropOptimizer
+--lr_drop_steps=50
+--lr_drop_factor=0.1
+--train_steps=500
+
 # Uncomment this to save the trained model
 # --save_dir=/its/home/tk324/tensorflow/
 # --model_name=sm1
