@@ -28,7 +28,7 @@ def construct_from_flags(flags, input_dim, output_dim, liklihood_name, inducing_
     return gp, hyper_params, getattr(tf.train, flags['optimizer'])(flags['lr'])
 
 
-def post_training(pred_mean, pred_var, out_dir, dataset, args):
+def post_training(pred_mean, pred_var, out_dir, dataset, flags):
     """Call all functions that need to be executed after training has finished
 
     Args:
@@ -36,14 +36,14 @@ def post_training(pred_mean, pred_var, out_dir, dataset, args):
         pred_var: predicted variance
         out_dir: path where to store predictions or None
         dataset: dataset object
-        args: additional arguments
+        flags: dictionary with parameters
     """
-    working_dir = Path(out_dir) if args['save_dir'] else Path(".")
-    with open(working_dir / Path(f"flag_{args['model_name']}.txt"), 'w') as f:
-        flags = [f"--{k}={v}" for k, v in args.items() if not (k.startswith("help") or k == "h")]
-        f.write("\n".join(flags))
-    if args['preds_path']:
-        np.savez_compressed(working_dir / Path(args['preds_path']),
+    working_dir = Path(out_dir) if flags['save_dir'] else Path(".")
+    with open(working_dir / Path(f"flag_{flags['model_name']}.txt"), 'w') as f:
+        flagstr = [f"--{k}={v}" for k, v in flags.items() if not (k.startswith("help") or k == "h")]
+        f.write("\n".join(flagstr))
+    if flags['preds_path']:
+        np.savez_compressed(working_dir / Path(flags['preds_path']),
                             pred_mean=pred_mean, pred_var=pred_var)
-    if args['plot']:
-        getattr(plot, args['plot'])(pred_mean, pred_var, dataset)
+    if flags['plot']:
+        getattr(plot, flags['plot'])(pred_mean, pred_var, dataset)
