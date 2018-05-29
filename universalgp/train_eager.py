@@ -11,7 +11,7 @@ import tensorflow.contrib.eager as tfe
 from . import util
 
 
-def fit(gp, optimizer, data, step_counter, hyper_params, args):
+def fit(gp, optimizer, data, step_counter, hyper_params, update_learning_rate, args):
     """Trains model on `train_data` using `optimizer`.
 
     Args:
@@ -42,6 +42,7 @@ def fit(gp, optimizer, data, step_counter, hyper_params, args):
         else:
             grads_and_params = zip(tape.gradient(obj_func['loss'], all_params), all_params)
         # Apply gradients
+        update_learning_rate(step_counter)
         optimizer.apply_gradients(grads_and_params, global_step=step_counter)
 
         if args['logging_steps'] != 0 and batch_num % args['logging_steps'] == 0:
@@ -96,7 +97,7 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        gp, _, _ = util.construct_from_flags(args, dataset_info, num_inducing)
+        gp, _ = util.construct_from_flags(args, dataset_info, num_inducing)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
@@ -129,8 +130,8 @@ def train_gp(dataset, args):
 
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
-        gp, hyper_params, optimizer = util.construct_from_flags(
-            args, dataset, dataset.inducing_inputs)
+        gp, hyper_params = util.construct_from_flags(args, dataset, dataset.inducing_inputs)
+        optimizer, update_learning_rate = util.get_optimizer(args)
 
     step = 0
     # shuffle and repeat for the required number of epochs
@@ -140,7 +141,7 @@ def train_gp(dataset, args):
         start = time.time()
         # take *at most* (train_steps - step) batches so that we don't run longer than `train_steps`
         fit(gp, optimizer, train_data.take(args['train_steps'] - step), step_counter, hyper_params,
-            args)
+            update_learning_rate, args)
         end = time.time()
         step = step_counter.numpy()
         print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"

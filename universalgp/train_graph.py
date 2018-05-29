@@ -29,8 +29,9 @@ def build_gaussian_process(features, labels, mode, params: dict):
         # not training -> only need shape of the inducing inputs
         inducing_param = dataset.inducing_inputs.shape[-2]
 
-    inf_func, hyper_params, optimizer = util.construct_from_flags(
-        params, dataset, inducing_param)
+    global_step = tf.train.get_global_step()
+    optimizer = util.get_optimizer(params, global_step)
+    inf_func, hyper_params = util.construct_from_flags(params, dataset, inducing_param)
 
     pred_mean, pred_var = inf_func.predict(features)
 
@@ -49,7 +50,6 @@ def build_gaussian_process(features, labels, mode, params: dict):
         return tf.estimator.EstimatorSpec(mode, loss=obj_func['loss'], eval_metric_ops=metric_ops)
 
     assert mode == tf.estimator.ModeKeys.TRAIN
-    global_step = tf.train.get_global_step()
     for_logging = {'step': global_step, **obj_func, **{k: v[1] for k, v in metric_ops.items()}}
 
     if params['loo_steps']:

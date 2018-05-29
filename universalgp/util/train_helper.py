@@ -15,7 +15,7 @@ def construct_from_flags(flags, dataset, inducing_inputs):
         dataset: information about the data
         inducing_inputs: inducing inputs
     Returns:
-        a GP object, the hyper parameters and an optimizer
+        a GP object and the hyper parameters
     """
     cov_func = [getattr(cov, flags['cov'])(dataset.input_dim, flags)
                 for _ in range(dataset.output_dim)]
@@ -23,7 +23,38 @@ def construct_from_flags(flags, dataset, inducing_inputs):
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
     gp = getattr(inf, flags['inf'])(cov_func, lik_func, dataset.num_train, inducing_inputs, flags)
-    return gp, hyper_params, getattr(tf.train, flags['optimizer'])(flags['lr'])
+    return gp, hyper_params
+
+
+def get_optimizer(flags, global_step=None):
+    """Construct the optimizer from the information in the flags
+
+    If the global step is not given, then a function is returned that takes the global step as a
+    parameter and updates the learning rate.
+
+    Args:
+        flags: dictionary with parameters
+        global_step: (optional) the step in training
+    Returns:
+        the optimizer and a function to update the learning rate
+    """
+    schedule = [flags['lr'], flags['lr'] * flags['lr_drop_factor']]
+    drop_steps = flags['lr_drop_steps']
+
+    if global_step is None:
+        learning_rate = tf.get_variable("lr", initializer=tf.constant(flags['lr']), trainable=False)
+
+        def _update_learning_rate(step):
+            if drop_steps > 0:
+                learning_rate.assign(tf.train.piecewise_constant(step, [drop_steps], schedule))
+
+        return getattr(tf.train, flags['optimizer'])(learning_rate), _update_learning_rate
+
+    if drop_steps > 0:
+        learning_rate = tf.train.piecewise_constant(global_step, [drop_steps], schedule)
+    else:
+        learning_rate = flags['lr']
+    return getattr(tf.train, flags['optimizer'])(learning_rate)
 
 
 def post_training(pred_mean, pred_var, out_dir, dataset, flags):
