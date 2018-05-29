@@ -24,8 +24,10 @@ class Dataset(NamedTuple):
     output_dim: int  # number of output dimensions
     lik: str  # name of likelihood function
     metric: str  # name of the metric to use for evaluation during training
-    train_feature_columns: list = None  # a list of feature columns that describe the input during training time
-    test_feature_columns: list = None  # a list of feature columns that describe the input during test time
+    # a list of feature columns that describe the input during training time
+    train_feature_columns: list = None
+    # a list of feature columns that describe the input during test time
+    test_feature_columns: list = None
     xtrain: np.ndarray = None  # (optional) the training input as numpy array
     ytrain: np.ndarray = None  # (optional) the training output as numpy array
     xtest: np.ndarray = None  # (optional) the test input as numpy array
@@ -38,7 +40,8 @@ def select_training_and_test(num_train, *data_parts):
     """Randomly devide a dataset into training and test
     Args:
         num_train: Desired number of examples in training set
-        *data_parts: Parts of the dataset. The * means that the function can take an arbitrary number of arguments.
+        *data_parts: Parts of the dataset. The * means that the function can take an arbitrary
+                     number of arguments.
     Returns:
         Two lists: data_parts_train, data_parts_test
     """
@@ -56,13 +59,13 @@ def select_training_and_test(num_train, *data_parts):
     return data_parts_train, data_parts_test
 
 
-def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=np.float32, dtype_out=np.float32,
-                     dtype_sen=np.float32):
+def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=np.float32,
+                     dtype_out=np.float32, dtype_sen=np.float32):
     """Create a dataset function out of input and output numpy arrays
 
-    It is necessary to wrap the tensorflow code into a function because we have to make sure it's only executed when
-    the session has been started. If we just create the dataset here without the `dataset_function` then this will
-    produce an (inscrutable) error in the training loop.
+    It is necessary to wrap the tensorflow code into a function because we have to make sure it's
+    only executed when the session has been started. If we just create the dataset here without the
+    `dataset_function` then this will produce an (inscrutable) error in the training loop.
 
     Args:
         inputs: the features as a numpy array
@@ -91,7 +94,8 @@ def wrap_in_function(inputs_dict: Dict[str, np.ndarray], outputs: np.ndarray) ->
     """
     def dataset_function():
         """This function will be called by the training loop"""
-        typed_inputs_dict = {input_name: tf.constant(input_value) for input_name, input_value in inputs_dict.items()}
+        typed_inputs_dict = {input_name: tf.constant(input_value)
+                             for input_name, input_value in inputs_dict.items()}
         return tf.data.Dataset.from_tensor_slices((typed_inputs_dict, tf.constant(outputs)))
 
     return dataset_function
