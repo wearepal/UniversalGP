@@ -22,15 +22,15 @@ def build_gaussian_process(features, labels, mode, params: dict):
     Returns:
         a `tf.EstimatorSpec`
     """
+    dataset = params['dataset']
     if mode == tf.estimator.ModeKeys.TRAIN:
-        inducing_param = params['inducing_inputs']
+        inducing_param = dataset.inducing_inputs
     else:
         # not training -> only need shape of the inducing inputs
-        inducing_param = params['inducing_inputs'].shape[-2]
+        inducing_param = dataset.inducing_inputs.shape[-2]
 
     inf_func, hyper_params, optimizer = util.construct_from_flags(
-        params, params['input_dim'], params['output_dim'], params['lik'], inducing_param,
-        params['num_train'])
+        params, dataset, inducing_param)
 
     pred_mean, pred_var = inf_func.predict(features)
 
@@ -41,7 +41,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
     obj_func, inf_param = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
 
     # Compute evaluation metrics.
-    metrics = util.init_metrics(params['metric'], False)
+    metrics = util.init_metrics(dataset.metric, False)
     metric_ops = util.update_metrics(metrics, features, labels, pred_mean)
     util.record_metrics(metrics)
 
@@ -80,14 +80,10 @@ def train_gp(dataset, args):
     Returns:
         the trained GP as `tf.estimator.Estimator`
     """
-    # Get certain parameters from `dataset`
-    params = {param: getattr(dataset, param) for param in [
-        'train_feature_columns', 'test_feature_columns', 'input_dim', 'output_dim', 'num_train',
-        'inducing_inputs', 'metric', 'lik']}
     out_dir = str(Path(args['save_dir']) / Path(args['model_name'])) if args['save_dir'] else None
     gp = tf.estimator.Estimator(
         model_fn=build_gaussian_process,
-        params={**params, **args},
+        params={**args, 'dataset': dataset._replace(train_fn=None, test_fn=None)},
         model_dir=out_dir,
         config=tf.estimator.RunConfig().replace(
             save_checkpoints_secs=None,

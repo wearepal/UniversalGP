@@ -96,8 +96,7 @@ def predict(test_inputs, saved_model, dataset_info, args):
 
     with tfe.restore_variables_on_create(saved_model):
         # Creating the inference object here will restore the variables from the saved model
-        gp, _, _ = util.construct_from_flags(args, dataset_info.input_dim, dataset_info.output_dim,
-                                             dataset_info.lik, num_inducing, dataset_info.num_train)
+        gp, _, _ = util.construct_from_flags(args, dataset_info, num_inducing)
 
     test_inputs = np.array_split(test_inputs, num_batches)
     pred_means = [0.0] * num_batches
@@ -131,8 +130,7 @@ def train_gp(dataset, args):
     # Restore from existing checkpoint
     with tfe.restore_variables_on_create(tf.train.latest_checkpoint(out_dir)):
         gp, hyper_params, optimizer = util.construct_from_flags(
-            args, dataset.input_dim, dataset.output_dim, dataset.lik, dataset.inducing_inputs,
-            dataset.num_train)
+            args, dataset, dataset.inducing_inputs)
 
     step = 0
     # shuffle and repeat for the required number of epochs
