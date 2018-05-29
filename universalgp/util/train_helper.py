@@ -7,24 +7,22 @@ from . import plot
 from .. import cov, inf, lik
 
 
-def construct_from_flags(flags, input_dim, output_dim, liklihood_name, inducing_inputs, num_train):
-    """Construct a GP model with the given parameters
+def construct_from_flags(flags, dataset, inducing_inputs):
+    """Construct the necessary objects from the information in the flags
 
     Args:
         flags: dictionary with parameters
-        input_dim: input dimension
-        output_dim: output dimension
-        liklihood_name: a string that names a liklihood function
+        dataset: information about the data
         inducing_inputs: inducing inputs
-        num_train: number of training examples
     Returns:
-        a GP object and the hyper parameters
+        a GP object, the hyper parameters and an optimizer
     """
-    cov_func = [getattr(cov, flags['cov'])(input_dim, flags) for _ in range(output_dim)]
-    lik_func = getattr(lik, liklihood_name)(flags)
+    cov_func = [getattr(cov, flags['cov'])(dataset.input_dim, flags)
+                for _ in range(dataset.output_dim)]
+    lik_func = getattr(lik, dataset.lik)(flags)
     hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
 
-    gp = getattr(inf, flags['inf'])(cov_func, lik_func, num_train, inducing_inputs, flags)
+    gp = getattr(inf, flags['inf'])(cov_func, lik_func, dataset.num_train, inducing_inputs, flags)
     return gp, hyper_params, getattr(tf.train, flags['optimizer'])(flags['lr'])
 
 
