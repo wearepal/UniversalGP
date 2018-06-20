@@ -46,7 +46,9 @@ def sensitive_from_numpy(flags):
         inducing_inputs=inducing_inputs,
         output_dim=train.y.shape[1],
         lik="LikelihoodLogistic",
-        metric="logistic_accuracy,pred_rate_y1_s0,pred_rate_y1_s1,base_rate_y1_s0,base_rate_y1_s1",
+        metric=["logistic_accuracy", "pred_rate_y1_s0", "pred_rate_y1_s1", "base_rate_y1_s0",                       
+                "base_rate_y1_s1", "pred_odds_yhaty0_s0", "pred_odds_yhaty0_s1",                                    
+                "pred_odds_yhaty1_s0", "pred_odds_yhaty1_s1"],
     )
 
 
