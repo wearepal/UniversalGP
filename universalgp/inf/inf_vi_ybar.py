@@ -10,14 +10,17 @@ from .inf_vi import Variational
 # General fairness
 tf.app.flags.DEFINE_float('biased_acceptance1', 0.503, '')
 tf.app.flags.DEFINE_float('biased_acceptance2', 0.700, '')
-tf.app.flags.DEFINE_boolean('s_as_input', True, 'Whether the sensitive attribute is treated as part of the input')
+tf.app.flags.DEFINE_boolean('s_as_input', True,
+                            'Whether the sensitive attribute is treated as part of the input')
 tf.app.flags.DEFINE_float('p_s0', 0.5, '')
 tf.app.flags.DEFINE_float('p_s1', 0.5, '')
 # Demographic parity
 tf.app.flags.DEFINE_float('target_rate1', 0.601, '')
 tf.app.flags.DEFINE_float('target_rate2', 0.601, '')
-tf.app.flags.DEFINE_boolean('probs_from_flipped', True, 'Whether to take the target rates from the flipping probs')
-tf.app.flags.DEFINE_boolean('average_prediction', False, 'Whether to take the average of both sensitive attributes')
+tf.app.flags.DEFINE_boolean('probs_from_flipped', True,
+                            'Whether to take the target rates from the flipping probs')
+tf.app.flags.DEFINE_boolean('average_prediction', False,
+                            'Whether to take the average of both sensitive attributes')
 # Equalized Odds
 tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
@@ -33,13 +36,17 @@ class VariationalYbar(Variational):
         if self.args['s_as_input']:
             s = test_inputs['sensitive']
             if self.args['average_prediction']:
-                preds_s0 = super().predict({'input': tf.concat((test_inputs['input'], tf.zeros_like(s)), axis=1)})
-                preds_s1 = super().predict({'input': tf.concat((test_inputs['input'], tf.ones_like(s)), axis=1)})
-                return [self.args['p_s0'] * r_s0 + self.args['p_s1'] * r_s1 for r_s0, r_s1 in zip(preds_s0, preds_s1)]
+                preds_s0 = super().predict({'input': tf.concat((test_inputs['input'],
+                                                                tf.zeros_like(s)), axis=1)})
+                preds_s1 = super().predict({'input': tf.concat((test_inputs['input'],
+                                                                tf.ones_like(s)), axis=1)})
+                return [self.args['p_s0'] * r_s0 + self.args['p_s1'] * r_s1
+                        for r_s0, r_s1 in zip(preds_s0, preds_s1)]
             return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
         return super().predict(test_inputs)
 
-    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features, outputs, is_train):
+    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
+                   outputs, is_train):
         """Construct the Expected Log Likelihood
 
         Args:
@@ -119,7 +126,8 @@ class VariationalYbarEqOdds(VariationalYbar):
     """
     def _debiasing_parameters(self):
         # P(y=1|s)
-        positive_prior = np.array([self.args['biased_acceptance1'], self.args['biased_acceptance2']])
+        positive_prior = np.array([self.args['biased_acceptance1'],
+                                   self.args['biased_acceptance2']])
         # P(y=0|s)
         negative_prior = 1 - positive_prior
         # P(y|s) shape: (y, s, 1)
