@@ -21,6 +21,8 @@ tf.app.flags.DEFINE_boolean('probs_from_flipped', True,
                             'Whether to take the target rates from the flipping probs')
 tf.app.flags.DEFINE_boolean('average_prediction', False,
                             'Whether to take the average of both sensitive attributes')
+tf.app.flags.DEFINE_float('precision_target', 1.0,
+                          'Upper limit for target label precision with respect to the true labels')
 # Equalized Odds
 tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
@@ -102,7 +104,7 @@ class VariationalYbar(Variational):
         # P(y=1|s)
         biased_acceptance = np.array([biased_acceptance1, biased_acceptance2])
         # P(y'=1|y=1,s)
-        precision = np.minimum(1., target_acceptance / biased_acceptance)
+        precision = np.minimum(self.args['precision_target'], target_acceptance / biased_acceptance)
         # P(y'=0|y=1,s)
         false_discovery_rate = 1 - precision
         # P(y'|y=1,s) shape: (y', s)

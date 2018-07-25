@@ -55,10 +55,10 @@ def test_exact_complete():
 
     # compute losses and predictions
     losses, _ = exact.inference(train_inputs, train_outputs, True)
-    nlml = losses['NLML']
+    lml = losses['LML']
     pred_mean, pred_var = exact.predict(test_inputs)
 
     # check results
-    np.testing.assert_allclose(nlml.numpy(), 2.34046, RTOL)
-    np.testing.assert_allclose(pred_mean.numpy(), 0.0, RTOL)
+    np.testing.assert_allclose(lml.numpy(), -2.34046, RTOL)
+    np.testing.assert_allclose(tf.squeeze(pred_mean).numpy(), 0.0, RTOL, RTOL)
     np.testing.assert_allclose(tf.squeeze(pred_var).numpy(), 1.981779, RTOL)
