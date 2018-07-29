@@ -21,8 +21,10 @@ tf.app.flags.DEFINE_boolean('probs_from_flipped', True,
                             'Whether to take the target rates from the flipping probs')
 tf.app.flags.DEFINE_boolean('average_prediction', False,
                             'Whether to take the average of both sensitive attributes')
-tf.app.flags.DEFINE_float('precision_target', 1.0,
-                          'Upper limit for target label precision with respect to the true labels')
+tf.app.flags.DEFINE_float('p_ybary0_or_ybary1_s0', 1.0,
+                          'Determine how similar the target labels are to the true labels for s=0')
+tf.app.flags.DEFINE_float('p_ybary0_or_ybary1_s1', 1.0,
+                          'Determine how similar the target labels are to the true labels for s=1')
 # Equalized Odds
 tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
@@ -103,23 +105,30 @@ class VariationalYbar(Variational):
         target_acceptance = np.array([self.args['target_rate1'], self.args['target_rate2']])
         # P(y=1|s)
         biased_acceptance = np.array([biased_acceptance1, biased_acceptance2])
-        # P(y'=1|y=1,s)
-        precision = np.minimum(self.args['precision_target'], target_acceptance / biased_acceptance)
-        # P(y'=0|y=1,s)
-        false_discovery_rate = 1 - precision
-        # P(y'|y=1,s) shape: (y', s)
-        discovery_rate = np.stack([false_discovery_rate, precision])
-        # P(y'=0|s)
-        target_rejection = 1 - target_acceptance
-        # P(y'|s) shape: (y', s)
-        target = np.stack([target_rejection, target_acceptance])
-        # P(y=1|y',s)
-        positive_predicted = discovery_rate * biased_acceptance / target
-        # P(y|y',s) shape: (y, y', s)
-        joint = np.stack([1 - positive_predicted, positive_predicted])
-        # P(y|y',s) shape: (y, s, y')
-        joint_trans = np.transpose(joint, [0, 2, 1])  # transpose for convenience
-        return tf.constant(joint_trans, dtype=tf.float32)
+        # P(y'=1|y,s) shape: (y, s)
+        positive_value = self._label_likelihood(biased_acceptance, target_acceptance)
+        return compute_label_posterior(positive_value, biased_acceptance)
+
+    def _label_likelihood(self, biased_acceptance, target_acceptance):
+        """Compute the label likelihood (for positive labels)
+
+        Args:
+            biased_acceptance: P(y=1|s)
+            target_acceptance: P(y'=1|s)
+        Returns:
+            P(y'=1|y,s) with shape (y, s)
+        """
+        precision = []
+        for i, (target, biased) in enumerate(zip(target_acceptance, biased_acceptance)):
+            if target > biased:
+                p_ybary0 = (1 - target) / (1 - biased)
+                p_ybary1 = self.args[f"p_ybary0_or_ybary1_s{i}"]
+            else:
+                p_ybary0 = self.args[f"p_ybary0_or_ybary1_s{i}"]
+                p_ybary1 = target / biased
+            precision.append([1 - p_ybary0, p_ybary1])
+        precision_arr = np.array(precision)  # shape: (s, y)
+        return np.transpose(precision_arr)  # shape: (y, s)
 
 
 class VariationalYbarEqOdds(VariationalYbar):
@@ -130,10 +139,6 @@ class VariationalYbarEqOdds(VariationalYbar):
         # P(y=1|s)
         positive_prior = np.array([self.args['biased_acceptance1'],
                                    self.args['biased_acceptance2']])
-        # P(y=0|s)
-        negative_prior = 1 - positive_prior
-        # P(y|s) shape: (y, s, 1)
-        label_prior = np.stack([negative_prior, positive_prior], axis=0)[..., np.newaxis]
         # P(y'=1|y=1,s)
         positive_predictive_value = np.array([self.args['p_ybary1_s0'], self.args['p_ybary1_s1']])
         # P(y'=0|y=0,s)
@@ -142,12 +147,35 @@ class VariationalYbarEqOdds(VariationalYbar):
         false_omission_rate = 1 - negative_predictive_value
         # P(y'=1|y,s) shape: (y, s)
         positive_value = np.stack([false_omission_rate, positive_predictive_value], axis=0)
-        # P(y'|y,s) shape: (y, s, y')
-        label_likelihood = np.stack([1 - positive_value, positive_value], axis=-1)
-        # P(y',y|s) shape: (y, s, y')
-        joint = label_likelihood * label_prior
-        # P(y'|s) shape: (s, y')
-        label_evidence = np.sum(joint, axis=0)
-        # P(y|y',s) shape: (y, s, y')
-        label_posterior = joint / label_evidence
-        return tf.constant(label_posterior, dtype=tf.float32)
+        return compute_label_posterior(positive_value, positive_prior)
+
+
+def compute_label_posterior(positive_value, positive_prior):
+    """Return label posterior from positive likelihood P(y'=1|y,s) and positive prior P(y=1|s)
+
+    Args:
+        positive_value: P(y'=1|y,s), shape (y, s)
+        label_prior: P(y|s)
+    Returns:
+        Label posterior, shape (y, s, y')
+    """
+    # compute the prior
+    # P(y=0|s)
+    negative_prior = 1 - positive_prior
+    # P(y|s) shape: (y, s, 1)
+    label_prior = np.stack([negative_prior, positive_prior], axis=0)[..., np.newaxis]
+
+    # compute the likelihood
+    # P(y'|y,s) shape: (y, s, y')
+    label_likelihood = np.stack([1 - positive_value, positive_value], axis=-1)
+
+    # compute joint and evidence
+    # P(y',y|s) shape: (y, s, y')
+    joint = label_likelihood * label_prior
+    # P(y'|s) shape: (s, y')
+    label_evidence = np.sum(joint, axis=0)
+
+    # compute posterior
+    # P(y|y',s) shape: (y, s, y')
+    label_posterior = joint / label_evidence
+    return tf.constant(label_posterior, dtype=tf.float32)
