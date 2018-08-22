@@ -48,7 +48,8 @@ def construct(*, p_y0_ybar0_s0, p_y1_ybar1_s0, p_y0_ybar0_s1, p_y1_ybar1_s1):
 
 
 class TestDebiasParams:
-    def test_extreme1(self):
+    @staticmethod
+    def test_extreme1():
         actual = construct_simple_full(0.7, 0.7, 0.7, 0.7)._debiasing_parameters().numpy()
         correct = construct(p_y0_ybar0_s0=1.,
                             p_y1_ybar1_s0=1.,
@@ -56,7 +57,8 @@ class TestDebiasParams:
                             p_y1_ybar1_s1=1.)
         np.testing.assert_allclose(actual, correct, RTOL)
 
-    def test_extreme2(self):
+    @staticmethod
+    def test_extreme2():
         actual = construct_simple_full(0.5, 0.5, 1e-5, 1 - 1e-5)._debiasing_parameters().numpy()
         correct = construct(p_y0_ybar0_s0=.5,
                             p_y1_ybar1_s0=1.,
@@ -64,7 +66,8 @@ class TestDebiasParams:
                             p_y1_ybar1_s1=.5)
         np.testing.assert_allclose(actual, correct, RTOL)
 
-    def test_moderate1(self):
+    @staticmethod
+    def test_moderate1():
         actual = construct_simple_full(0.3, 0.7, 0.5, 0.5)._debiasing_parameters().numpy()
         correct = construct(p_y0_ybar0_s0=1.,
                             p_y1_ybar1_s0=.3 / .5,
@@ -72,15 +75,29 @@ class TestDebiasParams:
                             p_y1_ybar1_s1=1.)
         np.testing.assert_allclose(actual, correct, RTOL)
 
-    def test_precision_target(self):
-        obj = construct_simple_full(0.3, 0.7, 0.5, 0.5, 0.7, 0.7)
-        actual_lik = obj._label_likelihood([.5, .5], [.5, .5])
-        np.testing.assert_allclose(actual_lik, [[1., 1.], [1., 1.]])
-        actual_full = obj._debiasing_parameters()
-        correct = construct(p_y0_ybar0_s0=1.,
-                            p_y1_ybar1_s0=.3 / .5,
-                            p_y0_ybar0_s1=1 - (.7 - .5) / .5,
-                            p_y1_ybar1_s1=1.)
+    @staticmethod
+    def test_precision_target():
+        p_y1_s0 = .3
+        p_y1_s1 = .9
+        p_ybar1_s0 = .5
+        p_ybar1_s1 = .6
+        prec_s0 = .7
+        prec_s1 = .8
+        obj = construct_simple_full(p_y1_s0, p_y1_s1, p_ybar1_s0, p_ybar1_s1, prec_s0, prec_s1)
+        actual_lik = obj._label_likelihood([p_y1_s0, p_y1_s1], [p_ybar1_s0, p_ybar1_s1])
+        np.testing.assert_allclose(actual_lik,
+                                   [[(p_ybar1_s0 - prec_s0 * p_y1_s0) / (1 - p_y1_s0),
+                                     1 - .8],
+                                    [.7,
+                                     (p_ybar1_s1 - (1 - prec_s1) * (1 - p_y1_s1)) / p_y1_s1]],
+                                   RTOL)
+        actual_full = obj._debiasing_parameters().numpy()
+        correct = construct(p_y0_ybar0_s0=1 - (1 - prec_s0) * p_y1_s0 / (1 - p_ybar1_s0),
+                            p_y1_ybar1_s0=prec_s0 * p_y1_s0 / p_ybar1_s0,
+                            p_y0_ybar0_s1=prec_s1 * (1 - p_y1_s1) / (1 - p_ybar1_s1),
+                            p_y1_ybar1_s1=1 - (1 - prec_s1) * (1 - p_y1_s1) / p_ybar1_s1)
+        print(actual_full)
+        print(correct)
         np.testing.assert_allclose(actual_full, correct, RTOL)
 
 

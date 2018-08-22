@@ -104,10 +104,12 @@ class VariationalYbar(Variational):
         # P(y'=1|s)
         target_acceptance = np.array([self.args['target_rate1'], self.args['target_rate2']])
         # P(y=1|s)
-        biased_acceptance = np.array([biased_acceptance1, biased_acceptance2])
+        positive_prior = np.array([biased_acceptance1, biased_acceptance2])
         # P(y'=1|y,s) shape: (y, s)
-        positive_value = self._label_likelihood(biased_acceptance, target_acceptance)
-        return compute_label_posterior(positive_value, biased_acceptance)
+        positive_value = self._label_likelihood(positive_prior, target_acceptance)
+        # P(y'|s) shape: (s, y')
+        label_evidence = np.stack([1 - target_acceptance, target_acceptance], axis=-1)
+        return compute_label_posterior(positive_value, positive_prior, label_evidence)
 
     def _label_likelihood(self, biased_acceptance, target_acceptance):
         """Compute the label likelihood (for positive labels)
@@ -118,17 +120,21 @@ class VariationalYbar(Variational):
         Returns:
             P(y'=1|y,s) with shape (y, s)
         """
-        precision = []
+        positive_lik = []
         for i, (target, biased) in enumerate(zip(target_acceptance, biased_acceptance)):
             if target > biased:
-                p_ybary0 = (1 - target) / (1 - biased)
+                # P(y'=1|y=1)
                 p_ybary1 = self.args[f"p_ybary0_or_ybary1_s{i}"]
+                # P(y'=1|y=0) = (P(y'=1) - P(y'=1|y=1)P(y=1))/P(y=0)
+                p_ybar1_y0 = (target - p_ybary1 * biased) / (1 - biased)
             else:
-                p_ybary0 = self.args[f"p_ybary0_or_ybary1_s{i}"]
-                p_ybary1 = target / biased
-            precision.append([1 - p_ybary0, p_ybary1])
-        precision_arr = np.array(precision)  # shape: (s, y)
-        return np.transpose(precision_arr)  # shape: (y, s)
+                p_ybar1_y0 = 1 - self.args[f"p_ybary0_or_ybary1_s{i}"]
+                # P(y'=1|y=0) = (P(y'=1) - P(y'=1|y=0)P(y=0))/P(y=1)
+                p_ybary1 = (target - p_ybar1_y0 * (1 - biased)) / biased
+            positive_lik.append([p_ybar1_y0, p_ybary1])
+        positive_lik_arr = np.array(positive_lik)  # shape: (s, y)
+        print(positive_lik_arr)
+        return np.transpose(positive_lik_arr)  # shape: (y, s)
 
 
 class VariationalYbarEqOdds(VariationalYbar):
@@ -150,7 +156,7 @@ class VariationalYbarEqOdds(VariationalYbar):
         return compute_label_posterior(positive_value, positive_prior)
 
 
-def compute_label_posterior(positive_value, positive_prior):
+def compute_label_posterior(positive_value, positive_prior, label_evidence=None):
     """Return label posterior from positive likelihood P(y'=1|y,s) and positive prior P(y=1|s)
 
     Args:
@@ -173,7 +179,8 @@ def compute_label_posterior(positive_value, positive_prior):
     # P(y',y|s) shape: (y, s, y')
     joint = label_likelihood * label_prior
     # P(y'|s) shape: (s, y')
-    label_evidence = np.sum(joint, axis=0)
+    if label_evidence is None:
+        label_evidence = np.sum(joint, axis=0)
 
     # compute posterior
     # P(y|y',s) shape: (y, s, y')
