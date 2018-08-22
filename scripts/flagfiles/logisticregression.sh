@@ -1,5 +1,5 @@
 --data=flipped_labels
---inf=LogisticRegression
+--inf=FairLogReg
 
 --tf_mode=eager
 --train_steps=100
@@ -7,8 +7,8 @@
 
 # --tf_mode=graph
 
-# --s_as_input=False
---s_as_input=True
+--s_as_input=False
+# --s_as_input=True
 
 --plot=simple_1d
 --num_samples=1000
@@ -32,10 +32,10 @@
 --target_rate2=0.5
 # --biased_acceptance1=0.35
 # --biased_acceptance2=0.50
-# --reject_flip_probability=0.3
-# --accept_flip_probability=0.3
---reject_flip_probability=0.0
---accept_flip_probability=0.0
+--reject_flip_probability=0.3
+--accept_flip_probability=0.3
+# --reject_flip_probability=0.0
+# --accept_flip_probability=0.0
 --probs_from_flipped=True
 --flip_sensitive_attribute=False
 --test_on_ybar=False
