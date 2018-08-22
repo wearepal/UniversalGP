@@ -15,9 +15,12 @@ def sensitive_zhang(flags):
     n_all = 3000
     num_train = 2000
     num_inducing = flags['num_inducing']  # 500
-    latent_std = 1.  # standard dev of the latent variable that we're trying to predict. bigger -> easier to predict
-    features_std = 1.  # standard dev of the features with respect to latent var. smaller -> easier to predict
-    raw_output_std = 1.  # standard dev of the raw output with respect to latent var. smaller -> easier to predict
+    # standard dev of the latent variable that we're trying to predict. bigger -> easier to predict
+    latent_std = 1.
+    # standard dev of the features with respect to latent var. smaller -> easier to predict
+    features_std = 1.
+    # standard dev of the raw output with respect to latent var. smaller -> easier to predict
+    raw_output_std = 1.
 
     # construction
     np.random.seed(SEED)  # make it reproducible
@@ -28,7 +31,8 @@ def sensitive_zhang(flags):
     labels = (raw_output > 0).astype(np.int)
 
     (xtrain, ytrain, strain), (xtest, ytest, stest) = select_training_and_test(
-        num_train, features[..., np.newaxis], labels[..., np.newaxis], sensitive_attr[..., np.newaxis])
+        num_train, features[..., np.newaxis], labels[..., np.newaxis],
+        sensitive_attr[..., np.newaxis])
 
     sensitive_statistics(ytrain, strain, ytest, stest)
 
@@ -37,7 +41,8 @@ def sensitive_zhang(flags):
         test_fn=to_tf_dataset_fn(xtest, ytest, stest),
         num_train=num_train,
         input_dim=2,
-        inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing], strain[::num_train // num_inducing]), -1),
+        inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],
+                                        strain[::num_train // num_inducing]), -1),
         output_dim=1,
         lik="LikelihoodLogistic",
         metric="logistic_accuracy,pred_rate_y1_s0,pred_rate_y1_s1,base_rate_y1_s0,base_rate_y1_s1",
@@ -50,7 +55,7 @@ def sensitive_zhang(flags):
     )
 
 
-def sensitive_zhang_simple():
+def sensitive_zhang_simple(flags):
     """
     Simplifaction of the Zhang dataset
     """
@@ -58,10 +63,14 @@ def sensitive_zhang_simple():
     n_all = 3000
     num_train = 2000
     num_inducing = 500
-    latent_std = 1.  # standard dev of the latent variable that we're trying to predict. bigger -> easier to predict
-    features_std = 1.  # standard dev of the features with respect to latent var. smaller -> easier to predict
-    sensitive_effect = .5  # effect of the sensitive attribute on the label. smaller -> easier to predict
-    raw_output_std = 1.  # standard dev of the raw output with respect to latent var. smaller -> easier to predict
+    # standard dev of the latent variable that we're trying to predict. bigger -> easier to predict
+    latent_std = 1.
+    # standard dev of the features with respect to latent var. smaller -> easier to predict
+    features_std = 1.
+    sensitive_effect = .5
+    # effect of the sensitive attribute on the label. smaller -> easier to predict
+    # standard dev of the raw output with respect to latent var. smaller -> easier to predict
+    raw_output_std = 1.
 
     # construction
     random.seed(SEED)  # make it reproducible
@@ -72,7 +81,8 @@ def sensitive_zhang_simple():
     labels = (raw_output > 0).astype(np.int)
 
     (xtrain, ytrain, strain), (xtest, ytest, stest) = select_training_and_test(
-        num_train, features[..., np.newaxis], labels[..., np.newaxis], sensitive_attr[..., np.newaxis])
+        num_train, features[..., np.newaxis], labels[..., np.newaxis],
+        sensitive_attr[..., np.newaxis])
 
     sensitive_statistics(ytrain, strain, ytest, stest)
 
@@ -81,7 +91,8 @@ def sensitive_zhang_simple():
         test_fn=to_tf_dataset_fn(xtest, ytest, stest),
         num_train=num_train,
         input_dim=2,
-        inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing], strain[::num_train // num_inducing]), -1),
+        inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],
+                                        strain[::num_train // num_inducing]), -1),
         output_dim=1,
         lik="LikelihoodLogistic",
         metric="logistic_accuracy,pred_rate_y1_s0,pred_rate_y1_s1,base_rate_y1_s0,base_rate_y1_s1",

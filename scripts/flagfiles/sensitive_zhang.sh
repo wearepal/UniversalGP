@@ -1,5 +1,6 @@
 --data=sensitive_zhang_simple
---inf=VariationalYbar
+# --inf=VariationalYbar
+--inf=VariationalWithS
 
 # --tf_mode=eager
 # --train_steps=50
@@ -15,5 +16,5 @@
 --target_rate2=0.64
 --biased_acceptance1=0.518
 --biased_acceptance2=0.642
---save_dir=/its/home/tk324/tensorflow/
+# --save_dir=/its/home/tk324/tensorflow/
 --model_name=fair1
