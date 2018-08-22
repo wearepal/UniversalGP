@@ -32,10 +32,8 @@ tf.app.flags.DEFINE_float('p_ybary0_s1', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s1', 1.0, '')
 
 
-class VariationalYbar(Variational):
-    """
-    Defines inference for simple fair Variational Inference
-    """
+class VariationalWithS(Variational):
+    """Thin wrapper around `Variational` that can handle sensitive attributes"""
     def predict(self, test_inputs):
         if self.args['s_as_input']:
             s = test_inputs['sensitive']
@@ -49,6 +47,18 @@ class VariationalYbar(Variational):
             return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
         return super().predict(test_inputs)
 
+    def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
+                   outputs, is_train):
+        if self.args['s_as_input']:
+            inputs = tf.concat((features['input'], features['sensitive']), axis=1)
+        else:
+            inputs = features['input']
+        return super()._build_ell(weights, means, chol_covars, inducing_inputs, kernel_chol,
+                                  {'input': inputs}, outputs, is_train)
+
+
+class VariationalYbar(VariationalWithS):
+    """Defines inference for simple fair Variational Inference"""
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
                    outputs, is_train):
         """Construct the Expected Log Likelihood
