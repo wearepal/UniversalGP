@@ -23,14 +23,8 @@ def sensitive_from_numpy(flags):
     train = DATA(x=input_normalizer(raw_data['xtrain']), y=raw_data['ytrain'], s=raw_data['strain'])
     test = DATA(x=input_normalizer(raw_data['xtest']), y=raw_data['ytest'], s=raw_data['stest'])
 
-    # The following is a bit complicated and could be improved. First, we construct the inducing
-    # inputs from the separated data. Then, we call `_merge_x_and_s` depending on what kind of GP we
-    # have. The problem here is that sometimes we want the inducing inputs to have merged input but
-    # not the training data.
+    # Construct the inducing inputs from the separated data
     inducing_inputs = _inducing_inputs(flags['num_inducing'], train, flags.get('s_as_input', False))
-    if flags['inf'] not in ['VariationalYbar', 'VariationalYbarEqOdds'] and (
-            flags.get('s_as_input', False)):
-        train, test = [_merge_x_and_s(prepared_data) for prepared_data in [train, test]]
 
     return Dataset(
         train_fn=to_tf_dataset_fn(train.x, train.y, train.s),
@@ -46,16 +40,10 @@ def sensitive_from_numpy(flags):
         inducing_inputs=inducing_inputs,
         output_dim=train.y.shape[1],
         lik="LikelihoodLogistic",
-        metric=["logistic_accuracy", "pred_rate_y1_s0", "pred_rate_y1_s1", "base_rate_y1_s0",                       
-                "base_rate_y1_s1", "pred_odds_yhaty0_s0", "pred_odds_yhaty0_s1",                                    
+        metric=["logistic_accuracy", "pred_rate_y1_s0", "pred_rate_y1_s1", "base_rate_y1_s0",
+                "base_rate_y1_s1", "pred_odds_yhaty0_s0", "pred_odds_yhaty0_s1",
                 "pred_odds_yhaty1_s0", "pred_odds_yhaty1_s1"],
     )
-
-
-def _merge_x_and_s(data):
-    """Merge the input and the sensitive attributes"""
-    merged_input = np.concatenate((data.x, data.s), -1)
-    return DATA(x=merged_input, y=data.y, s=data.s)
 
 
 def _inducing_inputs(max_num_inducing, train, s_as_input):
@@ -83,10 +71,10 @@ def _get_normalizer(base):
     if base.min() == 0 and base.max() > 10:
         max_per_feature = np.amax(base, axis=0)
 
-        def normalizer(unnormalized):
+        def _normalizer(unnormalized):
             return np.where(max_per_feature > 1e-7, unnormalized / max_per_feature, unnormalized)
-        return normalizer
+        return _normalizer
 
-    def do_nothing(inp):
+    def _do_nothing(inp):
         return inp
-    return do_nothing
+    return _do_nothing
