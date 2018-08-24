@@ -143,7 +143,6 @@ class VariationalYbar(VariationalWithS):
                 p_ybary1 = (target - p_ybar1_y0 * (1 - biased)) / biased
             positive_lik.append([p_ybar1_y0, p_ybary1])
         positive_lik_arr = np.array(positive_lik)  # shape: (s, y)
-        print(positive_lik_arr)
         return np.transpose(positive_lik_arr)  # shape: (y, s)
 
 
