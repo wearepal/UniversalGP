@@ -4,10 +4,6 @@ UniversalGP: A basic generic implementation for Gaussian process models
 
 The code was tested on Python 3.6 and Tensorflow 1.8.
 
-Based on the code [AutoGP: Automated Variational Inference for Gaussian
-Process Models](https://github.com/ebonilla/AutoGP), UniversalGP has 
-many developments and improvements.
-
 ## Installation
 
 Dependencies: Tensorflow, SciPy, sklearn, matplotlib
@@ -161,3 +157,9 @@ prediction = gp.predict({'input': np.array([[3.2], [4.6]])})
 print(prediction)
 print(gp.get_all_variables())  # print the values of all train variables
 ```
+
+
+## Reference
+Krauth, Karl, et al. "AutoGP: Exploring the capabilities and limitations of Gaussian Process models." arXiv preprint arXiv:1610.05392 (2016).
+
+Bonilla, Edwin V., Karl Krauth, and Amir Dezfouli. "Generic Inference in Latent Gaussian Process Models." arXiv preprint arXiv:1609.00577 (2016).
