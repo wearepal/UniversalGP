@@ -8,22 +8,6 @@ Based on the code [AutoGP: Automated Variational Inference for Gaussian
 Process Models](https://github.com/ebonilla/AutoGP), UniversalGP has 
 many developments and improvements.
 
-1. Specify the inference method in the model setting, including 
-   variational inference, leave-one-out inference and exact inference.
-
-   * Variational inference can be used for generic Gaussian process 
-     models (multi-input, multi-output, regression and classification) 
-     with black-box likelihood.
-
-   * Leave-one-out inference can be used for generic Gaussian process 
-     models (multi-input, multi-output, regression and classification) 
-     with Gaussian likelihood.
-
-   * Exact inference can be only used for standard Gaussian process 
-     model (one dimensional output) with Gaussian likelihood.
-
-2. Improve the use of the Tensorflow API.
-
 ## Installation
 
 Dependencies: Tensorflow, SciPy, sklearn, matplotlib
