@@ -3,6 +3,7 @@ Linear kernel
 """
 
 import tensorflow as tf
+from tensorflow import manip as tft
 from .. import util
 
 tf.app.flags.DEFINE_float('lin_kern_offset', 0.0, 'The offset of the linear kernel')
@@ -18,10 +19,11 @@ class Linear:
             input_dim: the number of input dimensions
         """
         self.input_dim = input_dim
-        init_offset = tf.constant_initializer(args['lin_kern_offset'], dtype=tf.float32) if (
+        con = tf.constant_initializer
+        init_offset = con(args['lin_kern_offset'], dtype=tf.float32) if (
             'lin_kern_offset' in args) else None
-        init_sb = tf.constant_initializer(args['lin_kern_sb'], dtype=tf.float32) if 'lin_kern_sb' in args else None
-        init_sv = tf.constant_initializer(args['lin_kern_sv'], dtype=tf.float32) if 'lin_kern_sv' in args else None
+        init_sb = con(args['lin_kern_sb'], dtype=tf.float32) if 'lin_kern_sb' in args else None
+        init_sv = con(args['lin_kern_sv'], dtype=tf.float32) if 'lin_kern_sv' in args else None
         with tf.variable_scope(name, "cov_lin_parameters"):
             self.offset = tf.get_variable("offset", [input_dim], initializer=init_offset)
             self.sigma_b = tf.get_variable("sb", shape=[], initializer=init_sb)
@@ -35,7 +37,7 @@ class Linear:
         Returns:
             Tensor of shape (batch_size, batch_size)
         """
-        offset_br = tf.reshape(self.offset, [1, self.input_dim])
+        offset_br = tft.reshape(self.offset, [1, self.input_dim])
         if point2 is None:
             point2 = point1
 
@@ -49,7 +51,7 @@ class Linear:
         Returns:
             Tensor of shape (batch_size)
         """
-        offset_br = tf.reshape(self.offset, [1, self.input_dim])
+        offset_br = tft.reshape(self.offset, [1, self.input_dim])
         return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum((points - offset_br)**2)
 
     def get_params(self):

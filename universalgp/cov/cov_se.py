@@ -2,11 +2,13 @@
 Squared exponential kernel
 """
 import tensorflow as tf
+from tensorflow import manip as tft
 from .. import util
 
 tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial length scale for the kernel')
 tf.app.flags.DEFINE_float('sf', 1.0, 'Initial standard dev for the kernel')
-tf.app.flags.DEFINE_boolean('iso', False, 'Whether to use an isotropic kernel otherwise use automatic relevance det')
+tf.app.flags.DEFINE_boolean('iso', False,
+                            'True to use an isotropic kernel otherwise use automatic relevance det')
 
 
 class SquaredExponential:
@@ -18,14 +20,15 @@ class SquaredExponential:
         """
         self.input_dim = input_dim
         self.iso = args['iso']
-        init_len = tf.constant_initializer(args['length_scale'], dtype=tf.float32) if 'length_scale' in args else None
-        init_sf = tf.constant_initializer(args['sf'], dtype=tf.float32) if 'sf' in args else None
+        con = tf.constant_initializer
+        length = con(args['length_scale'], dtype=tf.float32) if 'length_scale' in args else None
+        sigma_f = con(args['sf'], dtype=tf.float32) if 'sf' in args else None
         with tf.variable_scope(name, "cov_se_parameters"):
             if not args['iso']:
-                self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_len)
+                self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=length)
             else:
-                self.length_scale = tf.get_variable("length_scale", shape=[], initializer=init_len)
-            self.sf = tf.get_variable("sf", shape=[], initializer=init_sf)
+                self.length_scale = tf.get_variable("length_scale", shape=[], initializer=length)
+            self.sf = tf.get_variable("sf", shape=[], initializer=sigma_f)
 
     def cov_func(self, point1, point2=None):
         """
@@ -35,7 +38,7 @@ class SquaredExponential:
         Returns:
             Tensor of shape (batch_size, batch_size)
         """
-        length_scale_br = tf.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
+        length_scale_br = tft.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
         if point2 is None:
             point2 = point1
 

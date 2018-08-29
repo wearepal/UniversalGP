@@ -4,6 +4,7 @@ Graph for exact inference.
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import math as tfm
 from .. import util
 
 # A jitter (diagonal) has to be added in the training covariance matrix in order to make Cholesky
@@ -90,10 +91,10 @@ class Exact:
         # contract the batch dimension, quad_form (num_latent,)
         quad_form = tf.matmul(train_outputs, alpha, transpose_a=True)
         log_trace = util.log_cholesky_det(chol)
-        #   tf.reduce_sum(tf.log(tf.matrix_diag_part(chol)), -1)
+        #   tf.reduce_sum(tfm.log(tf.matrix_diag_part(chol)), -1)
         # log_marginal_likelihood (num_latent,)
         num_train = tf.to_float(tf.shape(chol)[-1])
-        log_marginal_likelihood = -0.5 * (quad_form + log_trace + num_train * tf.log(np.pi))
+        log_marginal_likelihood = -0.5 * (quad_form + log_trace + num_train * tfm.log(np.pi))
         # Sum over num_latent in the end to get a scalar, this corresponds to mutliplying the
         # marginal likelihoods of all the latent functions
         return tf.reduce_sum(log_marginal_likelihood)

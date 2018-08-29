@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow_probability import distributions as tfd
 
 try:
     tf.enable_eager_execution()
@@ -11,13 +12,13 @@ RTOL = 1e-5
 
 
 def chol_normal_log_prob(val, mean, covar):
-    chol_normal = tf.contrib.distributions.MultivariateNormalTriL(
+    chol_normal = tfd.MultivariateNormalTriL(
         tf.constant(mean, dtype=tf.float32), tf.constant(covar, dtype=tf.float32))
     return chol_normal.log_prob(np.array(val, dtype=np.float32)).numpy()
 
 
 def diag_normal_log_prob(val, mean, covar):
-    diag_normal = tf.contrib.distributions.MultivariateNormalDiag(
+    diag_normal = tfd.MultivariateNormalDiag(
         tf.constant(mean, dtype=tf.float32), tf.sqrt(tf.constant(covar, dtype=tf.float32)))
     return diag_normal.log_prob(np.array(val, dtype=np.float32)).numpy()
 
