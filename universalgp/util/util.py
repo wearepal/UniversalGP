@@ -1,14 +1,16 @@
 import tensorflow as tf
-import numpy as np
+from tensorflow import manip as tft
+from tensorflow import linalg as tfl
+from tensorflow import math as tfm
+from tensorflow_probability import distributions as tfd
 
 
 def _merge_and_separate(a, b, func):
-    """
-    Helper function to make operations broadcast when they don't support it natively.
+    """Helper function to make operations broadcast when they don't support it natively.
 
-    The shape of `a` must be a subset of `b` in the sense that for example `b` has shape (j, k, l, m) and `a` has shape
-    (k, n, l) or (n, l) (for (j, k, n, l) you can just use the regular operation). Also supported is `b` with shape
-    (j, k, l) and `a` with shape (n, k).
+    The shape of `a` must be a subset of `b` in the sense that for example `b` has shape
+    (j, k, l, m) and `a` has shape (k, n, l) or (n, l) (for (j, k, n, l) you can just use the
+    regular operation). Also supported is `b` with shape (j, k, l) and `a` with shape (n, k).
 
     Args:
         a: Tensor
@@ -43,12 +45,12 @@ def _merge_and_separate(a, b, func):
         raise ValueError("Combination of ranks not supported")
 
     # move the first dimension to the end and then merge it with the last dimension
-    b_merged = tf.reshape(tf.transpose(b, perm_move_to_end), shape_merged)
+    b_merged = tft.reshape(tf.transpose(b, perm_move_to_end), shape_merged)
     # apply function
     result = func(a, b_merged)
-    # separate out the last dimension into what it was before the merging, then move the dimension from the back to the
-    # front again
-    return tf.transpose(tf.reshape(result, shape_separated), perm_move_to_front)
+    # separate out the last dimension into what it was before the merging, then move the dimension
+    # from the back to the front again
+    return tf.transpose(tft.reshape(result, shape_separated), perm_move_to_front)
 
 
 def matmul_br(a, b, transpose_a=False, transpose_b=False):
@@ -74,16 +76,19 @@ def matmul_br(a, b, transpose_a=False, transpose_b=False):
     max_dim = max(a_dim, b_dim)
     if max_dim > 5 or min(a_dim, b_dim) < 2:
         raise ValueError("dimensions over 5 or under 2 are not supported")
-    # the index prefix is at most 'ijk' for 5 dimensional tensors and at the least '' (empty) for 2 dimensional tensors
-    a_index_prefix = 'ijk'[5-a_dim:]
-    b_index_prefix = 'ijk'[5-b_dim:]
+    # the index prefix is at most 'ijk' for 5 dimensional tensors
+    # and at the least '' (empty) for 2 dimensional tensors
+    a_index_prefix = 'ijk'[5 - a_dim:]
+    b_index_prefix = 'ijk'[5 - b_dim:]
 
-    # the last two dimensions are always there. they depend on whether the tensor is transposed or  not
+    # the last two dimensions are always there
+    # they depend on whether the tensor is transposed or not
     a_index_suffix = 'xl' if transpose_a else 'lx'
     b_index_suffix = 'mx' if transpose_b else 'xm'
 
-    out_indices = 'ijklm'[5-max_dim:]
-    return tf.einsum(a_index_prefix + a_index_suffix + ',' + b_index_prefix + b_index_suffix + '->' + out_indices, a, b)
+    out_indices = 'ijklm'[5 - max_dim:]
+    cmd = f"{a_index_prefix}{a_index_suffix},{b_index_prefix}{b_index_suffix}->{out_indices}"
+    return tf.einsum(cmd, a, b)
 
 
 def cholesky_solve_br(chol, rhs):
@@ -101,7 +106,7 @@ def cholesky_solve_br(chol, rhs):
 
 
 def broadcast(tensor, tensor_with_target_shape):
-    """Make `tensor` have the same shape as `tensor_with_target_shape` by copying `tensor` over and over.
+    """Make `tensor` have the same shape as `tensor_with_target_shape` by tiling `tensor`.
 
     The rank of `tensor` has to be smaller than the rank of `tensor_with_target_shape`.
     """
@@ -111,30 +116,35 @@ def broadcast(tensor, tensor_with_target_shape):
     input_rank = len(input_shape)
     if all(input_shape) and all(target_shape):
         # the shapes are all fully specified. this means we can work with integers
-        # first we will pad the shape with 1s until the rank is the same. e.g. [m, n] -> [1, 1, 1, m, n]
+        # first we will pad the shape with 1s until the rank is the same
+        # e.g. [m, n] -> [1, 1, 1, m, n]
         expand_dims_shape = [1] * (target_rank - input_rank) + input_shape
-        # then we set the multiples that are necessary to reach the target shape. e.g. [j, k, l, 1, 1]
+        # then we set the multiples that are necessary to reach the target shape
+        # e.g. [j, k, l, 1, 1]
         tile_multiples = target_shape[0:-input_rank] + [1] * input_rank
     else:
         # the shapes are not fully specified. we have to work with tensors
         target_shape = tf.shape(tensor_with_target_shape)
         expand_dims_shape = tf.concat([[1] * (target_rank - input_rank), tf.shape(tensor)], axis=0)
         tile_multiples = tf.concat([target_shape[0:-input_rank], [1] * input_rank], axis=0)
-    input_with_expanded_dims = tf.reshape(tensor, expand_dims_shape)
-    return tf.tile(input_with_expanded_dims, tile_multiples)
+    input_with_expanded_dims = tft.reshape(tensor, expand_dims_shape)
+    return tft.tile(input_with_expanded_dims, tile_multiples)
 
 
 def ceil_divide(dividend, divisor):
-    return (dividend + divisor - 1) // divisor  # we must use "//" (integer division) instead of "/" here
+    # we must use "//" (integer division) instead of "/" (float division) here
+    return (dividend + divisor - 1) // divisor
 
 
 def log_cholesky_det(chol):
-    return 2 * tf.reduce_sum(tf.log(tf.matrix_diag_part(chol)), axis=-1)
+    return 2 * tf.reduce_sum(tfm.log(tfl.diag_part(chol)), axis=-1)
 
 
 def mul_sum(a, b):
-    """Compute inner product in the last dimension of `a` and `b`. Equivalent to `sum(a * b, axis=-1)`.
-    
+    """Compute inner product in the last dimension of `a` and `b`.
+
+    Equivalent to `sum(a * b, axis=-1)`.
+
     Args:
         a: Tensor
         b: Tensor with dimensions compatible with `a`.
@@ -163,4 +173,4 @@ def vec_to_tri(vectors):
     tensor where the lower triangle of each matrix_size x matrix_size matrix
     is constructed by unpacking each M-vector.
     """
-    return tf.contrib.distributions.fill_triangular(vectors)
+    return tfd.fill_triangular(vectors)

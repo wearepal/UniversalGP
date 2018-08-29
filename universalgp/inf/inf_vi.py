@@ -2,8 +2,8 @@
 Variational inference for generic Gaussian process models
 """
 import tensorflow as tf
-from tensorflow.contrib.distributions import (MultivariateNormalDiag, MultivariateNormalTriL,
-                                              matrix_diag_transform)
+from tensorflow import math as tfm
+from tensorflow_probability import distributions as tfd
 import numpy as np
 from .. import util
 
@@ -99,7 +99,7 @@ class Variational:
             # Use vec_to_tri(raw_covars) so as to only optimize over the lower triangular portion.
             # We note that we will always operate over the cholesky space internally.
             triangle = util.vec_to_tri(self.raw_covars)
-            chol_covars = matrix_diag_transform(triangle, transform=tf.nn.softplus)
+            chol_covars = tfd.matrix_diag_transform(triangle, transform=tf.nn.softplus)
 
         # Build the matrices of covariances between inducing inputs.
         kernel_mat = tf.stack([self.cov[i].cov_func(self.inducing_inputs[i, :, :])
@@ -225,7 +225,7 @@ class Variational:
         # First build a square matrix of normals.
         if self.args['diag_post']:
             # construct normal distributions for all combinations of components
-            variational_dist = MultivariateNormalDiag(
+            variational_dist = tfd.MultivariateNormalDiag(
                 means, tf.sqrt(chol_covars[tf.newaxis, ...] + chol_covars[:, tf.newaxis, ...]))
         else:
             if self.args['num_components'] == 1:
@@ -238,7 +238,7 @@ class Variational:
                 chol_covars_sum = tf.cholesky(component_covar[tf.newaxis, ...] +
                                               component_covar[:, tf.newaxis, ...])
             # The class MultivariateNormalTriL only accepts cholesky decompositions of covariances
-            variational_dist = MultivariateNormalTriL(means[tf.newaxis, ...], chol_covars_sum)
+            variational_dist = tfd.MultivariateNormalTriL(means[tf.newaxis, ...], chol_covars_sum)
 
         # compute log probability of all means in all normal distributions
         # then sum over all latent functions
@@ -247,7 +247,7 @@ class Variational:
 
         # Now compute the entropy.
         # broadcast `weights` into dimension 1, then do `logsumexp` in that dimension
-        weighted_logsumexp_probs = tf.reduce_logsumexp(tf.log(weights) + log_normal_probs, 1)
+        weighted_logsumexp_probs = tf.reduce_logsumexp(tfm.log(weights) + log_normal_probs, 1)
         # multiply with weights again and then sum over it all
         return -util.mul_sum(weights, weighted_logsumexp_probs)
 
@@ -273,7 +273,7 @@ class Variational:
                                                chol_covars), axis=-1)
 
         # sum_val has the same shape as weights
-        gaussian = MultivariateNormalTriL(means, kernel_chol)
+        gaussian = tfd.MultivariateNormalTriL(means, kernel_chol)
         sum_val = tf.reduce_sum(gaussian.log_prob([0.0]) - 0.5 * trace, -1)
 
         # weighted sum of weights and sum_val
@@ -304,7 +304,7 @@ class Variational:
         loss_by_component = tf.reduce_mean(1.0 / (tf.exp(self.lik.log_cond_prob(
             train_outputs, latent_samples)) + 1e-7), axis=1)
         loss = tf.reduce_sum(weights[:, tf.newaxis, tf.newaxis] * loss_by_component, axis=0)
-        return tf.reduce_sum(tf.log(loss))
+        return tf.reduce_sum(tfm.log(loss))
 
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
                    train_outputs, _):

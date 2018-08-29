@@ -1,5 +1,5 @@
 import numpy as np
-import scipy.misc
+import scipy.special
 import scipy.stats
 import tensorflow as tf
 
@@ -283,8 +283,8 @@ class TestMultiFull:
         n22_2 = scipy.stats.multivariate_normal.logpdf([7.0, 8.0], [7.0, 8.0], [[2.00, 2.20],
                                                                                 [2.20, 5.30]])
         true_ent = -(
-            0.7 * scipy.misc.logsumexp([np.log(0.7) + n11_1 + n11_2, np.log(0.3) + n12_1 + n12_2]) +
-            0.3 * scipy.misc.logsumexp([np.log(0.7) + n21_1 + n21_2, np.log(0.3) + n22_1 + n22_2]))
+            .7 * scipy.special.logsumexp([np.log(.7) + n11_1 + n11_2, np.log(.3) + n12_1 + n12_2]) +
+            .3 * scipy.special.logsumexp([np.log(.7) + n21_1 + n21_2, np.log(.3) + n22_1 + n22_2]))
         np.testing.assert_almost_equal(entropy, true_ent, SIG_FIGS)
 
     def test_cross_ent(self):

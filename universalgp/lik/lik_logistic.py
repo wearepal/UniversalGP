@@ -8,8 +8,9 @@ class LikelihoodLogistic:
         self.num_samples = args['num_samples_pred']
 
     def log_cond_prob(self, outputs, latent):
-        # return latent * (outputs - 1) - tf.log(1 + tf.exp(-latent))
-        # in order to use the logistic likelihood, the last dimension of both output and latent function should be 1
+        # return latent * (outputs - 1) - tfm.log(1 + tf.exp(-latent))
+        # in order to use the logistic likelihood,
+        # the last dimension of both output and latent function should be 1
         latent = tf.squeeze(latent, axis=-1)
         outputs_expanded = util.broadcast(tf.squeeze(outputs, axis=-1), latent)
         return -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs_expanded, logits=latent)
@@ -33,7 +34,7 @@ class LikelihoodLogistic:
                   tf.random_normal([num_components, self.num_samples, num_points, 1]))
         # Compute the logistic function
         # logistic = 1.0 / (1.0 + tf.exp(-latent))
-        logistic = tf.sigmoid(latent)
+        logistic = tf.nn.sigmoid(latent)
 
         # Estimate the expected value of the softmax and the variance through sampling.
         pred_means = tf.reduce_mean(logistic, 1, keepdims=True)

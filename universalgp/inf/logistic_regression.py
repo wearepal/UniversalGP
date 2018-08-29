@@ -1,6 +1,8 @@
 """Defines a logistic regression model to serve as a baseline"""
 
 import tensorflow as tf
+from tensorflow import manip as tft
+from tensorflow import math as tfm
 
 from .inf_vi_ybar import VariationalWithS, VariationalYbar, VariationalYbarEqOdds
 
@@ -113,9 +115,9 @@ def ybar_inference(features, outputs, is_train, debias, lr):
         # `debias` has the shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
         # then we use the last 2 values of that as indices for `debias`
         # shape of debias_per_example: (batch_size, output_dim, 2)
-        debias_per_example = tf.gather_nd(debias, tf.stack((out_int, sens_attr), axis=-1))
+        debias_per_example = tft.gather_nd(debias, tf.stack((out_int, sens_attr), axis=-1))
         weighted_lik = debias_per_example * lik
-        log_cond_prob = tf.log(tf.reduce_sum(weighted_lik, axis=-1))
+        log_cond_prob = tfm.log(tf.reduce_sum(weighted_lik, axis=-1))
         loss = -tf.reduce_mean(log_cond_prob)
         return {'loss': loss}, lr.get_trainable_variables()
     return lr.loss(features, outputs)

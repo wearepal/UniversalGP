@@ -1,11 +1,8 @@
 """
-Created on Tue Jan 23 17:11:22 2018
-
-@author: zc223
+Distance functions
 """
 
 import tensorflow as tf
-from . import util
 
 MAX_DIST = 1e8
 EPS = 1e-8
