@@ -4,18 +4,16 @@ import tensorflow as tf
 from tensorflow import manip as tft
 from tensorflow import math as tfm
 
-from .inf_vi_ybar import VariationalWithS, VariationalYbar, VariationalYbarEqOdds
+from .inf_vi_ybar import (VariationalWithS, debiasing_params_target_rate,
+                          debiasing_params_target_tpr)
 
 
-class LogisticRegressionModel:
-    """
-    Generic functionality for logistic regression models
-
-    This object is meant to be used by other objects to encapsulate all the functionality that is
-    needed for logistic regression.
-    """
-    def __init__(self, s_as_input, input_dim):
-        self.s_as_input = s_as_input
+class LogReg(VariationalWithS):
+    """Simple logistic regression model"""
+    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
+        self.args = args
+        self.s_as_input = args['s_as_input']
+        input_dim = cov_func[0].input_dim
         # create the logistic regression model
         # this is just a single layer neural network. we use no activation function here,
         # but we use `sigmoid_cross_entropy_with_logits` for the loss function which means
@@ -32,7 +30,7 @@ class LogisticRegressionModel:
             inputs = features['input']
         return self._model(inputs)
 
-    def loss(self, features, outputs):
+    def inference(self, features, outputs, _):
         """Standard logistic regression loss"""
         logits = self._logits(features)
         # this loss function implicitly uses the logistic function on the output of the one layer
@@ -45,73 +43,27 @@ class LogisticRegressionModel:
         pred = tf.nn.sigmoid(self._logits(test_inputs))
         return pred, tf.zeros_like(pred)
 
-    def get_trainable_variables(self):
+    def _trainable_variables(self):
         return self._model.trainable_variables
 
     def get_all_variables(self):
         return self._model.variables
 
 
-# TODO: let FairLogReg and EqOppLogReg be descendants of LogReg. all that's needed is to make the
-#       `_debiasing_parameters()` functions separate from their classes.
-class LogReg(VariationalWithS):
-    """Simple logistic regression model"""
-    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
-        self.args = args
-        self.lr = LogisticRegressionModel(args['s_as_input'], cov_func[0].input_dim)
-
-    def inference(self, features, outputs, _):
-        return self.lr.loss(features, outputs)
-
-    def predict(self, test_inputs):
-        return self.lr.predict(test_inputs)
-
-    def get_all_variables(self):
-        return self.lr.get_all_variables()
-
-
-class FairLogReg(VariationalYbar):
-    """Fair logistic regression"""
-    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
-        self.args = args
-        self.lr = LogisticRegressionModel(args['s_as_input'], cov_func[0].input_dim)
-
+class FairLogReg(LogReg):
+    """Fair logistic regression for demographic parity"""
     def inference(self, features, outputs, is_train):
-        return ybar_inference(features, outputs, is_train, self._debiasing_parameters(), self.lr)
-
-    def predict(self, test_inputs):
-        return self.lr.predict(test_inputs)
-
-    def get_all_variables(self):
-        return self.lr.get_all_variables()
-
-
-class EqOppLogReg(VariationalYbarEqOdds):
-    """Fair logistic regression"""
-    def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
-        self.args = args
-        self.lr = LogisticRegressionModel(args['s_as_input'], cov_func[0].input_dim)
-
-    def inference(self, features, outputs, is_train):
-        return ybar_inference(features, outputs, is_train, self._debiasing_parameters(), self.lr)
-
-    def predict(self, test_inputs):
-        return self.lr.predict(test_inputs)
-
-    def get_all_variables(self):
-        return self.lr.get_all_variables()
-
-
-def ybar_inference(features, outputs, is_train, debias, lr):
-    """Inference for targeting ybar"""
-    if is_train:
+        """Inference for targeting ybar"""
+        if not is_train:
+            return super().inference(features, outputs, is_train)
         sens_attr = tf.cast(tf.squeeze(features['sensitive'], -1), dtype=tf.int32)
         out_int = tf.cast(tf.squeeze(outputs, -1), dtype=tf.int32)
         # likelihood for y=1
-        lik1 = tf.squeeze(lr.predict(features)[0], axis=-1)
+        lik1 = tf.squeeze(tf.nn.sigmoid(self._logits(features)), axis=-1)
         # likelihood for y=0
         lik0 = 1 - lik1
         lik = tf.stack((lik0, lik1), axis=-1)
+        debias = self._debiasing_parameters()
         # `debias` has the shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
         # then we use the last 2 values of that as indices for `debias`
         # shape of debias_per_example: (batch_size, output_dim, 2)
@@ -119,5 +71,13 @@ def ybar_inference(features, outputs, is_train, debias, lr):
         weighted_lik = debias_per_example * lik
         log_cond_prob = tfm.log(tf.reduce_sum(weighted_lik, axis=-1))
         loss = -tf.reduce_mean(log_cond_prob)
-        return {'loss': loss}, lr.get_trainable_variables()
-    return lr.loss(features, outputs)
+        return {'loss': loss}, self._trainable_variables()
+
+    def _debiasing_parameters(self):
+        return debiasing_params_target_rate(self.args)
+
+
+class EqOddsLogReg(FairLogReg):
+    """Fair logistic regression for equalized odds (or equality of opportunity)"""
+    def _debiasing_parameters(self):
+        return debiasing_params_target_tpr(self.args)
