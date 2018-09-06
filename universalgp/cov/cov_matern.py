@@ -44,7 +44,7 @@ class Matern:
         self.order = args['order']
         init_len = tf.constant_initializer(args['length_scale'], dtype=tf.float32) if 'length_scale' in args else None
         init_sf = tf.constant_initializer(args['sf'], dtype=tf.float32) if 'sf' in args else None
-        with tf.variable_scope(name, "cov_se_parameters"):
+        with tf.variable_scope(name, "cov_matern_parameters"):
             if not args['iso']:
                 self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=init_len)
             else:
@@ -63,23 +63,20 @@ class Matern:
         if point2 is None:
             point2 = point1
 
-        distance = util.sq_dist(point1 / length_scale_br, point2 / length_scale_br)
-        temp = tf.sqrt(float(self.order)) * distance
-
-        kern = self.sf ** 2 * tf.exp(- temp) * self._interim_f(temp)
-
+        distance = util.euclidean_dist(point1 / length_scale_br, point2 / length_scale_br)
+        latent = tf.sqrt(float(self.order)) * distance
+        kern = self.sf ** 2 * tf.exp(- latent) * self._interim_f(latent)
         return kern
 
-    def _interim_f(self, t):
+    def _interim_f(self, r):
         def one():
             return 1.0
 
         def three():
-            return 1.0 + t
+            return 1.0 + r
 
         def five():
-            return 1.0 + t * (1.0 + t /3.0)
-
+            return 1.0 + r * (1.0 + r / 3.0)
         switcher = {
             1: one,
             3: three,

@@ -3,7 +3,7 @@
 --inf=Variational
 # --inf=Exact
 --cov=Matern
---order=1
+--order=5
 
 # Eager mode
 # --tf_mode=eager
@@ -11,8 +11,8 @@
 # --batch_size=5
 
 # Graph mode
-# --tf_mode=graph
---tf_mode=eager
+--tf_mode=graph
+# --tf_mode=eager
 
 # No plotting
 # --plot=

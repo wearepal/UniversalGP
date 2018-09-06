@@ -8,15 +8,43 @@ import tensorflow as tf
 from . import util
 
 MAX_DIST = 1e8
+EPS = 1e-8
+
+
+def dist(point1, point2):
+    """Compute the distance between point1 and point2."""
+    expanded1 = point1[..., tf.newaxis, :]
+    expanded2 = point2[..., tf.newaxis, :, :]
+    return expanded1 - expanded2
 
 
 def sq_dist(point1, point2):
     """Compute the square distance between point1 and point2."""
-    square2 = tf.reduce_sum(point2 ** 2, -1, keepdims=True)
-    square1 = tf.reduce_sum(point1 ** 2, -1, keepdims=True)
-    distance = (square1 - 2 * util.matmul_br(point1, point2, transpose_b=True) + tf.matrix_transpose(square2))
+    distance_vectors = dist(point1, point2)
+
+    squared_distance = tf.reduce_sum(distance_vectors**2, axis=-1)
+
+    # distance = tf.linalg.norm(distance_vectors, ord=2, axis=-1)
+    # squared_distance = distance**2
 
     # this ensures that exp(-distance) will never get too small
-    distance = tf.clip_by_value(distance, 0.0, MAX_DIST)
+    return tf.clip_by_value(squared_distance, 0.0, MAX_DIST)
 
-    return distance
+
+def manhatten_dist(point1, point2):
+    distance_vectors = dist(point1, point2)
+    distance = tf.linalg.norm(distance_vectors, ord=1, axis=-1)
+    # squared_distance = tf.reduce_sum(tf.abs(distance_vectors), axis=-1)
+
+    # this ensures that exp(-distance) will never get too small
+    return tf.clip_by_value(distance, 0.0, MAX_DIST)
+
+
+def euclidean_dist(point1, point2):
+    distance_vectors = dist(point1, point2)
+    # distance = tf.linalg.norm(distance_vectors, ord=2, axis=-1)
+    sq_distance = tf.reduce_sum(distance_vectors ** 2, axis=-1)
+    distance = tf.sqrt(sq_distance + EPS)
+
+    # this ensures that exp(-distance) will never get too small
+    return tf.clip_by_value(distance, 0.0, MAX_DIST)
