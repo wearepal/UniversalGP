@@ -3,9 +3,9 @@ Created on Tue Jan 23 17:33:47 2018
 
 @author: zc223
 """
-from .sq_dist import sq_dist
-from .sq_dist import manhatten_dist
-from .sq_dist import euclidean_dist
+from .dist import sq_dist
+from .dist import manhatten_dist
+from .dist import euclidean_dist
 
 from .util import tri_vec_shape
 from .util import vec_to_tri
