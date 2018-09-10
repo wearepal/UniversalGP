@@ -14,12 +14,15 @@ class LogReg(VariationalWithS):
         self.args = args
         self.s_as_input = args['s_as_input']
         input_dim = cov_func[0].input_dim
+        regularize_factor = 0.1
         # create the logistic regression model
         # this is just a single layer neural network. we use no activation function here,
         # but we use `sigmoid_cross_entropy_with_logits` for the loss function which means
         # there is implicitly the logistic function as the activation function.
         self._model = tf.keras.Sequential([
-            tf.keras.layers.Dense(1, input_shape=(input_dim,), activation=None, use_bias=True)
+            tf.keras.layers.Dense(1, input_shape=(input_dim,), activation=None, use_bias=True,
+                                  kernel_regularizer=tf.keras.regularizers.l2(regularize_factor),
+                                  bias_regularizer=tf.keras.regularizers.l2(regularize_factor))
         ])
 
     def _logits(self, features):
@@ -35,9 +38,10 @@ class LogReg(VariationalWithS):
         logits = self._logits(features)
         # this loss function implicitly uses the logistic function on the output of the one layer
         log_cond_prob = -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs, logits=logits)
-        # TODO: add regularization
-        loss = -tf.reduce_mean(tf.squeeze(log_cond_prob), axis=-1)
-        return {'loss': loss}, self._model.trainable_variables
+        l2_loss = self._l2_loss()
+        regr_loss = -tf.reduce_mean(tf.squeeze(log_cond_prob), axis=-1)  # regression loss
+        return ({'loss': regr_loss + l2_loss, 'regr_loss': regr_loss, 'l2_loss': l2_loss},
+                self._model.trainable_variables)
 
     def predict(self, test_inputs):
         pred = tf.nn.sigmoid(self._logits(test_inputs))
@@ -48,6 +52,9 @@ class LogReg(VariationalWithS):
 
     def get_all_variables(self):
         return self._model.variables
+
+    def _l2_loss(self):
+        return tf.add_n(self._model.losses)  # L2 regularization loss
 
 
 class FairLogReg(LogReg):
@@ -70,8 +77,10 @@ class FairLogReg(LogReg):
         debias_per_example = tft.gather_nd(debias, tf.stack((out_int, sens_attr), axis=-1))
         weighted_lik = debias_per_example * lik
         log_cond_prob = tfm.log(tf.reduce_sum(weighted_lik, axis=-1))
-        loss = -tf.reduce_mean(log_cond_prob)
-        return {'loss': loss}, self._trainable_variables()
+        regr_loss = -tf.reduce_mean(log_cond_prob)
+        l2_loss = self._l2_loss()
+        return ({'loss': regr_loss + l2_loss, 'regr_loss': regr_loss, 'l2_loss': l2_loss},
+                self._trainable_variables())
 
     def _debiasing_parameters(self):
         return debiasing_params_target_rate(self.args)
