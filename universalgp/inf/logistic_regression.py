@@ -35,7 +35,7 @@ class LogisticRegressionModel:
         logits = self._logits(features)
         # this loss function implicitly uses the logistic function on the output of the one layer
         log_cond_prob = -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs, logits=logits)
-        // TODO: add regularization
+        # TODO: add regularization
         loss = -tf.reduce_mean(tf.squeeze(log_cond_prob), axis=-1)
         return {'loss': loss}, self._model.trainable_variables
 
