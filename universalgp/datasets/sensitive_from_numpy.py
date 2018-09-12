@@ -34,8 +34,8 @@ def sensitive_from_numpy(flags):
         # ytrain=train.y,
         # strain=train.s,
         xtest=test.x,  # needed for making predictions
-        # ytest=test.y,
-        # stest=test.s,
+        ytest=test.y,
+        stest=test.s,
         num_train=train.x.shape[0],
         inducing_inputs=inducing_inputs,
         output_dim=train.y.shape[1],
