@@ -2,7 +2,7 @@
 
 UniversalGP: A basic generic implementation for Gaussian process models
 
-The code was tested on Python 3.6 and Tensorflow 1.8.
+The code was tested on Python 3.6 and Tensorflow 1.10.
 
 ## Installation
 
