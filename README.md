@@ -160,6 +160,8 @@ print(gp.get_all_variables())  # print the values of all train variables
 
 
 ## Reference
+Kehrenberg, Thomas, et al. "Interpretable Fairness via Target Labels in Gaussian Process Models." arXiv preprint arXiv:1810.05598 (2018).
+
 Krauth, Karl, et al. "AutoGP: Exploring the capabilities and limitations of Gaussian Process models." arXiv preprint arXiv:1610.05392 (2016).
 
 Bonilla, Edwin V., Karl Krauth, and Amir Dezfouli. "Generic Inference in Latent Gaussian Process Models." arXiv preprint arXiv:1609.00577 (2016).
