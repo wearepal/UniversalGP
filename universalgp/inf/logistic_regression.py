@@ -86,7 +86,7 @@ class FairLogReg(VariationalYbar):
         return self.lr.get_all_variables()
 
 
-class EqOppLogReg(VariationalYbarEqOdds):
+class EqOddsLogReg(VariationalYbarEqOdds):
     """Fair logistic regression"""
     def __init__(self, cov_func, lik_func, num_train, inducing_inputs, args):
         self.args = args
