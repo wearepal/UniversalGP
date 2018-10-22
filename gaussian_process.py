@@ -20,7 +20,9 @@ tf.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
 tf.app.flags.DEFINE_string('cov', 'SquaredExponential', 'Covariance function')
 tf.app.flags.DEFINE_float('lr', 0.005, 'Learning rate')
-tf.app.flags.DEFINE_integer('loo_steps', 0, 'Number of steps for optimizing LOO loss, 0 disables')
+tf.app.flags.DEFINE_integer('loo_steps', 0, 'Number of steps for optimizing LOO loss; 0 disables')
+tf.app.flags.DEFINE_integer('nelbo_steps', 0,
+                            'Number of steps for optimizing NELBO loss; 0 means same as loo_steps')
 tf.app.flags.DEFINE_integer('num_all', 200,
                             'Suggested total number of examples (datasets don\'t have to use it)')
 tf.app.flags.DEFINE_integer('num_train', 50,
