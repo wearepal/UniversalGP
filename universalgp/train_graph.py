@@ -53,8 +53,9 @@ def build_gaussian_process(features, labels, mode, params: dict):
     for_logging = {'step': global_step, **obj_func, **{k: v[1] for k, v in metric_ops.items()}}
 
     if params['loo_steps']:
-        # Alternate the loss function
-        mask = tf.equal((global_step // params['loo_steps']) % 2, 0)
+        # Alternate the loss function between NELBO loss and LOO loss
+        nelbo_steps = params['nelbo_steps'] if params['nelbo_steps'] > 0 else params['loo_steps']
+        mask = tf.less(global_step % (nelbo_steps + params['loo_steps']), nelbo_steps)
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)
         loo_loss = tf.where(mask, 0.0, obj_func['LOO_VARIATIONAL'])
         train_nelbo = optimizer.minimize(nelbo_loss, global_step=global_step,

@@ -33,8 +33,8 @@ def fit(gp, optimizer, data, step_counter, hyper_params, update_learning_rate, a
         all_params = inf_params + hyper_params
         if args['loo_steps']:
             # Alternate loss between NELBO and LOO
-            # TODO: allow `nelbo_steps` to be different from `loo_steps`
-            if (step_counter.numpy() // args['loo_steps']) % 2 == 0:
+            nelbo_steps = args['nelbo_steps'] if args['nelbo_steps'] > 0 else args['loo_steps']
+            if (step_counter.numpy() % (nelbo_steps + args['loo_steps'])) < nelbo_steps:
                 grads_and_params = zip(tape.gradient(obj_func['NELBO'], all_params), all_params)
             else:
                 grads_and_params = zip(
