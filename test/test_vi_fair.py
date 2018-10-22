@@ -84,7 +84,8 @@ class TestDebiasParams:
         prec_s0 = .7
         prec_s1 = .8
         obj = construct_simple_full(p_y1_s0, p_y1_s1, p_ybar1_s0, p_ybar1_s1, prec_s0, prec_s1)
-        actual_lik = obj._label_likelihood([p_y1_s0, p_y1_s1], [p_ybar1_s0, p_ybar1_s1])
+        actual_lik = inference.inf_vi_ybar.positive_label_likelihood(
+            obj.args, [p_y1_s0, p_y1_s1], [p_ybar1_s0, p_ybar1_s1])
         np.testing.assert_allclose(actual_lik,
                                    [[(p_ybar1_s0 - prec_s0 * p_y1_s0) / (1 - p_y1_s0),
                                      1 - .8],
