@@ -7,7 +7,7 @@ from . import plot
 from .. import cov, inf, lik
 
 
-def construct_from_flags(flags, dataset):
+def construct_from_flags(flags, dataset, inducing_inputs):
     """Construct the necessary objects from the information in the flags
 
     Args:
@@ -15,9 +15,10 @@ def construct_from_flags(flags, dataset):
         dataset: information about the data
         inducing_inputs: inducing inputs
     Returns:
-        a GP object and the hyper parameters
+        a GP object
     """
-    return getattr(inf, flags['inf'])(flags, dataset.lik, dataset.output_dim, dataset.num_train)
+    return getattr(inf, flags['inf'])(flags, dataset.lik, dataset.output_dim, dataset.num_train,
+                                      inducing_inputs)
 
 
 def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
