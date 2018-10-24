@@ -6,24 +6,25 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import math as tfm
 from .. import util
+from .base import Inference
 
 # A jitter (diagonal) has to be added in the training covariance matrix in order to make Cholesky
 # decomposition successfully
 JITTER = 1e-2
 
 
-class Exact:
+class Exact(Inference):
     """Class for exact inference."""
-
-    def __init__(self, cov_func, lik_func, num_train, *_):
-        self.cov = cov_func
-        self.lik = lik_func
+    def build(self, input_shape):
+        input_dim = int(input_shape[1])
+        self.lik, self.cov = util.construct_lik_and_cov(self, self.args, self.lik_name, input_dim,
+                                                        self.output_dim)
         self.sn = self.lik.get_params()[0]
-        with tf.variable_scope(None, "exact_inference"):
-            self.train_inputs = tf.get_variable('train_inputs', [num_train, self.cov[0].input_dim],
-                                                trainable=False)
-            self.train_outputs = tf.get_variable('train_outputs', [num_train, len(self.cov)],
-                                                 trainable=False)
+        self.train_inputs = self.add_variable('train_inputs', [self.num_train, input_dim],
+                                              trainable=False)
+        self.train_outputs = self.add_variable('train_outputs', [self.num_train, self.output_dim],
+                                               trainable=False)
+        super().build(input_shape)
 
     def inference(self, features, outputs, is_train):
         """Build graph for computing predictive mean and variance and log marginal likelihood.
@@ -47,7 +48,7 @@ class Exact:
         # log marginal likelihood
         lml = self._build_log_marginal_likelihood(outputs, chol, alpha)
 
-        return {'loss': -lml, 'LML': lml}, []
+        return {'loss': -lml, 'LML': lml}
 
     def predict(self, test_inputs):
         """Build graph for computing predictive mean and variance
@@ -57,14 +58,17 @@ class Exact:
         Returns:
             predictive mean and variance
         """
+        return self.__call__(test_inputs['input'])
+
+    def call(self, inputs, **_):
         chol, alpha = self._build_interim_vals(self.train_inputs, self.train_outputs)
 
         # kxx_star (num_latent, num_train, num_test)
-        kxx_star = self.cov[0].cov_func(self.train_inputs, test_inputs['input'])
+        kxx_star = self.cov[0].cov_func(self.train_inputs, inputs)
         # f_star_mean (num_latent, num_test, 1)
         f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
-        kx_star_x_star = self.cov[0].cov_func(test_inputs['input'])
+        kx_star_x_star = self.cov[0].cov_func(inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
         v = tf.matrix_triangular_solve(chol, kxx_star)
@@ -98,7 +102,3 @@ class Exact:
         # Sum over num_latent in the end to get a scalar, this corresponds to mutliplying the
         # marginal likelihoods of all the latent functions
         return tf.reduce_sum(log_marginal_likelihood)
-
-    def get_all_variables(self):
-        """Returns all variables, not just the ones that are trained."""
-        return [self.train_inputs, self.train_outputs]

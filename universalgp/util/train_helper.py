@@ -7,7 +7,7 @@ from . import plot
 from .. import cov, inf, lik
 
 
-def construct_from_flags(flags, dataset, inducing_inputs):
+def construct_from_flags(flags, dataset):
     """Construct the necessary objects from the information in the flags
 
     Args:
@@ -17,38 +17,37 @@ def construct_from_flags(flags, dataset, inducing_inputs):
     Returns:
         a GP object and the hyper parameters
     """
-    cov_func = [getattr(cov, flags['cov'])(dataset.input_dim, flags)
-                for _ in range(dataset.output_dim)]
-    lik_func = getattr(lik, dataset.lik)(flags)
-    hyper_params = lik_func.get_params() + sum([k.get_params() for k in cov_func], [])
-
-    gp = getattr(inf, flags['inf'])(cov_func, lik_func, dataset.num_train, inducing_inputs, flags)
-    return gp, hyper_params
+    return getattr(inf, flags['inf'])(flags, dataset.lik, dataset.output_dim, dataset.num_train)
 
 
-def get_optimizer(flags, global_step=None):
+def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
+    """Construct the likelihood and all covariance functions from the given information
+
+    Args:
+        gp_obj: the GP object that the constructed functions will belong to
+        flags: dictionary with parameters
+        lik_name: name of the likelihood function
+        input_dim: number of input dimensions
+        output_dim: number of output dimensions
+    Returns:
+        a likelihood function and a list of covariance functions
+    """
+    cov_func = [getattr(cov, flags['cov'])(gp_obj, input_dim, flags) for _ in range(output_dim)]
+    lik_func = getattr(lik, lik_name)(gp_obj, flags)
+    return lik_func, cov_func
+
+
+def get_optimizer(flags, global_step):
     """Construct the optimizer from the information in the flags
-
-    If the global step is not given, then a function is returned that takes the global step as a
-    parameter and updates the learning rate.
 
     Args:
         flags: dictionary with parameters
-        global_step: (optional) the step in training
+        global_step: the step in training
     Returns:
         the optimizer and a function to update the learning rate
     """
     schedule = [flags['lr'], flags['lr'] * flags['lr_drop_factor']]
     drop_steps = flags['lr_drop_steps']
-
-    if global_step is None:
-        learning_rate = tf.get_variable("lr", initializer=tf.constant(flags['lr']), trainable=False)
-
-        def _update_learning_rate(step):
-            if drop_steps > 0:
-                learning_rate.assign(tf.train.piecewise_constant(step, [drop_steps], schedule))
-
-        return getattr(tf.train, flags['optimizer'])(learning_rate), _update_learning_rate
 
     if drop_steps > 0:
         learning_rate = tf.train.piecewise_constant(global_step, [drop_steps], schedule)
