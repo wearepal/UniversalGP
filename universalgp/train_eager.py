@@ -91,9 +91,8 @@ def predict(test_inputs, saved_model, dataset_info, args):
         num_batches = 1
     else:
         num_batches = util.ceil_divide(test_inputs.shape[0], args['batch_size'])
-    # num_inducing = dataset_info.inducing_inputs.shape[0]
 
-    gp = util.construct_from_flags(args, dataset_info)
+    gp = util.construct_from_flags(args, dataset_info, dataset_info.inducing_inputs.shape[0])
     checkpoint = tf.train.Checkpoint(gp=gp)
     checkpoint.restore(saved_model)
 
@@ -125,7 +124,7 @@ def train_gp(dataset, args):
 
     # Construct objects
     step_counter = tf.train.get_or_create_global_step()
-    gp = util.construct_from_flags(args, dataset)
+    gp = util.construct_from_flags(args, dataset, dataset.inducing_inputs)
     optimizer = util.get_optimizer(args, step_counter)
 
     # Restore from existing checkpoint

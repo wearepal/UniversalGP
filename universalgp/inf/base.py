@@ -5,11 +5,16 @@ import tensorflow as tf
 
 class Inference(tf.keras.layers.Layer):
     """Base class for inference methods"""
-    def __init__(self, args, lik_name, output_dim, num_train, **kwargs):
+    def __init__(self, args, lik_name, output_dim, num_train, inducing_inputs, **kwargs):
         self.args = args
         self.lik_name = lik_name
         self.output_dim = output_dim
         self.num_train = num_train
+        if isinstance(inducing_inputs, int):
+            self.num_inducing = inducing_inputs
+        else:
+            self.inducing_inputs_init = inducing_inputs
+            self.num_inducing = inducing_inputs.shape[-2]
         super().__init__(**kwargs)
 
     def compute_output_shape(self, input_shape):
@@ -23,6 +28,7 @@ class Inference(tf.keras.layers.Layer):
         base_config['lik_name'] = self.lik_name
         base_config['output_dim'] = self.output_dim
         base_config['num_train'] = self.num_train
+        base_config['inducing_inputs'] = self.num_inducing
         return base_config
 
     @classmethod
