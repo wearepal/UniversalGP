@@ -10,9 +10,11 @@ tf.app.flags.DEFINE_float('sn', 1.0, 'Initial standard dev for the Gaussian like
 
 
 class LikelihoodGaussian:
-    def __init__(self, args):
+    """Gaussian likelihood function """
+    def __init__(self, gp_obj, args):
         init_sn = tf.constant_initializer(args['sn'], dtype=tf.float32) if 'sn' in args else None
-        self.sn = tf.get_variable("Likelihood_param", [], initializer=init_sn)
+        with tf.variable_scope(None, "gaussian_likelihood"):
+            self.sn = gp_obj.add_variable("std_dev", [], initializer=init_sn)
 
     def log_cond_prob(self, y, mu):
         var = self.sn ** 2

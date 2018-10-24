@@ -21,4 +21,4 @@ from .metrics import init_metrics
 from .metrics import update_metrics
 from .metrics import record_metrics
 from .plot_classification import Classification
-from .train_helper import construct_from_flags, post_training, get_optimizer
+from .train_helper import construct_from_flags, post_training, get_optimizer, construct_lik_and_cov

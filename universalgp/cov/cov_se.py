@@ -13,7 +13,7 @@ tf.app.flags.DEFINE_boolean('iso', False,
 
 class SquaredExponential:
     """Squared exponential kernel"""
-    def __init__(self, input_dim, args, name=None):
+    def __init__(self, gp_obj, input_dim, args):
         """
         Args:
             input_dim: the number of input dimensions
@@ -23,12 +23,14 @@ class SquaredExponential:
         con = tf.constant_initializer
         length = con(args['length_scale'], dtype=tf.float32) if 'length_scale' in args else None
         sigma_f = con(args['sf'], dtype=tf.float32) if 'sf' in args else None
-        with tf.variable_scope(name, "cov_se_parameters"):
+        with tf.variable_scope(None, "cov_se_parameters"):
             if not args['iso']:
-                self.length_scale = tf.get_variable("length_scale", [input_dim], initializer=length)
+                self.length_scale = gp_obj.add_variable("length_scale", [input_dim],
+                                                        initializer=length)
             else:
-                self.length_scale = tf.get_variable("length_scale", shape=[], initializer=length)
-            self.sf = tf.get_variable("sf", shape=[], initializer=sigma_f)
+                self.length_scale = gp_obj.add_variable("length_scale", shape=[],
+                                                        initializer=length)
+            self.sf = gp_obj.add_variable("sf", shape=[], initializer=sigma_f)
 
     def cov_func(self, point1, point2=None):
         """
