@@ -19,7 +19,7 @@ class Loo(Inference):
         input_dim = int(input_shape[1])
         self.lik, self.cov = util.construct_lik_and_cov(self, self.args, self.lik_name, input_dim,
                                                         self.output_dim)
-        self.sn = self.lik.get_params()[0]
+        self.sn = self.lik.sn
         self.train_inputs = self.add_variable('train_inputs', [self.num_train, input_dim],
                                               trainable=False)
         self.train_outputs = self.add_variable('train_outputs', [self.num_train, self.output_dim],

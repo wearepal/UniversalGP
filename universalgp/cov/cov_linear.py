@@ -1,7 +1,6 @@
 """
 Linear kernel
 """
-
 import tensorflow as tf
 from tensorflow import manip as tft
 from .. import util
@@ -13,21 +12,24 @@ tf.app.flags.DEFINE_float('lin_kern_sv', 1.0, 'Variance of linear kernel')
 
 class Linear:
     """Linear kernel"""
-    def __init__(self, input_dim, args, name=None):
+    def __init__(self, variables, input_dim, args, name=None):
         """
         Args:
+            variables: object that stores the variables
             input_dim: the number of input dimensions
+            args: dictionary with parameters
         """
         self.input_dim = input_dim
-        con = tf.constant_initializer
-        init_offset = con(args['lin_kern_offset'], dtype=tf.float32) if (
+        init_offset = tf.constant_initializer(args['lin_kern_offset'], dtype=tf.float32) if (
             'lin_kern_offset' in args) else None
-        init_sb = con(args['lin_kern_sb'], dtype=tf.float32) if 'lin_kern_sb' in args else None
-        init_sv = con(args['lin_kern_sv'], dtype=tf.float32) if 'lin_kern_sv' in args else None
+        init_sb = tf.constant_initializer(args['lin_kern_sb'], dtype=tf.float32) if (
+            'lin_kern_sb' in args) else None
+        init_sv = tf.constant_initializer(args['lin_kern_sv'], dtype=tf.float32) if (
+            'lin_kern_sv' in args) else None
         with tf.variable_scope(name, "cov_lin_parameters"):
-            self.offset = tf.get_variable("offset", [input_dim], initializer=init_offset)
-            self.sigma_b = tf.get_variable("sb", shape=[], initializer=init_sb)
-            self.sigma_v = tf.get_variable("sv", shape=[], initializer=init_sv)
+            self.offset = variables.add_variable("offset", [input_dim], initializer=init_offset)
+            self.sigma_b = variables.add_variable("sb", shape=[], initializer=init_sb)
+            self.sigma_v = variables.add_variable("sv", shape=[], initializer=init_sv)
 
     def cov_func(self, point1, point2=None):
         """
@@ -53,6 +55,3 @@ class Linear:
         """
         offset_br = tft.reshape(self.offset, [1, self.input_dim])
         return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum((points - offset_br)**2)
-
-    def get_params(self):
-        return [self.offset, self.sigma_b, self.sigma_v]

@@ -1,22 +1,25 @@
+"""
+Logistic likelihood function
+"""
+
 import tensorflow as tf
 
 from .. import util
 
 
 class LikelihoodLogistic:
-    def __init__(self, args):
+    """Logistic likelihood function """
+    def __init__(self, _, args):
         self.num_samples = args['num_samples_pred']
 
-    def log_cond_prob(self, outputs, latent):
+    @staticmethod
+    def log_cond_prob(outputs, latent):
         # return latent * (outputs - 1) - tfm.log(1 + tf.exp(-latent))
         # in order to use the logistic likelihood,
         # the last dimension of both output and latent function should be 1
         latent = tf.squeeze(latent, axis=-1)
         outputs_expanded = util.broadcast(tf.squeeze(outputs, axis=-1), latent)
         return -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs_expanded, logits=latent)
-
-    def get_params(self):
-        return []
 
     def predict(self, latent_means, latent_vars):
         """Given the distribution over the latent functions, what is the likelihood distribution?
