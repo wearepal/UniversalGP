@@ -7,21 +7,26 @@ from tensorflow import math as tfm
 from .inf_vi_ybar import (sensitive_prediction, construct_input, debiasing_params_target_rate,
                           debiasing_params_target_tpr)
 
+tf.app.flags.DEFINE_boolean('use_bias', True, 'If True, logistic regression will use a bias')
+tf.app.flags.DEFINE_float('lr_l2_kernel_factor', 0.1,
+                          'Weight of the regularization loss for the kernel of logistic regression')
+tf.app.flags.DEFINE_float('lr_l2_bias_factor', 0.1,
+                          'Weight of the regularization loss for the bias of logistic regression')
+
 
 class LogReg(tf.keras.Model):
     """Simple logistic regression model"""
     def __init__(self, args, _, output_dim, *__, **kwargs):
         super().__init__()
         self.args = args
-        regularize_factor = 0.1
         # create the logistic regression model
         # this is just a single layer neural network. we use no activation function here,
         # but we use `sigmoid_cross_entropy_with_logits` for the loss function which means
         # there is implicitly the logistic function as the activation function.
         self._model = tf.keras.layers.Dense(
-            output_dim, activation=None, use_bias=True,
-            kernel_regularizer=tf.keras.regularizers.l2(regularize_factor),
-            bias_regularizer=tf.keras.regularizers.l2(regularize_factor)
+            output_dim, activation=None, use_bias=args['use_bias'],
+            kernel_regularizer=tf.keras.regularizers.l2(args['lr_l2_kernel_factor']),
+            bias_regularizer=tf.keras.regularizers.l2(args['lr_l2_bias_factor'])
         )
 
     def inference(self, features, outputs, _):
