@@ -31,7 +31,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
 
     global_step = tf.train.get_global_step()
     optimizer = util.get_optimizer(params, global_step)
-    inf_func, hyper_params = util.construct_from_flags(params, dataset, inducing_param)
+    inf_func = util.construct_from_flags(params, dataset, inducing_param)
 
     pred_mean, pred_var = inf_func.predict(features)
 
@@ -39,7 +39,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})
 
     # Do inference
-    obj_func, inf_param = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
+    obj_func = inf_func.inference(features, labels, mode == tf.estimator.ModeKeys.TRAIN)
 
     # Compute evaluation metrics.
     metrics = util.init_metrics(dataset.metric, False)
@@ -59,12 +59,13 @@ def build_gaussian_process(features, labels, mode, params: dict):
         nelbo_loss = tf.where(mask, obj_func['NELBO'], 0.0)
         loo_loss = tf.where(mask, 0.0, obj_func['LOO_VARIATIONAL'])
         train_nelbo = optimizer.minimize(nelbo_loss, global_step=global_step,
-                                         var_list=inf_param + hyper_params)
-        train_loo = optimizer.minimize(loo_loss, global_step=global_step, var_list=hyper_params)
+                                         var_list=inf_func.trainable_variables)
+        train_loo = optimizer.minimize(loo_loss, global_step=global_step,
+                                       var_list=inf_func.trainable_variables)
         train_op = tf.group(train_nelbo, train_loo)
     else:
-        train_op = optimizer.minimize(obj_func['loss'],
-                                      global_step=global_step, var_list=inf_param + hyper_params)
+        train_op = optimizer.minimize(obj_func['loss'], global_step=global_step,
+                                      var_list=inf_func.trainable_variables)
     return tf.estimator.EstimatorSpec(
         mode, loss=obj_func['loss'], train_op=train_op, training_hooks=[
             tf.train.LoggingTensorHook(for_logging, every_n_iter=params['logging_steps'])])
