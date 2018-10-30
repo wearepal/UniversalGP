@@ -34,27 +34,42 @@ tf.app.flags.DEFINE_float('p_ybary0_s1', 1.0, '')
 tf.app.flags.DEFINE_float('p_ybary1_s1', 1.0, '')
 
 
+def sensitive_prediction(model, features, args):
+    """Make a prediction while potentially taking into account sensitive attributes
+
+    Args:
+        model: function that makes the predictions
+        features: dictionary that contains the inputs
+        args: dictionary with parameters
+    Returns:
+        predictions
+    """
+    if args['s_as_input']:
+        s = features['sensitive']
+        if args['average_prediction']:
+            preds_s0 = model(tf.concat((features['input'], tf.zeros_like(s)), axis=1))
+            preds_s1 = model(tf.concat((features['input'], tf.ones_like(s)), axis=1))
+            return [args['p_s0'] * r_s0 + args['p_s1'] * r_s1
+                    for r_s0, r_s1 in zip(preds_s0, preds_s1)]
+        return model(tf.concat((features['input'], s), axis=1))
+    return model(features['input'])
+
+
+def construct_input(features, args):
+    """Construct input by potentially fusing non-sensitive inputs and sensitive inputs"""
+    if args['s_as_input']:
+        return tf.concat((features['input'], features['sensitive']), axis=1)
+    return features['input']
+
+
 class VariationalWithS(Variational):
     """Thin wrapper around `Variational` that can handle sensitive attributes"""
     def predict(self, test_inputs):
-        if self.args['s_as_input']:
-            s = test_inputs['sensitive']
-            if self.args['average_prediction']:
-                preds_s0 = super().predict({'input': tf.concat((test_inputs['input'],
-                                                                tf.zeros_like(s)), axis=1)})
-                preds_s1 = super().predict({'input': tf.concat((test_inputs['input'],
-                                                                tf.ones_like(s)), axis=1)})
-                return [self.args['p_s0'] * r_s0 + self.args['p_s1'] * r_s1
-                        for r_s0, r_s1 in zip(preds_s0, preds_s1)]
-            return super().predict({'input': tf.concat((test_inputs['input'], s), axis=1)})
-        return super().predict(test_inputs)
+        return sensitive_prediction(self, test_inputs, self.args)
 
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
                    outputs, is_train):
-        if self.args['s_as_input']:
-            inputs = tf.concat((features['input'], features['sensitive']), axis=1)
-        else:
-            inputs = features['input']
+        inputs = construct_input(features, self.args)
         return super()._build_ell(weights, means, chol_covars, inducing_inputs, kernel_chol,
                                   {'input': inputs}, outputs, is_train)
 
@@ -77,10 +92,7 @@ class VariationalYbar(VariationalWithS):
         Returns:
             Expected log likelihood as scalar
         """
-        if self.args['s_as_input']:
-            inputs = tf.concat((features['input'], features['sensitive']), axis=1)
-        else:
-            inputs = features['input']
+        inputs = self.get_inputs(features)
 
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, inputs)
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latents)
