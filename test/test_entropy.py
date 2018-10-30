@@ -42,13 +42,13 @@ def mat_square(mat):
     return mat @ np.transpose(mat)
 
 
-def construct_inf(input_dim, num_latents, num_components):
+def construct_inf(num_latents, num_components, inducing_inputs):
     """Construct a very basic inference object"""
-    lik = universalgp.lik.LikelihoodGaussian({'sn': 1.0})
-    cov = [universalgp.cov.SquaredExponential(input_dim, dict(iso=False, length_scale=1., sf=1.))
-           for _ in range(num_latents)]
-    return universalgp.inf.Variational(cov, lik, 1, 1, {'num_components': num_components, 'optimize_inducing': True,
-                                                        'num_samples': 10, 'diag_post': False, 'use_loo': False})
+    return universalgp.inf.Variational(
+        dict(num_components=num_components, optimize_inducing=True, num_samples=10,
+             diag_post=False, use_loo=False),
+        'LikelihoodGaussian', num_latents, 1, inducing_inputs
+    )
 
 
 def tf_constant(np_array):
@@ -81,7 +81,8 @@ def test_entropy1():
                     # Compute chol(2S) = sqrt(2)*chol(S).
                     chol_covars_sum = np.sqrt(2.0) * chol_covars[i, k, :, :]
                 else:
-                    covars_sum = mat_square(chol_covars[i, k, :, :]) + mat_square(chol_covars[j, k, :, :])
+                    covars_sum = (mat_square(chol_covars[i, k, :, :]) +
+                                  mat_square(chol_covars[j, k, :, :]))
                     chol_covars_sum = sl.cholesky(covars_sum)
 
                 chol_normal = CholNormal(means[i, k, :], chol_covars_sum)
@@ -101,7 +102,7 @@ def test_entropy1():
         entropy_np -= weights[i] * scipy.special.logsumexp(np.stack(weighted_log_probs))
         # print(entropy)
 
-    inf = construct_inf(1, num_latents, num_components)
+    inf = construct_inf(num_latents, num_components, 1)
     entropy_tf = inf._build_entropy(tf_constant(weights), tf_constant(means), tf_constant(chol_covars))
     tf.reset_default_graph()
 
