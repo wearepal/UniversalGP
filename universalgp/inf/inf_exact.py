@@ -58,9 +58,9 @@ class Exact(Inference):
         Returns:
             predictive mean and variance
         """
-        return self.__call__(test_inputs['input'])
+        return self.apply(test_inputs['input'])
 
-    def call(self, inputs, **_):
+    def _apply(self, inputs):
         chol, alpha = self._build_interim_vals(self.train_inputs, self.train_outputs)
 
         # kxx_star (num_latent, num_train, num_test)
