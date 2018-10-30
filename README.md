@@ -80,7 +80,7 @@ gp = ugp.train_eager.train_gp(
         ...  # many more...
         }
     )
-gp.predict(test_data)
+gp.prediction(test_data)
 ```
 
 A list of all necessary parameters can be seen by running `python 
@@ -144,18 +144,19 @@ checkpoint created at step 500.
 To use this trained model do:
 ```python
 import numpy as np
-import tensorflow.contrib.eager as tfe  # eager execution
+import tensorflow as tf
 from universalgp import inf, cov, lik
+tf.enable_eager_execution()
 
+gp = inf.Exact(dict(iso=False, cov='SquaredExponential'), 'LikelihoodGaussian', output_dim=1,
+               num_train=3756, inducing_inputs=2)
 # restore all variables from checkpoint
-with tfe.restore_variables_on_create("save_dir/model_name/chkpt-500"):
-    gp = inf.Exact(cov.SquaredExponential(input_dim, {'iso': False}),
-                   lik.LikelihoodGaussian(),
-                   num_train=3756)
+chkpt = tf.train.Checkpoint(gp=gp)
+chkpt.restore("save_dir/model_name/chkpt-500")
 
-prediction = gp.predict({'input': np.array([[3.2], [4.6]])})
+prediction = gp.predicttion({'input': np.array([[3.2], [4.6]])})
 print(prediction)
-print(gp.get_all_variables())  # print the values of all train variables
+print(gp.variables)  # print the values of all train variables
 ```
 
 

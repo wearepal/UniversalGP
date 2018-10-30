@@ -63,7 +63,7 @@ def evaluate(gp, data, dataset_metric):
     metrics = util.init_metrics(dataset_metric, True)
 
     for (features, outputs) in data:
-        pred_mean, _ = gp.predict(features)
+        pred_mean, _ = gp.prediction(features)
         obj_func = gp.inference(features, outputs, False)
         avg_loss(obj_func['loss'])
         util.update_metrics(metrics, features, outputs, pred_mean)
@@ -99,7 +99,7 @@ def predict(test_inputs, saved_model, dataset_info, args):
     test_inputs = np.array_split(test_inputs, num_batches)
     mean, var = [0.0] * num_batches, [0.0] * num_batches
     for i in range(num_batches):
-        mean[i], var[i] = gp.predict({'input': tf.constant(test_inputs[i], dtype=tf.float32)})
+        mean[i], var[i] = gp.prediction({'input': tf.constant(test_inputs[i], dtype=tf.float32)})
 
     return np.concatenate(mean, axis=0), np.concatenate(var, axis=0)
 
