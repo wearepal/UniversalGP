@@ -129,9 +129,9 @@ class Variational(Inference):
 
     def predict(self, test_inputs):
         """Make predictions"""
-        return self.__call__(test_inputs['input'])
+        return self.apply(test_inputs['input'])
 
-    def call(self, inputs, **_):
+    def _apply(self, inputs):
         """Construct predictive distribution
 
         weights: (num_components,)

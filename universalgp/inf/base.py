@@ -17,6 +17,28 @@ class Inference(tf.keras.layers.Layer):
             self.num_inducing = inducing_inputs.shape[-2]
         super().__init__(**kwargs)
 
+    def inference(self, features, outputs, is_train):
+        """Compute loss"""
+        raise NotImplementedError("Implement `inference`")
+
+    def predict(self, test_inputs):
+        """Return prediction for given inputs"""
+        raise NotImplementedError("Implement `predict`")
+
+    def call(self, inputs, **_):
+        return self._apply(inputs)
+
+    def _apply(self, inputs):
+        """Actual code that computes the predictions. Can be called by calling `apply`.
+
+        This function is called by `call`. `call` is called by `__call__` which can be called by
+        calling `apply`. Use `apply` to call this function while making sure that `build`
+        is called along the way.
+
+        It unfortunately has to be this complicated because `__call__` has to be called somewhere.
+        """
+        raise NotImplementedError("Implement `_apply`")
+
     def compute_output_shape(self, input_shape):
         shape = tf.TensorShape(input_shape).as_list()
         shape[-1] = self.output_dim
