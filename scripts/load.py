@@ -1,14 +1,14 @@
 """Load a model from a checkpoint"""
 import sys
-from tensorflow.contrib import eager as tfe
+import tensorflow as tf
 
 # importing is difficult because it depends on how the program is started
-# we try different methods here and hope that one works:
 sys.path.append('..')
-from universalgp import inf, cov, lik, datasets
+from universalgp import inf, datasets
 
 
-def load(checkpoint_path, config):
+def load(checkpoint_path, flags, input_dim, output_dim, num_train, num_inducing, inf_name, lik_name,
+         cov_name):
     """Load a model from a checkpoint
 
     First train the model like this:
@@ -25,30 +25,36 @@ def load(checkpoint_path, config):
     Returns:
         Gaussian Process
     """
-    tfe.enable_eager_execution()
+    tf.enable_eager_execution()
 
+    gp = getattr(inf, inf_name)(
+        {
+            'num_components': flags.get('num_components', None),
+            'diag_post': flags.get('diag_post', None),
+            'iso': flags['iso'],
+            'num_samples_pred': flags.get('num_samples_pred', None),
+            'cov': cov_name,
+        },
+        lik_name,
+        output_dim,
+        num_train,
+        num_inducing
+    )
     # load GP model from checkpoint
-    with tfe.restore_variables_on_create(checkpoint_path):
-        gp = config['inf']([config['cov'](config['input_dim'], {'iso': config['iso']})
-                            for _ in range(config['output_dim'])],
-                           config['lik']({'num_samples_pred': config.get('num_samples_pred', None)}),
-                           config['num_train'],
-                           config['num_inducing'],
-                           {'num_components': config.get('num_components', None),
-                            'diag_post': config.get('diag_post', None)})
+    checkpoint = tf.train.Checkpoint(gp=gp)
+    checkpoint.restore(checkpoint_path)
+    gp.build((num_train, input_dim))
     return gp
 
 
 def parse_and_load(checkpoint_path, dataset_name, inf_name, cov_name, flags):
     """Parse the config and then load a model from a checkpoint"""
-    dataset = get_dataset(dataset_name)
-    gp = load(checkpoint_path,
-              dict(input_dim=dataset.input_dim, output_dim=dataset.output_dim, num_train=dataset.num_train,
-                   num_inducing=dataset.inducing_inputs.shape[0], lik=getattr(lik, dataset.lik),
-                   cov=getattr(cov, cov_name), inf=getattr(inf, inf_name), **flags))
+    dataset = get_dataset(dataset_name, flags)
+    gp = load(checkpoint_path, flags, dataset.input_dim, dataset.output_dim, dataset.num_train,
+              dataset.inducing_inputs.shape[0], inf_name, dataset.lik, cov_name)
     return gp, dataset
 
 
-def get_dataset(dataset_name):
+def get_dataset(dataset_name, flags):
     """Get a dataset by name"""
-    return getattr(datasets, dataset_name)()
+    return getattr(datasets, dataset_name)(flags)
