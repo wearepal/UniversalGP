@@ -8,15 +8,17 @@ except ModuleNotFoundError:
     from load import parse_and_load
 
 COV = 'SquaredExponential'
-INF = 'Variational'
+INF = 'Exact'
 FLAGS = {
     'num_components': 1,
     'num_samples_pred': 2000,
     'diag_post': False,
-    'iso': False
+    'iso': False,
+    'num_inducing': 50,
 }
 DATASET = 'simple_example'
-CHECKPOINT_PATH = "/its/home/tk324/tensorflow/sm1/model.ckpt-500"
+# CHECKPOINT_PATH = "/its/home/tk324/tensorflow/sm1/model.ckpt-500"
+CHECKPOINT_PATH = "/home/ubuntu/out/m1/model.ckpt-500"
 SAVE_PATH = "./vars.npz"
 
 
@@ -25,8 +27,7 @@ def main():
     gp, _ = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
 
     # get variables
-    hyper_params = gp.lik.get_params() + sum([k.get_params() for k in gp.cov], [])
-    var_collection = {var.name: var.numpy() for var in gp.get_all_variables() + hyper_params}
+    var_collection = {var.name: var.numpy() for var in gp.variables}
 
     # save in file
     np.savez_compressed(SAVE_PATH, **var_collection)

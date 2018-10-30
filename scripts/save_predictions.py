@@ -13,7 +13,8 @@ FLAGS = {
     'num_components': 1,
     'num_samples_pred': 2000,
     'diag_post': False,
-    'iso': False
+    'iso': False,
+    'num_inducing': 50,
 }
 DATASET = 'sensitive_example'
 CHECKPOINT_PATH = "/its/home/tk324/tensorflow/m1/ckpt-504"

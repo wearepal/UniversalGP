@@ -17,11 +17,14 @@ COLOR = ['b', 'r', 'g', 'c', 'm', 'y', 'k']
 
 INPUT_PATH = "predictions.npz"
 DATASET = 'sensitive_example'
+FLAGS = dict(
+    num_inducing=50,
+)
 NUM_TO_DRAW = 1000
 
 
 def main():
-    dataset = get_dataset(DATASET)
+    dataset = get_dataset(DATASET, FLAGS)
     sensi_attr = dataset.strain
     X, y = dataset.xtrain, dataset.ytrain
     y = np.squeeze(y)

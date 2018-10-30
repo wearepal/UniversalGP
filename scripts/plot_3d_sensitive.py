@@ -33,7 +33,7 @@ def main():
     xtrain, ytrain = dataset.xtrain, dataset.ytrain
     xtest, ytest = dataset.xtest, dataset.ytest
     strain, stest = dataset.strain, dataset.stest
-    pred_mean, pred_var = gp.predict(np.concatenate((xtest, stest), -1))
+    pred_mean, pred_var = gp(np.concatenate((xtest, stest), -1))
 
     out_dims = dataset.output_dim
     fig = plt.figure()
