@@ -27,7 +27,7 @@ def main():
     gp, dataset = parse_and_load(CHECKPOINT_PATH, DATASET, INF, COV, FLAGS)
 
     # make predictions
-    pred_mean, pred_var = gp.predict({'input': dataset.xtest})
+    pred_mean, pred_var = gp.prediction({'input': dataset.xtest})
 
     # save in file
     if AS_TXT_FILE:

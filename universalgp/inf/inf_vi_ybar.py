@@ -64,7 +64,7 @@ def construct_input(features, args):
 
 class VariationalWithS(Variational):
     """Thin wrapper around `Variational` that can handle sensitive attributes"""
-    def predict(self, test_inputs):
+    def prediction(self, test_inputs):
         return sensitive_prediction(self, test_inputs, self.args)
 
     def _build_ell(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,

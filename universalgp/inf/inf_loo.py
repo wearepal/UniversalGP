@@ -57,7 +57,7 @@ class Loo(Inference):
 
         return {'loss': -lp, 'LP': lp}
 
-    def predict(self, test_inputs):
+    def prediction(self, test_inputs):
         """Build graph for computing predictive mean and variance
 
         Args:

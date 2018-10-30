@@ -33,7 +33,7 @@ def build_gaussian_process(features, labels, mode, params: dict):
     optimizer = util.get_optimizer(params, global_step)
     inf_func = util.construct_from_flags(params, dataset, inducing_param)
 
-    pred_mean, pred_var = inf_func.predict(features)
+    pred_mean, pred_var = inf_func.prediction(features)
 
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode, predictions={'mean': pred_mean, 'var': pred_var})

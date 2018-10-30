@@ -34,7 +34,8 @@ class LogReg(tf.keras.Model):
         regr_loss = -tf.reduce_mean(tf.squeeze(log_cond_prob), axis=-1)  # regression loss
         return {'loss': regr_loss + l2_loss, 'regr_loss': regr_loss, 'l2_loss': l2_loss}
 
-    def predict(self, test_inputs):
+    def prediction(self, test_inputs):
+        """Make a prediction"""
         return sensitive_prediction(self, test_inputs, self.args)
 
     def call(self, inputs, **_):

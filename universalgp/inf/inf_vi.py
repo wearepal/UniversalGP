@@ -127,7 +127,7 @@ class Variational(Inference):
                     'loss': tf.squeeze(nelbo) + loo_loss}
         return {**obj_funcs, 'loss': tf.squeeze(nelbo)}
 
-    def predict(self, test_inputs):
+    def prediction(self, test_inputs):
         """Make predictions"""
         return self.apply(test_inputs['input'])
 

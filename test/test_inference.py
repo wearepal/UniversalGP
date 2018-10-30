@@ -40,7 +40,7 @@ def test_variational_complete():
     losses = vi.inference(train_inputs, train_outputs, True)
     nelbo = losses['NELBO']
     loo = losses['LOO_VARIATIONAL']
-    pred_mean, pred_var = vi.predict(test_inputs)
+    pred_mean, pred_var = vi.prediction(test_inputs)
 
     # check results
     np.testing.assert_allclose(nelbo.numpy(), 3.844, rtol=1e-3)
@@ -61,7 +61,7 @@ def test_exact_complete():
     # compute losses and predictions
     losses = exact.inference(train_inputs, train_outputs, True)
     lml = losses['LML']
-    pred_mean, pred_var = exact.predict(test_inputs)
+    pred_mean, pred_var = exact.prediction(test_inputs)
 
     # check results
     np.testing.assert_allclose(lml.numpy(), -2.34046, RTOL)
