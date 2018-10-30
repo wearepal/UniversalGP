@@ -21,20 +21,23 @@ def construct_input():
     test_inputs = tf.constant([[0]], dtype=tf.float32)
     num_train = 2
     inducing_inputs = np.array([[-1], [1]])
-    return {'input': train_inputs}, train_outputs, {'input': test_inputs}, num_train, inducing_inputs
+    return ({'input': train_inputs}, train_outputs, {'input': test_inputs}, num_train,
+            inducing_inputs)
 
 
 def test_variational_complete():
     # construct objects
     train_inputs, train_outputs, test_inputs, num_train, inducing_inputs = construct_input()
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=0.5, sf=1.0, iso=False))]
-    vi = inference.Variational(kernel, likelihood, num_train, inducing_inputs,
-                               {'num_samples': 5000000, 'num_components': 1, 'optimize_inducing': False,
-                                'use_loo': True, 'diag_post': False})
+    input_dim = 1
+    output_dim = 1
+    args = dict(num_samples=5000000, num_components=1, optimize_inducing=False, use_loo=True,
+                diag_post=False, sn=1.0, length_scale=0.5, sf=1.0, iso=False,
+                cov='SquaredExponential')
+    vi = inference.Variational(args, 'LikelihoodGaussian', output_dim, num_train, inducing_inputs)
+    vi.build((num_train, input_dim))
 
     # compute losses and predictions
-    losses, _ = vi.inference(train_inputs, train_outputs, True)
+    losses = vi.inference(train_inputs, train_outputs, True)
     nelbo = losses['NELBO']
     loo = losses['LOO_VARIATIONAL']
     pred_mean, pred_var = vi.predict(test_inputs)
@@ -48,13 +51,15 @@ def test_variational_complete():
 
 def test_exact_complete():
     # construct objects
-    train_inputs, train_outputs, test_inputs, num_train, _ = construct_input()
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=0.5, sf=1.0, iso=False))]
-    exact = inference.Exact(kernel, likelihood, num_train)
+    train_inputs, train_outputs, test_inputs, num_train, inducing_inputs = construct_input()
+    input_dim = 1
+    output_dim = 1
+    args = dict(sn=1.0, length_scale=0.5, sf=1.0, iso=False, cov='SquaredExponential')
+    exact = inference.Exact(args, 'LikelihoodGaussian', output_dim, num_train, inducing_inputs)
+    exact.build((num_train, input_dim))
 
     # compute losses and predictions
-    losses, _ = exact.inference(train_inputs, train_outputs, True)
+    losses = exact.inference(train_inputs, train_outputs, True)
     lml = losses['LML']
     pred_mean, pred_var = exact.predict(test_inputs)
 

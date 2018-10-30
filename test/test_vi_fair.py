@@ -11,30 +11,39 @@ except ValueError:
 
 
 RTOL = 1e-4
-PARAMS = {'num_components': 1, 'diag_post': False}
+PARAMS = dict(num_components=1, diag_post=False, sn=1.0, length_scale=1.0, sf=1.0, iso=False,
+              cov='SquaredExponential', optimize_inducing=True,
+              # probs_from_flipped=False,
+              )
 
 
 def construct_simple_full(biased_rate1, biased_rate2, target_rate1, target_rate2,
                           p_ybary0_or_ybary1_s0=1.0, p_ybary0_or_ybary1_s1=1.0):
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=1.0, sf=1.0, iso=False))]
-    # In most of our unit test, we will replace this value with something else.
-    return inference.VariationalYbar(kernel, likelihood, 1, 1, {
-        **PARAMS, **dict(target_rate1=target_rate1, target_rate2=target_rate2,
-                         biased_acceptance1=biased_rate1, biased_acceptance2=biased_rate2,
-                         probs_from_flipped=False, p_ybary0_or_ybary1_s0=p_ybary0_or_ybary1_s0,
-                         p_ybary0_or_ybary1_s1=p_ybary0_or_ybary1_s1)})
+    input_dim = 1
+    output_dim = 1
+    num_train = 1
+    args = {**PARAMS, **dict(target_rate1=target_rate1, target_rate2=target_rate2,
+                             biased_acceptance1=biased_rate1, biased_acceptance2=biased_rate2,
+                             probs_from_flipped=False, p_ybary0_or_ybary1_s0=p_ybary0_or_ybary1_s0,
+                             p_ybary0_or_ybary1_s1=p_ybary0_or_ybary1_s1)}
+    inf = inference.VariationalYbar(args, 'LikelihoodGaussian', output_dim, num_train, num_train)
+    inf.build((num_train, input_dim))
+    return inf
 
 
 def construct_eq_odds(biased_acceptance1, biased_acceptance2, p_ybary0_s0, p_ybary1_s0, p_ybary0_s1,
                       p_ybary1_s1):
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=1.0, sf=1.0, iso=False))]
-    # In most of our unit test, we will replace this value with something else.
-    return inference.VariationalYbarEqOdds(kernel, likelihood, 1, 1, {
-        **PARAMS, **dict(p_ybary0_s0=p_ybary0_s0, p_ybary0_s1=p_ybary0_s1, p_ybary1_s0=p_ybary1_s0,
-                         p_ybary1_s1=p_ybary1_s1, biased_acceptance1=biased_acceptance1,
-                         biased_acceptance2=biased_acceptance2)})
+    input_dim = 1
+    output_dim = 1
+    num_train = 1
+    args = {**PARAMS, **dict(p_ybary0_s0=p_ybary0_s0, p_ybary0_s1=p_ybary0_s1,
+                             p_ybary1_s0=p_ybary1_s0, p_ybary1_s1=p_ybary1_s1,
+                             biased_acceptance1=biased_acceptance1,
+                             biased_acceptance2=biased_acceptance2)}
+    inf = inference.VariationalYbarEqOdds(args, 'LikelihoodGaussian', output_dim, num_train,
+                                          num_train)
+    inf.build((num_train, input_dim))
+    return inf
 
 
 def invert(probs):

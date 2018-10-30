@@ -3,7 +3,6 @@ import scipy.special
 import scipy.stats
 import tensorflow as tf
 
-from universalgp import cov, lik
 from universalgp import inf as inference
 
 try:
@@ -13,7 +12,10 @@ except ValueError:
 
 
 SIG_FIGS = 5
-PARAMS = {'num_components': 1, 'diag_post': False, 'num_samples': 10, 'optimize_inducing': True, 'use_loo': False}
+RTOL = 1e-5
+ATOL = 1e-7
+PARAMS = dict(num_components=1, diag_post=False, num_samples=10, optimize_inducing=True,
+              use_loo=False, cov='SquaredExponential', iso=False, sn=1.0, length_scale=1.0, sf=1.0)
 
 
 def build_entropy(inf, weights, means, covars):
@@ -52,10 +54,12 @@ def build_sample_info(inf, kern_prods, kern_sums, means, covars):
 ###########################
 
 def construct_simple_full():
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=1.0, sf=1.0, iso=False))]
-    # In most of our unit test, we will replace this value with something else.
-    return inference.Variational(kernel, likelihood, 1, 1, PARAMS)
+    input_dim = 1
+    output_dim = 1
+    num_train = 1
+    inf = inference.Variational(PARAMS, 'LikelihoodGaussian', output_dim, num_train, num_train)
+    inf.build((num_train, input_dim))
+    return inf
 
 class TestSimpleFull:
     def test_simple_entropy(self):
@@ -66,12 +70,12 @@ class TestSimpleFull:
     def test_small_covar_entropy(self):
         inf = construct_simple_full()
         entropy = build_entropy(inf, weights=[1.0], means=[[[1.0]]], covars=[[[[1e-10]]]])
-        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-20)), SIG_FIGS)
+        np.testing.assert_allclose(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-20)), RTOL)
 
     def test_large_covar_entropy(self):
         inf = construct_simple_full()
         entropy = build_entropy(inf, weights=[1.0], means=[[[1.0]]], covars=[[[[1e10]]]])
-        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e20)), SIG_FIGS)
+        np.testing.assert_allclose(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e20)), RTOL)
 
     def test_simple_cross_ent(self):
         inf = construct_simple_full()
@@ -79,7 +83,7 @@ class TestSimpleFull:
                                     means=[[[1.0]]],
                                     covars=[[[[1.0]]]],
                                     kernel_chol=[[[1.0]]])
-        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1.0) + 2.0), SIG_FIGS)
+        np.testing.assert_allclose(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1.0) + 2.0), RTOL)
 
     def test_small_cross_ent(self):
         inf = construct_simple_full()
@@ -87,7 +91,7 @@ class TestSimpleFull:
                                     means=[[[1e-10]]],
                                     covars=[[[[1e-10]]]],
                                     kernel_chol=[[[1e-10]]])
-        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e-20) + 2.0), SIG_FIGS)
+        np.testing.assert_allclose(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e-20) + 2.), RTOL)
 
     def test_large_cross_ent(self):
         inf = construct_simple_full()
@@ -95,7 +99,7 @@ class TestSimpleFull:
                                     means=[[[1e10]]],
                                     covars=[[[[1e10]]]],
                                     kernel_chol=[[[1e10]]])
-        np.testing.assert_almost_equal(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 2.0), SIG_FIGS)
+        np.testing.assert_allclose(cross_ent, -0.5 * (np.log(2 * np.pi) + np.log(1e20) + 2.0), RTOL)
 
     def test_simple_interim_vals(self):
         inf = construct_simple_full()
@@ -167,9 +171,13 @@ class TestSimpleFull:
 ###########################
 
 def construct_simple_diag():
-    likelihood = lik.LikelihoodGaussian({'sn': 1.0})
-    kernel = [cov.SquaredExponential(input_dim=1, args=dict(length_scale=1.0, sf=1.0, iso=False))]
-    return inference.Variational(kernel, likelihood, 1, 1, {**PARAMS, 'diag_post': True})
+    input_dim = 1
+    output_dim = 1
+    num_train = 1
+    inf = inference.Variational({**PARAMS, 'diag_post': True},
+                                'LikelihoodGaussian', output_dim, num_train, num_train)
+    inf.build((num_train, input_dim))
+    return inf
 
 
 class TestSimpleDiag:
@@ -185,14 +193,14 @@ class TestSimpleDiag:
         entropy = build_entropy(inf, weights=[1.0],
                                 means=[[[1.0]]],
                                 covars=[[[1e-10]]])
-        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-10)), SIG_FIGS)
+        np.testing.assert_allclose(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e-10)), RTOL)
 
     def test_large_covar_entropy(self):
         inf = construct_simple_diag()
         entropy = build_entropy(inf, weights=[1.0],
                                 means=[[[1.0]]],
                                 covars=[[[1e10]]])
-        np.testing.assert_almost_equal(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e10)), SIG_FIGS)
+        np.testing.assert_allclose(entropy, 0.5 * (np.log(2 * np.pi) + np.log(2 * 1e10)), RTOL)
 
     def test_simple_cross_ent(self):
         inf = construct_simple_diag()
@@ -245,9 +253,13 @@ class TestSimpleDiag:
 ###########################
 
 def construct_multi_full():
-    likelihood = lik.LikelihoodSoftmax({'num_samples_pred': 100})
-    kernels = [cov.SquaredExponential(input_dim=2, args=dict(length_scale=1.0, sf=1.0, iso=False)) for _ in range(2)]
-    return inference.Variational(kernels, likelihood, 1, 1, {**PARAMS, 'num_components': 2})
+    input_dim = 2
+    output_dim = 2
+    num_train = 1
+    inf = inference.Variational({**PARAMS, 'num_samples_pred': 100, 'num_components': 2},
+                                'LikelihoodSoftmax', output_dim, num_train, num_train)
+    inf.build((num_train, input_dim))
+    return inf
 
 
 class TestMultiFull:
@@ -358,10 +370,10 @@ class TestMultiFull:
                                               [20.0, 61.0]]))
         a_1 = kxz_1 @ kzz_inv1
         a_2 = kxz_2 @ kzz_inv2
-        np.testing.assert_almost_equal(kern_prods[0], a_1, SIG_FIGS)
-        np.testing.assert_almost_equal(kern_prods[1], a_2, SIG_FIGS)
-        np.testing.assert_almost_equal(kern_sums[0], np.diag(kxx - a_1 @ kxz_1.T), SIG_FIGS)
-        np.testing.assert_almost_equal(kern_sums[1], np.diag(kxx - a_2 @ kxz_2.T), SIG_FIGS)
+        np.testing.assert_allclose(kern_prods[0], a_1, RTOL, ATOL)
+        np.testing.assert_allclose(kern_prods[1], a_2, RTOL, ATOL)
+        np.testing.assert_allclose(kern_sums[0], np.diag(kxx - a_1 @ kxz_1.T), RTOL, ATOL)
+        np.testing.assert_allclose(kern_sums[1], np.diag(kxx - a_2 @ kxz_2.T), RTOL, ATOL)
 
     def test_sample_info(self):
         inf = construct_multi_full()
