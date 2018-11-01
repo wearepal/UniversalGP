@@ -7,6 +7,8 @@ import tensorflow as tf
 from .definition import Dataset, to_tf_dataset_fn, DATA
 
 tf.app.flags.DEFINE_string('dataset_path', '', 'Path to the numpy file that contains the data')
+tf.app.flags.DEFINE_boolean('dataset_standardize', False,
+                            'If True, the inputs of the dataset are standardized')
 
 
 def sensitive_from_numpy(flags):
@@ -19,7 +21,7 @@ def sensitive_from_numpy(flags):
     raw_data = np.load(Path(flags['dataset_path']))
 
     # Normalize input and create DATA tuples for easier handling
-    input_normalizer = _get_normalizer(raw_data['xtrain'])
+    input_normalizer = _get_normalizer(raw_data['xtrain'], flags['dataset_standardize'])
     train = DATA(x=input_normalizer(raw_data['xtrain']), y=raw_data['ytrain'], s=raw_data['strain'])
     test = DATA(x=input_normalizer(raw_data['xtest']), y=raw_data['ytest'], s=raw_data['stest'])
 
@@ -66,9 +68,16 @@ def _inducing_inputs(max_num_inducing, train, s_as_input):
     return train.x[::num_train // num_inducing]
 
 
-def _get_normalizer(base):
+def _get_normalizer(base, do_standardize):
     """Construct normalizer to prevent Cholesky problems"""
-    if base.min() == 0 and base.max() > 10:
+    if do_standardize:
+        mean, std = np.mean(base, axis=0), np.std(base, axis=0)
+        std[std < 1e-7] = 1.
+
+        def _standardizer(unstandardized):
+            return (unstandardized - mean) / std
+        return _standardizer
+    elif base.min() == 0 and base.max() > 10:
         max_per_feature = np.amax(base, axis=0)
 
         def _normalizer(unnormalized):
