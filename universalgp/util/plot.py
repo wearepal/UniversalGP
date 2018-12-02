@@ -101,7 +101,12 @@ def print_results(pred_mean, pred_var, data):
     r['tpr_s0'] = np.mean(scores[(labels == 1) & (sensitive == 0)] > 0.5)
     # P(yhat=1|y=1, s=1)
     r['tpr_s1'] = np.mean(scores[(labels == 1) & (sensitive == 1)] > 0.5)
-    r['tpr_diff'] = abs(r['tpr_s1'] - r['tpr_s0'])
+
+    r['tnr_s0'] = np.mean(scores[(labels == 0) & (sensitive == 0)] < 0.5)
+    r['tnr_s1'] = np.mean(scores[(labels == 0 & (sensitive == 0))] < 0.5)
+
+    r['tpr_diff'] = 1 - (r['tpr_s1'] - r['tpr_s0'])
+
     r['accuracy'] = np.mean((scores > 0.5).astype(np.int) == labels)
     for name, value in r.items():
         print(f"{name} = {value}")
