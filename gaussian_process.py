@@ -51,7 +51,8 @@ tf.app.flags.DEFINE_float('lr_drop_factor', 0.2, 'For learning rate drop multipl
 
 # you can specify a flag file here where you can put your flags instead of passing them from the
 # command line
-FLAGFILE = ""  # "scripts/flagfiles/simple_example.sh"
+# FLAGFILE = "scripts/flagfiles/performance_test.sh"
+FLAGFILE = ""
 
 
 def main(_):
