@@ -3,7 +3,6 @@ Fair variational inference for generic Gaussian process models
 """
 import tensorflow as tf
 from tensorflow import manip as tft
-from tensorflow import math as tfm
 import numpy as np
 
 from .. import util
@@ -98,7 +97,7 @@ class VariationalYbar(VariationalWithS):
         Returns:
             Expected log likelihood as scalar
         """
-        inputs = self.get_inputs(features)
+        inputs = construct_input(features, self.args)
 
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs, inputs)
         # shape of `latent_samples`: (num_components, num_samples, batch_size, num_latents)
@@ -109,13 +108,15 @@ class VariationalYbar(VariationalWithS):
             log_lik0 = self.lik.log_cond_prob(tf.zeros_like(outputs), latent_samples)
             log_lik1 = self.lik.log_cond_prob(tf.ones_like(outputs), latent_samples)
             log_lik = tf.stack((log_lik0, log_lik1), axis=-1)
-            debias = self._debiasing_parameters()
-            # `debias` has the shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
-            # then we use the last 2 values of that as indices for `debias`
-            # shape of debias_per_example: (batch_size, output_dim, 2)
-            debias_per_example = tft.gather_nd(debias, tf.stack((out_int, sens_attr), axis=-1))
-            weighted_lik = debias_per_example * tf.exp(log_lik)
-            log_cond_prob = tfm.log(tf.reduce_sum(weighted_lik, axis=-1))
+            log_debias = self._log_debiasing_parameters()
+            # `log_debias` has shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
+            # then we use the last 2 values of that as indices for `log_debias`
+            # shape of log_debias_per_example: (batch_size, output_dim, 2)
+            log_debias_per_example = tft.gather_nd(log_debias,
+                                                   tf.stack((out_int, sens_attr), axis=-1))
+            weighted_log_lik = log_debias_per_example + log_lik
+            # logsumexp is numerically stable
+            log_cond_prob = tf.reduce_logsumexp(weighted_log_lik, axis=-1)
         else:
             log_cond_prob = self.lik.log_cond_prob(outputs, latent_samples)
         ell_by_component = tf.reduce_sum(log_cond_prob, axis=[1, 2])
@@ -124,7 +125,7 @@ class VariationalYbar(VariationalWithS):
         ell = util.mul_sum(weights, ell_by_component)
         return ell / self.args['num_samples']
 
-    def _debiasing_parameters(self):
+    def _log_debiasing_parameters(self):
         return debiasing_params_target_rate(self.args)
 
 
@@ -132,7 +133,7 @@ class VariationalYbarEqOdds(VariationalYbar):
     """
     Defines inference for Variational Inference that enforces Equalized Odds
     """
-    def _debiasing_parameters(self):
+    def _log_debiasing_parameters(self):
         return debiasing_params_target_tpr(self.args)
 
 
@@ -165,7 +166,9 @@ def compute_label_posterior(positive_value, positive_prior, label_evidence=None)
     # compute posterior
     # P(y|y',s) shape: (y, s, y')
     label_posterior = joint / label_evidence
-    return tf.constant(label_posterior, dtype=tf.float32)
+    # take logarithm because we need that anyway later
+    log_label_posterior = np.log(label_posterior)
+    return tf.constant(log_label_posterior, dtype=tf.float32)
 
 
 def debiasing_params_target_rate(args):
