@@ -75,10 +75,7 @@ class VariationalWithS(Variational):
 
     def _build_loo_loss(self, weights, means, chol_covars, inducing_inputs, kernel_chol, features,
                         train_outputs):
-        if self.args['s_as_input']:
-            inputs = tf.concat((features['input'], features['sensitive']), axis=1)
-        else:
-            inputs = features['input']
+        inputs = construct_input(features, self.args)
         return super()._build_loo_loss(weights, means, chol_covars, inducing_inputs, kernel_chol,
                                        {'input': inputs}, train_outputs)
 
