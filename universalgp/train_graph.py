@@ -109,10 +109,10 @@ def train_gp(dataset, args):
     tf.estimator.train_and_evaluate(gp, trainer, evaluator)  # replaceable by a loop over gp.train()
 
     if args['plot'] or args['preds_path']:
-        print("Printing hyper parameters...")
-        for var_name in gp.get_variable_names():
-            print(f"{var_name}:")
-            print(gp.get_variable_value(var_name))
+        # print("Printing hyper parameters...")
+        # for var_name in gp.get_variable_names():
+        #     print(f"{var_name}:")
+        #     print(gp.get_variable_value(var_name))
         print("Making predictions...")
         predictions_gen = gp.predict(input_fn=lambda: dataset.test_fn().batch(len(dataset.xtest)))
         predictions = np.array([(p['mean'], p['var']) for p in predictions_gen])
