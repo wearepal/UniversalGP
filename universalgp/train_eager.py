@@ -117,13 +117,13 @@ def train_gp(dataset, args):
     # Set checkpoint path
     if args['save_dir']:
         out_dir = Path(args['save_dir']) / Path(args['model_name'])
-        tf.gfile.MakeDirs(str(out_dir))
+        tf.io.gfile.makedirs(str(out_dir))
     else:
         out_dir = Path(mkdtemp())  # Create temporary directory
     checkpoint_prefix = out_dir / Path('model.ckpt')
 
     # Construct objects
-    step_counter = tf.train.get_or_create_global_step()
+    step_counter = tf.compat.v1.train.get_or_create_global_step()
     gp = util.construct_from_flags(args, dataset, dataset.inducing_inputs)
     optimizer = util.get_optimizer(args, step_counter)
 
@@ -151,7 +151,7 @@ def train_gp(dataset, args):
         print(f"Saved checkpoint in '{ckpt_path}'")
 
     if args['plot'] or args['preds_path']:  # Create predictions
-        tf.reset_default_graph()
+        tf.compat.v1.reset_default_graph()
         mean, var = predict(dataset.xtest, tf.train.latest_checkpoint(out_dir), dataset, args)
         util.post_training(mean, var, out_dir, dataset, args)
     return gp

@@ -15,7 +15,7 @@ class ZeroOffset:
 
     @staticmethod
     def mean_func(point=1):
-        return tf.zeros(tf.shape(point))
+        return tf.zeros(tf.shape(input=point))
 
     @staticmethod
     def get_params():

@@ -21,10 +21,10 @@ class SquaredExponential:
         """
         self.input_dim = input_dim
         self.iso = args['iso']
-        length = tf.constant_initializer(args['length_scale'], dtype=tf.float32) if (
+        length = tf.compat.v1.initializers.constant(args['length_scale'], dtype=tf.float32) if (
             'length_scale' in args) else None
-        sigma_f = tf.constant_initializer(args['sf'], dtype=tf.float32) if 'sf' in args else None
-        with tf.variable_scope(name, "cov_se_parameters"):
+        sigma_f = tf.compat.v1.initializers.constant(args['sf'], dtype=tf.float32) if 'sf' in args else None
+        with tf.compat.v1.variable_scope(name, "cov_se_parameters"):
             if not args['iso']:
                 self.length_scale = variables.add_variable("length_scale", [input_dim],
                                                            initializer=length)
@@ -56,4 +56,4 @@ class SquaredExponential:
         Returns:
             Tensor of shape (batch_size)
         """
-        return self.sf ** 2 * tf.ones([tf.shape(points)[-2]])
+        return self.sf ** 2 * tf.ones([tf.shape(input=points)[-2]])

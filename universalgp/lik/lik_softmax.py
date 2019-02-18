@@ -18,7 +18,7 @@ class LikelihoodSoftmax:
         # return tf.reduce_sum(outputs * latent, -1) - tf.reduce_logsumexp(latent, -1)
         # TODO(thomas): the batch_size and output_dim is usually not known
         outputs_tiled = util.broadcast(outputs, latent)
-        return -tf.nn.softmax_cross_entropy_with_logits(labels=outputs_tiled, logits=latent)
+        return -tf.nn.softmax_cross_entropy_with_logits(labels=tf.stop_gradient(outputs_tiled), logits=latent)
 
     def predict(self, latent_means, latent_vars):
         """Given the distribution over the latent functions, what is the likelihood distribution?
@@ -31,17 +31,17 @@ class LikelihoodSoftmax:
         """
         # Generate samples to estimate the expected value and variance of outputs.
         num_components = latent_means.shape[0]
-        num_points = tf.shape(latent_means)[1]
-        output_dims = tf.shape(latent_means)[2]
+        num_points = tf.shape(input=latent_means)[1]
+        output_dims = tf.shape(input=latent_means)[2]
         latent = (latent_means[:, tf.newaxis, ...] + tf.sqrt(latent_vars)[:, tf.newaxis, ...] *
-                  tf.random_normal([num_components, self.num_samples, num_points, output_dims]))
+                  tf.random.normal([num_components, self.num_samples, num_points, output_dims]))
         # Compute the softmax of all generated latent values in a stable fashion.
         # softmax = tf.exp(latent - tf.reduce_logsumexp(latent, 2, keep_dims=True))
         softmax = tf.nn.softmax(latent)
 
         # Estimate the expected value of the softmax and the variance through sampling.
-        pred_means = tf.reduce_mean(softmax, 1)
+        pred_means = tf.reduce_mean(input_tensor=softmax, axis=1)
         pred_vars = tf.reduce_sum(
-            (softmax - pred_means[:, tf.newaxis, ...]) ** 2, 1) / (self.num_samples - 1.0)
+            input_tensor=(softmax - pred_means[:, tf.newaxis, ...]) ** 2, axis=1) / (self.num_samples - 1.0)
 
         return pred_means, pred_vars

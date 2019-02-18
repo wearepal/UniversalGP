@@ -35,7 +35,7 @@ class LogReg(tf.keras.Model):
         # this loss function implicitly uses the logistic function on the output of the one layer
         log_cond_prob = -tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs, logits=logits)
         l2_loss = self._l2_loss()
-        regr_loss = -tf.reduce_mean(tf.squeeze(log_cond_prob), axis=-1)  # regression loss
+        regr_loss = -tf.reduce_mean(input_tensor=tf.squeeze(log_cond_prob), axis=-1)  # regression loss
         return {'loss': regr_loss + l2_loss, 'regr_loss': regr_loss, 'l2_loss': l2_loss}
 
     def prediction(self, test_inputs):
@@ -75,8 +75,8 @@ class FairLogReg(LogReg):
         log_debias_per_example = tf.gather_nd(log_debias, tf.stack((out_int, sens_attr), axis=-1))
         weighted_log_lik = log_debias_per_example + log_lik
         # logsumexp is numerically stable
-        log_cond_prob = tf.reduce_logsumexp(weighted_log_lik, axis=-1)
-        regr_loss = -tf.reduce_mean(log_cond_prob)
+        log_cond_prob = tf.reduce_logsumexp(input_tensor=weighted_log_lik, axis=-1)
+        regr_loss = -tf.reduce_mean(input_tensor=log_cond_prob)
         l2_loss = self._l2_loss()
         return {'loss': regr_loss + l2_loss, 'regr_loss': regr_loss, 'l2_loss': l2_loss}
 
