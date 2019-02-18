@@ -28,17 +28,21 @@ def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
         gp_obj: the GP object that the constructed functions will belong to
         flags: dictionary with parameters
         lik_name: name of the likelihood function
-        input_dim: number of input dimensions
         output_dim: number of output dimensions
     Returns:
         a likelihood function and a list of covariance functions
     """
-    cov_func = [getattr(cov, flags['cov'])(gp_obj, input_dim, flags) for _ in range(output_dim)]
+    cov_funcs = []
+    for i in range(output_dim):
+        cov_func = getattr(cov, flags['cov'])(flags)
+        cov_func.build([input_dim])
+        setattr(gp_obj, f"cov_{i}", cov_func)
+        cov_funcs.append(cov_func)
     lik_func = getattr(lik, lik_name)(gp_obj, flags)
-    return lik_func, cov_func
+    return lik_func, cov_funcs
 
 
-def get_optimizer(flags, global_step):
+def get_optimizer(flags):
     """Construct the optimizer from the information in the flags
 
     Args:
@@ -51,10 +55,10 @@ def get_optimizer(flags, global_step):
     drop_steps = flags['lr_drop_steps']
 
     if drop_steps > 0:
-        learning_rate = tf.compat.v1.train.piecewise_constant(global_step, [drop_steps], schedule)
+        learning_rate = tf.keras.optimizers.schedules.PiecewiseConstantDecay([drop_steps], schedule)
     else:
         learning_rate = flags['lr']
-    return getattr(tf.train, flags['optimizer'])(learning_rate)
+    return getattr(tf.keras.optimizers, flags['optimizer'])(learning_rate)
 
 
 def post_training(pred_mean, pred_var, out_dir, dataset, flags):

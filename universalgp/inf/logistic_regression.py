@@ -6,11 +6,14 @@ from tensorflow import math as tfm
 from .inf_vi_ybar import (sensitive_prediction, construct_input, debiasing_params_target_rate,
                           debiasing_params_target_tpr)
 
-tf.app.flags.DEFINE_boolean('use_bias', True, 'If True, logistic regression will use a bias')
-tf.app.flags.DEFINE_float('lr_l2_kernel_factor', 0.1,
-                          'Weight of the regularization loss for the kernel of logistic regression')
-tf.app.flags.DEFINE_float('lr_l2_bias_factor', 0.1,
-                          'Weight of the regularization loss for the bias of logistic regression')
+tf.compat.v1.app.flags.DEFINE_boolean('use_bias', True,
+                                      'If True, logistic regression will use a bias')
+tf.compat.v1.app.flags.DEFINE_float(
+    'lr_l2_kernel_factor', 0.1,
+    'Weight of the regularization loss for the kernel of logistic regression')
+tf.compat.v1.app.flags.DEFINE_float(
+    'lr_l2_bias_factor', 0.1,
+    'Weight of the regularization loss for the bias of logistic regression')
 
 
 class LogReg(tf.keras.Model):

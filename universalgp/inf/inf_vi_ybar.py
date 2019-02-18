@@ -9,28 +9,30 @@ from .. import util
 from .inf_vi import Variational
 
 # General fairness
-tf.app.flags.DEFINE_float('biased_acceptance1', 0.5, '')
-tf.app.flags.DEFINE_float('biased_acceptance2', 0.5, '')
-tf.app.flags.DEFINE_boolean('s_as_input', True,
-                            'Whether the sensitive attribute is treated as part of the input')
-tf.app.flags.DEFINE_float('p_s0', 0.5, '')
-tf.app.flags.DEFINE_float('p_s1', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_float('biased_acceptance1', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_float('biased_acceptance2', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_boolean(
+    's_as_input', True, 'Whether the sensitive attribute is treated as part of the input')
+tf.compat.v1.app.flags.DEFINE_float('p_s0', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_float('p_s1', 0.5, '')
 # Demographic parity
-tf.app.flags.DEFINE_float('target_rate1', 0.5, '')
-tf.app.flags.DEFINE_float('target_rate2', 0.5, '')
-tf.app.flags.DEFINE_boolean('probs_from_flipped', False,
-                            'Whether to take the target rates from the flipping probs')
-tf.app.flags.DEFINE_boolean('average_prediction', False,
-                            'Whether to take the average of both sensitive attributes')
-tf.app.flags.DEFINE_float('p_ybary0_or_ybary1_s0', 1.0,
-                          'Determine how similar the target labels are to the true labels for s=0')
-tf.app.flags.DEFINE_float('p_ybary0_or_ybary1_s1', 1.0,
-                          'Determine how similar the target labels are to the true labels for s=1')
+tf.compat.v1.app.flags.DEFINE_float('target_rate1', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_float('target_rate2', 0.5, '')
+tf.compat.v1.app.flags.DEFINE_boolean(
+    'probs_from_flipped', False, 'Whether to take the target rates from the flipping probs')
+tf.compat.v1.app.flags.DEFINE_boolean(
+    'average_prediction', False, 'Whether to take the average of both sensitive attributes')
+tf.compat.v1.app.flags.DEFINE_float(
+    'p_ybary0_or_ybary1_s0', 1.0,
+    'Determine how similar the target labels are to the true labels for s=0')
+tf.compat.v1.app.flags.DEFINE_float(
+    'p_ybary0_or_ybary1_s1', 1.0,
+    'Determine how similar the target labels are to the true labels for s=1')
 # Equalized Odds
-tf.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
-tf.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
-tf.app.flags.DEFINE_float('p_ybary0_s1', 1.0, '')
-tf.app.flags.DEFINE_float('p_ybary1_s1', 1.0, '')
+tf.compat.v1.app.flags.DEFINE_float('p_ybary0_s0', 1.0, '')
+tf.compat.v1.app.flags.DEFINE_float('p_ybary1_s0', 1.0, '')
+tf.compat.v1.app.flags.DEFINE_float('p_ybary0_s1', 1.0, '')
+tf.compat.v1.app.flags.DEFINE_float('p_ybary1_s1', 1.0, '')
 
 
 def sensitive_prediction(model, features, args):

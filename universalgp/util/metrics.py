@@ -3,18 +3,16 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow import math as tfm
-import tensorflow.contrib.eager as tfe
 from .. import util
 
 # TODO: split this file into several files
 
 
-def init_metrics(metric_flag, is_eager):
+def init_metrics(metric_flag):
     """Initialize metrics
 
     Args:
         metric_flag: a string that contains the names of the metrics separated with commas
-        is_eager: True if in eager execution
     Returns:
         a dictionary with the initialized metrics
     """
@@ -40,7 +38,7 @@ def init_metrics(metric_flag, is_eager):
             metric = dict_of_metrics[name]
         except KeyError:  # No metric found with the name `name`
             raise ValueError(f"Unknown metric \"{name}\"")
-        metrics[name] = metric(is_eager)
+        metrics[name] = metric()
     return metrics
 
 
@@ -52,16 +50,9 @@ def update_metrics(metrics, features, labels, pred_mean):
         features: the input
         labels: the correct labels
         pred_mean: the predicted mean
-        is_eager: True if in eager execution
-    Returns:
-        dictionary of update ops if `is_eager` is False
     """
-    update_ops = {}
     for name, metric in metrics.items():
-        update_op = metric.update(features, labels, pred_mean)
-        if update_op is not None:  # `update_op` is only not `None` in graph mode
-            update_ops[name] = update_op
-    return update_ops
+        metric.update(features, labels, pred_mean)
 
 
 def record_metrics(metrics):
@@ -78,8 +69,8 @@ class Metric:
     """Base class for metrics"""
     name = "empty_metric"
 
-    def __init__(self, is_eager):
-        self.is_eager = is_eager
+    def __init__(self):
+        pass
 
     def update(self, features, labels, pred_mean):
         """Update the metric based on the given input, label and prediction
@@ -88,8 +79,6 @@ class Metric:
             features: the input
             labels: the correct labels
             pred_mean: the predicted mean
-        Returns:
-            update op if `is_eager` is False
         """
         pass
 
@@ -97,73 +86,54 @@ class Metric:
         """Print the result or record it in the summary"""
         pass
 
-    def _return_and_store(self, metric_op):
-        """In graph mode stores the result in `self.result` and returns the op so that it can be
-        updated
-
-        Does currently nothing in eager mode.
-        """
-        if not self.is_eager:
-            self.result = metric_op[1]
-            return metric_op
-
 
 class Rmse(Metric):
     """Root mean squared error"""
     name = "RMSE"
 
-    def __init__(self, is_eager):
-        super().__init__(is_eager)
-        self.metric = tfe.metrics.Mean() if is_eager else tf.metrics.root_mean_squared_error
+    def __init__(self):
+        super().__init__()
+        self.metric = tf.keras.metrics.Mean()
 
     def update(self, features, labels, pred_mean):
-        if self.is_eager:
-            self.metric((pred_mean - labels)**2)
-        else:
-            return self._return_and_store(self.metric(labels, pred_mean))
+        self.metric((pred_mean - labels)**2)
 
     def record(self):
-        if self.is_eager:
-            print(f"{self.name}: {np.sqrt(self.metric.result())}")
-        else:
-            tf.summary.scalar(self.name, self.result)
+        print(f"{self.name}: {np.sqrt(self.metric.result())}")
+        # tf.summary.scalar(self.name, self.result)
 
 
 class Mae(Metric):
     """Mean absolute error"""
     name = "MAE"
 
-    def __init__(self, is_eager):
-        super().__init__(is_eager)
-        self.mean = tfe.metrics.Mean() if is_eager else tf.metrics.mean
+    def __init__(self):
+        super().__init__()
+        self.mean = tf.keras.metrics.Mean()
 
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.mean(tf.abs(pred_mean - labels)))
 
     def record(self):
-        if self.is_eager:
-            print(f"{self.name}: {self.mean.result()}")
-        else:
-            tf.summary.scalar(self.name, self.result)
+        print(f"{self.name}: {self.mean.result()}")
+        # tf.summary.scalar(self.name, self.result)
 
 
 class SoftAccuracy(Metric):
     """Accuracy for softmax output"""
     name = "soft_accuracy"
 
-    def __init__(self, is_eager):
-        super().__init__(is_eager)
-        self.accuracy = tfe.metrics.Accuracy() if is_eager else tf.metrics.accuracy
+    def __init__(self):
+        super().__init__()
+        self.accuracy = tf.keras.metrics.Accuracy()
 
     def update(self, features, labels, pred_mean):
         return self._return_and_store(self.accuracy(tf.argmax(labels, axis=1),
                                                     tf.argmax(pred_mean, axis=1)))
 
     def record(self):
-        if self.is_eager:
-            print(f"{self.name}: {self.accuracy.result()}")
-        else:
-            tf.summary.scalar(self.name, self.result)
+        print(f"{self.name}: {self.accuracy.result()}")
+        # tf.summary.scalar(self.name, self.result)
 
 
 class LogisticAccuracy(SoftAccuracy):

@@ -10,11 +10,6 @@ import tensorflow as tf
 
 import universalgp
 
-try:
-    tf.compat.v1.enable_eager_execution()
-except ValueError:
-    pass
-
 
 class Normal:
     def __init__(self, mean, covar):

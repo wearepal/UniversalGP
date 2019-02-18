@@ -6,23 +6,22 @@ from tempfile import mkdtemp
 
 import numpy as np
 import tensorflow as tf
-import tensorflow.contrib.eager as tfe
 
 from . import util
 
 
-def fit(gp, optimizer, data, step_counter, args):
+def fit(gp, optimizer, data, args):
     """Trains model on `train_data` using `optimizer`.
 
     Args:
         gp: gaussian process
         optimizer: tensorflow optimizer
         data: a `tf.data.Dataset` object
-        step_counter: variable to keep track of the training step
         args: additional parameters
     """
 
     start = time.time()
+    step_counter = optimizer.iterations
     for (batch_num, (features, outputs)) in enumerate(data):
         # Record the operations used to compute the loss given the input, so that the gradient of
         # the loss with respect to the variables can be computed.
@@ -41,7 +40,7 @@ def fit(gp, optimizer, data, step_counter, args):
         else:
             grads_and_params = zip(tape.gradient(obj_func['loss'], all_params), all_params)
         # Apply gradients
-        optimizer.apply_gradients(grads_and_params, global_step=step_counter)
+        optimizer.apply_gradients(grads_and_params)
 
         if args['logging_steps'] != 0 and batch_num % args['logging_steps'] == 0:
             print(f"Step #{step_counter.numpy()} ({time.time() - start:.4f} sec)\t", end=' ')
@@ -59,8 +58,8 @@ def evaluate(gp, data, dataset_metric):
         data: a `tf.data.Dataset` object
         dataset_metric: the metrics that are supposed to be evaluated
     """
-    avg_loss = tfe.metrics.Mean('loss')
-    metrics = util.init_metrics(dataset_metric, True)
+    avg_loss = tf.keras.metrics.Mean('loss', dtype=tf.float32)
+    metrics = util.init_metrics(dataset_metric)
 
     for (features, outputs) in data:
         pred_mean, _ = gp.prediction(features)
@@ -123,11 +122,11 @@ def train_gp(dataset, args):
     checkpoint_prefix = out_dir / Path('model.ckpt')
 
     # Construct objects
-    step_counter = tf.compat.v1.train.get_or_create_global_step()
     gp = util.construct_from_flags(args, dataset, dataset.inducing_inputs)
-    optimizer = util.get_optimizer(args, step_counter)
+    optimizer = util.get_optimizer(args)
 
     # Restore from existing checkpoint
+    step_counter = optimizer.iterations
     checkpoint = tf.train.Checkpoint(gp=gp, optimizer=optimizer, step_counter=step_counter)
     checkpoint.restore(tf.train.latest_checkpoint(out_dir))
 
@@ -140,7 +139,7 @@ def train_gp(dataset, args):
     while step < args['train_steps']:
         start = time.time()
         # take *at most* (train_steps - step) batches so that we don't run longer than `train_steps`
-        fit(gp, optimizer, train_data.take(args['train_steps'] - step), step_counter, args)
+        fit(gp, optimizer, train_data.take(args['train_steps'] - step), args)
         end = time.time()
         step = step_counter.numpy()
         print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"

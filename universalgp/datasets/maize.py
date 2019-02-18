@@ -3,7 +3,7 @@ from pathlib import Path
 import numpy as np
 from scipy.stats import zscore
 
-from .definition import Dataset, to_tf_dataset_fn
+from .definition import Dataset, to_tf_dataset
 
 DATA_PATH = Path("universalgp") / Path("datasets") / Path("data") / Path("Maize Yield150318.csv")
 
@@ -22,8 +22,8 @@ def maize_yield(_):
     return Dataset(
         input_dim=8,
         output_dim=1,
-        train_fn=to_tf_dataset_fn(xtrain, ytrain),
-        test_fn=to_tf_dataset_fn(xtest, ytest),
+        train_fn=to_tf_dataset(xtrain, ytrain),
+        test_fn=to_tf_dataset(xtest, ytest),
         inducing_inputs=xtrain,
         num_train=len(ytrain),
         lik="LikelihoodGaussian",

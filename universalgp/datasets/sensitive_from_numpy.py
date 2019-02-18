@@ -4,11 +4,12 @@ from pathlib import Path
 import numpy as np
 import tensorflow as tf
 
-from .definition import Dataset, to_tf_dataset_fn, DATA
+from .definition import Dataset, to_tf_dataset, DATA
 
-tf.app.flags.DEFINE_string('dataset_path', '', 'Path to the numpy file that contains the data')
-tf.app.flags.DEFINE_boolean('dataset_standardize', False,
-                            'If True, the inputs of the dataset are standardized')
+tf.compat.v1.app.flags.DEFINE_string('dataset_path', '',
+                                     'Path to the numpy file that contains the data')
+tf.compat.v1.app.flags.DEFINE_boolean('dataset_standardize', False,
+                                      'If True, the inputs of the dataset are standardized')
 
 
 def sensitive_from_numpy(flags):
@@ -29,8 +30,8 @@ def sensitive_from_numpy(flags):
     inducing_inputs = _inducing_inputs(flags['num_inducing'], train, flags.get('s_as_input', False))
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(train.x, train.y, train.s),
-        test_fn=to_tf_dataset_fn(test.x, test.y, test.s),
+        train_fn=to_tf_dataset(train.x, train.y, train.s),
+        test_fn=to_tf_dataset(test.x, test.y, test.s),
         input_dim=inducing_inputs.shape[1],
         # xtrain=train.x,
         # ytrain=train.y,

@@ -2,35 +2,43 @@
 Linear kernel
 """
 import tensorflow as tf
+
 from .. import util
+from .base import Covariance
 
-tf.app.flags.DEFINE_float('lin_kern_offset', 0.0, 'The offset of the linear kernel')
-tf.app.flags.DEFINE_float('lin_kern_sb', 0.0, 'Uncertain offset of the model for linear kernel')
-tf.app.flags.DEFINE_float('lin_kern_sv', 1.0, 'Variance of linear kernel')
+tf.compat.v1.app.flags.DEFINE_float('lin_kern_offset', 0.0, 'The offset of the linear kernel')
+tf.compat.v1.app.flags.DEFINE_float('lin_kern_sb', 0.0,
+                                    'Uncertain offset of the model for linear kernel')
+tf.compat.v1.app.flags.DEFINE_float('lin_kern_sv', 1.0, 'Variance of linear kernel')
 
 
-class Linear:
+class Linear(Covariance):
     """Linear kernel"""
-    def __init__(self, variables, input_dim, args, name=None):
+    def build(self, input_shape):
         """
         Args:
             variables: object that stores the variables
             input_dim: the number of input dimensions
             args: dictionary with parameters
         """
-        self.input_dim = input_dim
-        init_offset = tf.compat.v1.initializers.constant(args['lin_kern_offset'], dtype=tf.float32) if (
-            'lin_kern_offset' in args) else None
-        init_sb = tf.compat.v1.initializers.constant(args['lin_kern_sb'], dtype=tf.float32) if (
-            'lin_kern_sb' in args) else None
-        init_sv = tf.compat.v1.initializers.constant(args['lin_kern_sv'], dtype=tf.float32) if (
-            'lin_kern_sv' in args) else None
-        with tf.compat.v1.variable_scope(name, "cov_lin_parameters"):
-            self.offset = variables.add_variable("offset", [input_dim], initializer=init_offset)
-            self.sigma_b = variables.add_variable("sb", shape=[], initializer=init_sb)
-            self.sigma_v = variables.add_variable("sv", shape=[], initializer=init_sv)
+        self.input_dim = int(input_shape[-1])
+        if 'lin_kern_offset' in self.args:
+            init_offset = tf.keras.initializers.Constant(
+                self.args['lin_kern_offset'])
+        else:
+            init_offset = None
 
-    def cov_func(self, point1, point2=None):
+        init_sb = tf.keras.initializers.Constant(self.args['lin_kern_sb']) if (
+            'lin_kern_sb' in self.args) else None
+        init_sv = tf.keras.initializers.Constant(self.args['lin_kern_sv']) if (
+            'lin_kern_sv' in self.args) else None
+        self.offset = self.add_variable("offset", [self.input_dim], initializer=init_offset,
+                                        dtype=tf.float32)
+        self.sigma_b = self.add_variable("sb", shape=[], initializer=init_sb, dtype=tf.float32)
+        self.sigma_v = self.add_variable("sv", shape=[], initializer=init_sv, dtype=tf.float32)
+        super().build(input_shape)
+
+    def call(self, point1, point2=None):
         """
         Args:
             point1: Tensor(input_dim) or Tensor(batch_size, input_dim)
@@ -53,4 +61,4 @@ class Linear:
             Tensor of shape (batch_size)
         """
         offset_br = tf.reshape(self.offset, [1, self.input_dim])
-        return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum(input_tensor=(points - offset_br)**2)
+        return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum((points - offset_br)**2)

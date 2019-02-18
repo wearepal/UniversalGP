@@ -2,12 +2,6 @@ import numpy as np
 import tensorflow as tf
 from tensorflow_probability import distributions as tfd
 
-try:
-    tf.compat.v1.enable_eager_execution()
-except ValueError:
-    pass
-
-
 RTOL = 1e-5
 
 

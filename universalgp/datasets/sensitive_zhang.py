@@ -2,7 +2,7 @@
 import numpy as np
 from numpy import random
 
-from .definition import Dataset, select_training_and_test, to_tf_dataset_fn, sensitive_statistics
+from .definition import Dataset, select_training_and_test, to_tf_dataset, sensitive_statistics
 
 SEED = 123
 
@@ -37,8 +37,8 @@ def sensitive_zhang(flags):
     sensitive_statistics(ytrain, strain, ytest, stest)
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(xtrain, ytrain, strain),
-        test_fn=to_tf_dataset_fn(xtest, ytest, stest),
+        train_fn=to_tf_dataset(xtrain, ytrain, strain),
+        test_fn=to_tf_dataset(xtest, ytest, stest),
         num_train=num_train,
         input_dim=2,
         inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],
@@ -87,8 +87,8 @@ def sensitive_zhang_simple(flags):
     sensitive_statistics(ytrain, strain, ytest, stest)
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(xtrain, ytrain, strain),
-        test_fn=to_tf_dataset_fn(xtest, ytest, stest),
+        train_fn=to_tf_dataset(xtrain, ytrain, strain),
+        test_fn=to_tf_dataset(xtest, ytest, stest),
         num_train=num_train,
         input_dim=2,
         inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],

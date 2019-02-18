@@ -20,40 +20,43 @@ hyp = [ log(ell)
         log(sf) ]
 """
 import tensorflow as tf
-from .. import util
 
-tf.app.flags.DEFINE_integer('order', 3, 'The order of matern function')
-# tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial length scale for the kernel')
-# tf.app.flags.DEFINE_float('sf', 1.0, 'Initial standard dev for the kernel')
-# tf.app.flags.DEFINE_boolean('iso', False,
+from .. import util
+from .base import Covariance
+
+tf.compat.v1.app.flags.DEFINE_integer('order', 3, 'The order of matern function')
+# tf.compat.v1.app.flags.DEFINE_float('length_scale', 1.0, 'Initial length scale for the kernel')
+# tf.compat.v1.app.flags.DEFINE_float('sf', 1.0, 'Initial standard dev for the kernel')
+# tf.compat.v1.app.flags.DEFINE_boolean('iso', False,
 #                             'True to use an isotropic kernel else use automatic relevance det')
 
 
-class Matern:
+class Matern(Covariance):
     """Matern covariance function"""
-    def __init__(self, variables, input_dim, args, name=None):
+    def build(self, input_shape):
         """
         Args:
             variables: object that stores the variables
             input_dim: the number of input dimensions
             args: dictionary with parameters
         """
-        self.input_dim = input_dim
-        self.iso = args['iso']
-        self.order = args['order']
-        init_len = tf.compat.v1.initializers.constant(args['length_scale'], dtype=tf.float32) if (
-            'length_scale' in args) else None
-        init_sf = tf.compat.v1.initializers.constant(args['sf'], dtype=tf.float32) if 'sf' in args else None
-        with tf.compat.v1.variable_scope(name, "cov_matern_parameters"):
-            if not args['iso']:
-                self.length_scale = variables.add_variable("length_scale", [input_dim],
-                                                           initializer=init_len)
-            else:
-                self.length_scale = variables.add_variable("length_scale", shape=[],
-                                                           initializer=init_len)
-            self.sf = variables.add_variable("sf", shape=[], initializer=init_sf)
+        self.input_dim = int(input_shape[-1])
+        self.iso = self.args['iso']
+        self.order = self.args['order']
+        init_len = tf.keras.initializers.Constant(self.args['length_scale']) if (
+            'length_scale' in self.args) else None
+        init_sf = tf.keras.initializers.Constant(self.args['sf']) if (
+            'sf' in self.args) else None
+        if not self.args['iso']:
+            self.length_scale = self.add_variable("length_scale", [input_dim], initializer=init_len,
+                                                  dtype=tf.float32)
+        else:
+            self.length_scale = self.add_variable("length_scale", shape=[], initializer=init_len,
+                                                  dtype=tf.float32)
+        self.sf = self.add_variable("sf", shape=[], initializer=init_sf, dtype=tf.float32)
+        super().build(input_shape)
 
-    def cov_func(self, point1, point2=None):
+    def call(self, point1, point2=None):
         """
         Args:
             point1: Tensor(input_dim) or Tensor(batch_size, input_dim)

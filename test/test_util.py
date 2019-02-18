@@ -3,11 +3,6 @@ import tensorflow as tf
 
 from universalgp import util
 
-try:
-    tf.compat.v1.enable_eager_execution()
-except ValueError:
-    pass
-
 RTOL = 1e-5
 
 
