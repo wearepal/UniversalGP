@@ -2,7 +2,6 @@
 
 import numpy as np
 import tensorflow as tf
-from tensorflow import manip as tft
 from tensorflow import math as tfm
 import tensorflow.contrib.eager as tfe
 from .. import util
@@ -190,8 +189,8 @@ class PredictionRateY1S0(Mae):
     name = "pred_rate_y1_s0"
 
     def update(self, features, labels, pred_mean):
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
-                                 tf.where(tfm.equal(features['sensitive'], 0)))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
+                                tf.where(tfm.equal(features['sensitive'], 0)))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -200,8 +199,8 @@ class PredictionRateY1S1(Mae):
     name = "pred_rate_y1_s1"
 
     def update(self, features, labels, pred_mean):
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
-                                 tf.where(tfm.equal(features['sensitive'], 1)))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
+                                tf.where(tfm.equal(features['sensitive'], 1)))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -210,7 +209,7 @@ class BaseRateY1S0(Mae):
     name = "base_rate_y1_s0"
 
     def update(self, features, labels, pred_mean):
-        accepted = tft.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 0)))
+        accepted = tf.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 0)))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -219,7 +218,7 @@ class BaseRateY1S1(Mae):
     name = "base_rate_y1_s1"
 
     def update(self, features, labels, pred_mean):
-        accepted = tft.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 1)))
+        accepted = tf.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 1)))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -230,7 +229,7 @@ class PredictionOddsYYbar1S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s0))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -241,7 +240,7 @@ class PredictionOddsYYbar1S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s1))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -252,7 +251,7 @@ class BaseOddsYYbar1S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s0 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(labels, tf.where(test_for_ybar1_s0))
+        accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -263,7 +262,7 @@ class BaseOddsYYbar1S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar1_s1 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(labels, tf.where(test_for_ybar1_s1))
+        accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -274,7 +273,7 @@ class PredictionOddsYYbar0S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s0))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -285,7 +284,7 @@ class PredictionOddsYYbar0S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s1))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -296,7 +295,7 @@ class BaseOddsYYbar0S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s0 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(1 - labels, tf.where(test_for_ybar0_s0))
+        accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -307,7 +306,7 @@ class BaseOddsYYbar0S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_ybar0_s1 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
+        accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -317,7 +316,7 @@ class PredictionOddsYhatY1S0(Mae):
 
     def update(self, features, labels, pred_mean):
         test_for_y1_s0 = tfm.logical_and(tfm.equal(labels, 1), tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s0))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -327,7 +326,7 @@ class PredictionOddsYhatY1S1(Mae):
 
     def update(self, features, labels, pred_mean):
         test_for_y1_s1 = tfm.logical_and(tfm.equal(labels, 1), tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s1))
+        accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s1))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -337,7 +336,7 @@ class PredictionOddsYhatY0S0(Mae):
 
     def update(self, features, labels, pred_mean):
         test_for_y0_s0 = tfm.logical_and(tfm.equal(labels, 0), tfm.equal(features['sensitive'], 0))
-        accepted = tft.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s0))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s0))
         return self._return_and_store(self.mean(accepted))
 
 
@@ -347,7 +346,7 @@ class PredictionOddsYhatY0S1(Mae):
 
     def update(self, features, labels, pred_mean):
         test_for_y0_s1 = tfm.logical_and(tfm.equal(labels, 0), tfm.equal(features['sensitive'], 1))
-        accepted = tft.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s1))
+        accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s1))
         return self._return_and_store(self.mean(accepted))
 
 

@@ -2,7 +2,7 @@
 Fair variational inference for generic Gaussian process models
 """
 import tensorflow as tf
-from tensorflow import manip as tft
+from tensorflow import math as tfm
 import numpy as np
 
 from .. import util
@@ -112,8 +112,8 @@ class VariationalYbar(VariationalWithS):
             # `log_debias` has shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
             # then we use the last 2 values of that as indices for `log_debias`
             # shape of log_debias_per_example: (batch_size, output_dim, 2)
-            log_debias_per_example = tft.gather_nd(log_debias,
-                                                   tf.stack((out_int, sens_attr), axis=-1))
+            log_debias_per_example = tf.gather_nd(log_debias,
+                                                  tf.stack((out_int, sens_attr), axis=-1))
             weighted_log_lik = log_debias_per_example + log_lik
             # logsumexp is numerically stable
             log_cond_prob = tf.reduce_logsumexp(weighted_log_lik, axis=-1)
