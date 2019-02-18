@@ -1,7 +1,7 @@
 """Defines a logistic regression model to serve as a baseline"""
 
 import tensorflow as tf
-from tensorflow import manip as tft
+from tensorflow import math as tfm
 
 from .inf_vi_ybar import (sensitive_prediction, construct_input, debiasing_params_target_rate,
                           debiasing_params_target_tpr)
@@ -64,15 +64,15 @@ class FairLogReg(LogReg):
         # output
         logits = tf.squeeze(self._model(self._get_inputs(features)), axis=-1)
         # log likelihood for y=1
-        log_lik1 = tf.log_sigmoid(logits)
+        log_lik1 = tfm.log_sigmoid(logits)
         # log likelihood for y=0
-        log_lik0 = tf.log_sigmoid(-logits)
+        log_lik0 = tfm.log_sigmoid(-logits)
         log_lik = tf.stack((log_lik0, log_lik1), axis=-1)
         log_debias = self._log_debiasing_parameters()
         # `log_debias` has the shape (y, s, y'). we stack output and sensitive to (batch_size, 2)
         # then we use the last 2 values of that as indices for `log_debias`
         # shape of log_debias_per_example: (batch_size, output_dim, 2)
-        log_debias_per_example = tft.gather_nd(log_debias, tf.stack((out_int, sens_attr), axis=-1))
+        log_debias_per_example = tf.gather_nd(log_debias, tf.stack((out_int, sens_attr), axis=-1))
         weighted_log_lik = log_debias_per_example + log_lik
         # logsumexp is numerically stable
         log_cond_prob = tf.reduce_logsumexp(weighted_log_lik, axis=-1)

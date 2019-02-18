@@ -1,5 +1,4 @@
 import tensorflow as tf
-from tensorflow import manip as tft
 from tensorflow import linalg as tfl
 from tensorflow import math as tfm
 from tensorflow_probability import distributions as tfd
@@ -45,12 +44,12 @@ def _merge_and_separate(a, b, func):
         raise ValueError("Combination of ranks not supported")
 
     # move the first dimension to the end and then merge it with the last dimension
-    b_merged = tft.reshape(tf.transpose(b, perm_move_to_end), shape_merged)
+    b_merged = tf.reshape(tf.transpose(b, perm_move_to_end), shape_merged)
     # apply function
     result = func(a, b_merged)
     # separate out the last dimension into what it was before the merging, then move the dimension
     # from the back to the front again
-    return tf.transpose(tft.reshape(result, shape_separated), perm_move_to_front)
+    return tf.transpose(tf.reshape(result, shape_separated), perm_move_to_front)
 
 
 def matmul_br(a, b, transpose_a=False, transpose_b=False):
@@ -127,8 +126,8 @@ def broadcast(tensor, tensor_with_target_shape):
         target_shape = tf.shape(tensor_with_target_shape)
         expand_dims_shape = tf.concat([[1] * (target_rank - input_rank), tf.shape(tensor)], axis=0)
         tile_multiples = tf.concat([target_shape[0:-input_rank], [1] * input_rank], axis=0)
-    input_with_expanded_dims = tft.reshape(tensor, expand_dims_shape)
-    return tft.tile(input_with_expanded_dims, tile_multiples)
+    input_with_expanded_dims = tf.reshape(tensor, expand_dims_shape)
+    return tf.tile(input_with_expanded_dims, tile_multiples)
 
 
 def ceil_divide(dividend, divisor):

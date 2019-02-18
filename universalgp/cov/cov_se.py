@@ -2,7 +2,6 @@
 Squared exponential kernel
 """
 import tensorflow as tf
-from tensorflow import manip as tft
 from .. import util
 
 tf.app.flags.DEFINE_float('length_scale', 1.0, 'Initial length scale for the kernel')
@@ -42,7 +41,7 @@ class SquaredExponential:
         Returns:
             Tensor of shape (batch_size, batch_size)
         """
-        length_scale_br = tft.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
+        length_scale_br = tf.reshape(self.length_scale, [1, 1 if self.iso else self.input_dim])
         if point2 is None:
             point2 = point1
 
