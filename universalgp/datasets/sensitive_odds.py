@@ -7,7 +7,7 @@ Usage: Generate the simple synthetic data with two non-sensitive features and on
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from .definition import Dataset, to_tf_dataset_fn, select_training_and_test
+from .definition import Dataset, to_tf_dataset, select_training_and_test
 
 SEED = 2345657
 
@@ -25,8 +25,8 @@ def sensitive_odds_example(_):
     num_inducing = 200
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(xtrain, ytrain, sensi_attr_train),
-        test_fn=to_tf_dataset_fn(xtest, ytest, sensi_attr_test),
+        train_fn=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
+        test_fn=to_tf_dataset(xtest, ytest, sensi_attr_test),
         num_train=4 * num_train,
         input_dim=2,
         inducing_inputs=xtrain[::num_train // num_inducing],

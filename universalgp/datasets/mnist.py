@@ -1,11 +1,11 @@
 """
 MNIST dataset
 """
-from tensorflow.examples.tutorials.mnist import input_data
+import tensorflow_datasets as tfds
 
 import sklearn.cluster
 
-from .definition import Dataset, to_tf_dataset_fn
+from .definition import Dataset
 
 NUM_INDUCING = 100
 
@@ -22,13 +22,13 @@ def _init_z(train_inputs, num_inducing):
 
 def mnist(_):
     """MNIST dataset with one hot labels"""
-    data = input_data.read_data_sets('./universalgp/datasets/data/', one_hot=True)
+    ds_train, ds_test = tfds.load(name="mnist", split=["train", "test"])
 
     return Dataset(
         input_dim=28 * 28,
         output_dim=10,
-        train_fn=to_tf_dataset_fn(data.train.images, data.train.labels),
-        test_fn=to_tf_dataset_fn(data.test.images, data.test.labels),
+        train_fn=ds_train,
+        test_fn=ds_test,
         inducing_inputs=_init_z(data.train.images, NUM_INDUCING),
         num_train=data.train.num_examples,
         lik="LikelihoodSoftmax",

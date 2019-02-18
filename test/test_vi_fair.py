@@ -4,11 +4,6 @@ import tensorflow as tf
 from universalgp import cov, lik
 from universalgp import inf as inference
 
-try:
-    tf.compat.v1.enable_eager_execution()
-except ValueError:
-    pass
-
 
 RTOL = 1e-4
 PARAMS = dict(num_components=1, diag_post=False, sn=1.0, length_scale=1.0, sf=1.0, iso=False,

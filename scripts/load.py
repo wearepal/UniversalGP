@@ -25,8 +25,6 @@ def load(checkpoint_path, flags, input_dim, output_dim, num_train, num_inducing,
     Returns:
         Gaussian Process
     """
-    tf.enable_eager_execution()
-
     gp = getattr(inf, inf_name)(
         {
             'num_components': flags.get('num_components', None),

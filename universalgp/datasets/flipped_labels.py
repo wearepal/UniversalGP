@@ -5,12 +5,12 @@ import numpy as np
 import tensorflow as tf
 from scipy.stats import multivariate_normal
 
-from .definition import Dataset, select_training_and_test, sensitive_statistics, wrap_in_function
+from .definition import Dataset, select_training_and_test, sensitive_statistics, make_dataset
 
-tf.app.flags.DEFINE_float('reject_flip_probability', 0.3, '')
-tf.app.flags.DEFINE_float('accept_flip_probability', 0.3, '')
-tf.app.flags.DEFINE_boolean('flip_sensitive_attribute', False, '')
-tf.app.flags.DEFINE_boolean('test_on_ybar', False, '')
+tf.compat.v1.app.flags.DEFINE_float('reject_flip_probability', 0.3, '')
+tf.compat.v1.app.flags.DEFINE_float('accept_flip_probability', 0.3, '')
+tf.compat.v1.app.flags.DEFINE_boolean('flip_sensitive_attribute', False, '')
+tf.compat.v1.app.flags.DEFINE_boolean('test_on_ybar', False, '')
 SEED = 123
 
 
@@ -42,10 +42,10 @@ def flipped_labels(flags):
         input_dim = 2
 
     return Dataset(
-        train_fn=wrap_in_function({'input': xtrain.astype(np.float32), 'sensitive': strain.astype(np.float32),
-                                   'ybar': ybartrain.astype(np.float32)}, ytrain.astype(np.float32)),
-        test_fn=wrap_in_function({'input': xtest.astype(np.float32), 'sensitive': stest.astype(np.float32),
-                                  'ybar': ybartest.astype(np.float32)}, ytest.astype(np.float32)),
+        train_fn=make_dataset({'input': xtrain.astype(np.float32), 'sensitive': strain.astype(np.float32),
+                               'ybar': ybartrain.astype(np.float32)}, ytrain.astype(np.float32)),
+        test_fn=make_dataset({'input': xtest.astype(np.float32), 'sensitive': stest.astype(np.float32),
+                              'ybar': ybartest.astype(np.float32)}, ytest.astype(np.float32)),
         num_train=num_train,
         input_dim=input_dim,
         inducing_inputs=inducing_inputs,

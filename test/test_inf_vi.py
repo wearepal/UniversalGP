@@ -5,11 +5,6 @@ import tensorflow as tf
 
 from universalgp import inf as inference
 
-try:
-    tf.enable_eager_execution()
-except ValueError:
-    pass
-
 
 SIG_FIGS = 5
 RTOL = 1e-5

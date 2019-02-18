@@ -3,7 +3,7 @@ Simple datasets for testing
 """
 import numpy as np
 
-from .definition import Dataset, select_training_and_test, to_tf_dataset_fn
+from .definition import Dataset, select_training_and_test, to_tf_dataset
 
 SEED = 1234
 
@@ -20,8 +20,8 @@ def simple_example(flags):
     np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
-    return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
-                   test_fn=to_tf_dataset_fn(xtest, ytest),
+    return Dataset(train_fn=to_tf_dataset(xtrain, ytrain),
+                   test_fn=to_tf_dataset(xtest, ytest),
                    num_train=num_train,
                    input_dim=1,
                    inducing_inputs=xtrain[::num_train // num_inducing],
@@ -48,8 +48,8 @@ def simple_multi_out(flags):
     np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
-    return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
-                   test_fn=to_tf_dataset_fn(xtest, ytest),
+    return Dataset(train_fn=to_tf_dataset(xtrain, ytrain),
+                   test_fn=to_tf_dataset(xtest, ytest),
                    num_train=num_train,
                    input_dim=1,
                    inducing_inputs=xtrain[::num_train // num_inducing],
@@ -77,8 +77,8 @@ def simple_multi_in(flags):
     np.random.seed(SEED)
     (xtrain, ytrain), (xtest, ytest) = select_training_and_test(num_train, inputs, outputs)
 
-    return Dataset(train_fn=to_tf_dataset_fn(xtrain, ytrain),
-                   test_fn=to_tf_dataset_fn(xtest, ytest),
+    return Dataset(train_fn=to_tf_dataset(xtrain, ytrain),
+                   test_fn=to_tf_dataset(xtest, ytest),
                    num_train=num_train,
                    input_dim=2,
                    inducing_inputs=xtrain[::num_train // num_inducing],

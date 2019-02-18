@@ -64,11 +64,11 @@ class Exact(Inference):
         chol, alpha = self._build_interim_vals(self.train_inputs, self.train_outputs)
 
         # kxx_star (num_latent, num_train, num_test)
-        kxx_star = self.cov[0].cov_func(self.train_inputs, inputs)
+        kxx_star = self.cov[0](self.train_inputs, inputs)
         # f_star_mean (num_latent, num_test, 1)
         f_star_mean = tf.matmul(kxx_star, alpha, transpose_a=True)
         # Kx_star_x_star (num_latent, num_test)
-        kx_star_x_star = self.cov[0].cov_func(inputs)
+        kx_star_x_star = self.cov[0](inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
         v = tf.linalg.triangular_solve(chol, kxx_star)
@@ -80,7 +80,7 @@ class Exact(Inference):
 
     def _build_interim_vals(self, train_inputs, train_outputs):
         # kxx (num_train, num_train)
-        kxx = self.cov[0].cov_func(train_inputs) + self.sn ** 2 * tf.eye(tf.shape(input=train_inputs)[-2])
+        kxx = self.cov[0](train_inputs) + self.sn ** 2 * tf.eye(tf.shape(input=train_inputs)[-2])
 
         jitter = JITTER * tf.eye(tf.shape(input=train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added

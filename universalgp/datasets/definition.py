@@ -16,8 +16,8 @@ class Dataset(NamedTuple):
 
     The dataset only has variables and no functions.
     """
-    train_fn: Callable  # function that returns training data
-    test_fn: Callable  # function that returns the test data
+    train_fn: tf.data.Dataset  # function that returns training data
+    test_fn: tf.data.Dataset  # function that returns the test data
     num_train: int  # number of training instances
     inducing_inputs: np.ndarray  # initial values for the inducing inputs
     input_dim: int  # number of input dimensions
@@ -59,8 +59,8 @@ def select_training_and_test(num_train, *data_parts):
     return data_parts_train, data_parts_test
 
 
-def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=np.float32,
-                     dtype_out=np.float32, dtype_sen=np.float32):
+def to_tf_dataset(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dtype_in=np.float32,
+                  dtype_out=np.float32, dtype_sen=np.float32):
     """Create a dataset function out of input and output numpy arrays
 
     It is necessary to wrap the tensorflow code into a function because we have to make sure it's
@@ -80,10 +80,10 @@ def to_tf_dataset_fn(inputs: np.ndarray, outputs: np.ndarray, sensitive=None, dt
     inputs_dict = {'input': inputs.astype(dtype_in)}  # the inputs are in a dict so you can add more
     if sensitive is not None:
         inputs_dict.update({'sensitive': sensitive.astype(dtype_sen)})  # add sensitive to input
-    return wrap_in_function(inputs_dict, outputs.astype(dtype_out))
+    return make_dataset(inputs_dict, outputs.astype(dtype_out))
 
 
-def wrap_in_function(inputs_dict: Dict[str, np.ndarray], outputs: np.ndarray) -> Callable:
+def make_dataset(inputs_dict: Dict[str, np.ndarray], outputs: np.ndarray):
     """Wrap the given values in a function that creates a Tensorflow dataset from them
 
     Args:
@@ -92,13 +92,9 @@ def wrap_in_function(inputs_dict: Dict[str, np.ndarray], outputs: np.ndarray) ->
     Returns:
         a function that returns the Tensorflow dataset
     """
-    def dataset_function():
-        """This function will be called by the training loop"""
-        typed_inputs_dict = {input_name: tf.constant(input_value)
-                             for input_name, input_value in inputs_dict.items()}
-        return tf.data.Dataset.from_tensor_slices((typed_inputs_dict, tf.constant(outputs)))
-
-    return dataset_function
+    typed_inputs_dict = {input_name: tf.constant(input_value)
+                         for input_name, input_value in inputs_dict.items()}
+    return tf.data.Dataset.from_tensor_slices((typed_inputs_dict, tf.constant(outputs)))
 
 
 def sensitive_statistics(ytrain, strain, ytest, stest):

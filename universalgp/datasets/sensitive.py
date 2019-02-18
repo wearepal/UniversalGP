@@ -7,7 +7,7 @@ For parity demographic
 import numpy as np
 from scipy.stats import multivariate_normal
 
-from .definition import Dataset, select_training_and_test, to_tf_dataset_fn, sensitive_statistics
+from .definition import Dataset, select_training_and_test, to_tf_dataset, sensitive_statistics
 
 SEED = 1234
 
@@ -28,8 +28,8 @@ def sensitive_example(_):
     sensitive_statistics(ytrain, sensi_attr_train, ytest, sensi_attr_test)
 
     return Dataset(
-        train_fn=to_tf_dataset_fn(xtrain, ytrain, sensi_attr_train),
-        test_fn=to_tf_dataset_fn(xtest, ytest, sensi_attr_test),
+        train_fn=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
+        test_fn=to_tf_dataset(xtest, ytest, sensi_attr_test),
         num_train=2 * num_train,
         input_dim=3,
         inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],

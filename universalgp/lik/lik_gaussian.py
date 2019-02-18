@@ -6,15 +6,15 @@ import numpy as np
 import tensorflow as tf
 from tensorflow import math as tfm
 
-tf.app.flags.DEFINE_float('sn', 1.0, 'Initial standard dev for the Gaussian likelihood')
+tf.compat.v1.app.flags.DEFINE_float('sn', 1.0, 'Initial standard dev for the Gaussian likelihood')
 
 
 class LikelihoodGaussian:
     """Gaussian likelihood function """
     def __init__(self, variables, args):
-        init_sn = tf.compat.v1.initializers.constant(args['sn'], dtype=tf.float32) if 'sn' in args else None
+        init_sn = tf.keras.initializers.Constant(args['sn']) if 'sn' in args else None
         with tf.compat.v1.variable_scope(None, "gaussian_likelihood"):
-            self.sn = variables.add_variable("std_dev", [], initializer=init_sn)
+            self.sn = variables.add_variable("std_dev", [], initializer=init_sn, dtype=tf.float32)
 
     def log_cond_prob(self, y, mu):
         var = self.sn ** 2

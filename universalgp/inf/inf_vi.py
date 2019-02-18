@@ -10,16 +10,16 @@ from .base import Inference
 
 JITTER = 1e-2
 
-tf.app.flags.DEFINE_integer('num_components', 1,
-                            'Number of mixture of Gaussians components')
-tf.app.flags.DEFINE_integer('num_samples', 100,
-                            'Number of samples for mean and variance estimate of likelihood')
-tf.app.flags.DEFINE_boolean('diag_post', False,
-                            'Whether the posterior is diagonal or not')
-tf.app.flags.DEFINE_boolean('optimize_inducing', True,
-                            'Whether to optimize the inducing inputs in training')
-tf.app.flags.DEFINE_boolean('use_loo', False,
-                            'Whether to use the LOO (leave one out) loss (for hyper parameters)')
+tf.compat.v1.app.flags.DEFINE_integer('num_components', 1,
+                                      'Number of mixture of Gaussians components')
+tf.compat.v1.app.flags.DEFINE_integer(
+    'num_samples', 100, 'Number of samples for mean and variance estimate of likelihood')
+tf.compat.v1.app.flags.DEFINE_boolean('diag_post', False,
+                                      'Whether the posterior is diagonal or not')
+tf.compat.v1.app.flags.DEFINE_boolean('optimize_inducing', True,
+                                      'Whether to optimize the inducing inputs in training')
+tf.compat.v1.app.flags.DEFINE_boolean(
+    'use_loo', False, 'Whether to use the LOO (leave one out) loss (for hyper parameters)')
 
 
 class Variational(Inference):
@@ -37,8 +37,7 @@ class Variational(Inference):
         # Initialize inducing inputs if they are provided
         if not hasattr(self, 'inducing_inputs_init'):
             # Only the number of inducing inputs is given -> just specify the shape
-            inducing_params = {'shape': [self.num_latents, self.num_inducing, input_dim],
-                               'dtype': tf.float32}
+            inducing_params = {'shape': [self.num_latents, self.num_inducing, input_dim]}
         else:
             # Repeat the inducing inputs for all latent processes if we haven't been given
             # individually specified inputs per process.
@@ -46,8 +45,10 @@ class Variational(Inference):
                 inducing_inputs = np.tile(self.inducing_inputs_init[np.newaxis, :, :],
                                           reps=[self.num_latents, 1, 1])
             # Initialize with the given values
-            inducing_params = {'shape': inducing_inputs.shape,
-                               'initializer': tf.compat.v1.initializers.constant(inducing_inputs, tf.float32)}
+            inducing_params = {
+                'shape': inducing_inputs.shape,
+                'initializer': tf.keras.initializers.Constant(inducing_inputs),
+            }
 
         num_components = self.args['num_components']
         # Initialize all variables
@@ -55,16 +56,19 @@ class Variational(Inference):
         # transformed internally to maintain certain pre-conditions.
 
         self.inducing_inputs = self.add_variable("inducing_inputs", **inducing_params,
-                                                 trainable=self.args['optimize_inducing'])
+                                                 trainable=self.args['optimize_inducing'],
+                                                 dtype=tf.float32)
 
-        zeros = tf.compat.v1.initializers.zeros(dtype=tf.float32)
-        self.raw_weights = self.add_variable("raw_weights", [num_components], initializer=zeros)
+        zeros = tf.keras.initializers.Zeros()
+        self.raw_weights = self.add_variable("raw_weights", [num_components], initializer=zeros,
+                                             dtype=tf.float32)
         self.means = self.add_variable(
-            "means", [num_components, self.num_latents, self.num_inducing], initializer=zeros)
+            "means", [num_components, self.num_latents, self.num_inducing], initializer=zeros,
+            dtype=tf.float32)
         if self.args['diag_post']:
             self.raw_covars = self.add_variable(
                 "raw_covars", [num_components, self.num_latents, self.num_inducing],
-                initializer=tf.compat.v1.initializers.ones())
+                initializer=tf.keras.initializers.Ones())
         else:
             self.raw_covars = self.add_variable(
                 "raw_covars",
@@ -90,7 +94,7 @@ class Variational(Inference):
             chol_covars = tfd.matrix_diag_transform(triangle, transform=tf.nn.softplus)
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = tf.stack([self.cov[i].cov_func(self.inducing_inputs[i, :, :])
+        kernel_mat = tf.stack([self.cov[i](self.inducing_inputs[i, :, :])
                                for i in range(self.num_latents)], 0)
         jitter = JITTER * tf.eye(tf.shape(input=self.inducing_inputs)[-2])
 
@@ -335,7 +339,7 @@ class Variational(Inference):
         kern_sums = [0.0 for _ in range(self.num_latents)]
 
         for i in range(self.num_latents):
-            ind_train_kern = self.cov[i].cov_func(inducing_inputs[i, :, :], train_inputs)
+            ind_train_kern = self.cov[i](inducing_inputs[i, :, :], point2=train_inputs)
             # Compute A = Kxz.Kzz^(-1) = (Kzz^(-1).Kzx)^T.
             kern_prods[i] = tf.transpose(a=tf.linalg.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
             # We only need the diagonal components.

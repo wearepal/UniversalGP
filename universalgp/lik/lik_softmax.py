@@ -2,8 +2,8 @@ import tensorflow as tf
 
 from .. import util
 
-tf.app.flags.DEFINE_integer('num_samples_pred', 2000,
-                            'Number of samples for mean and variance estimate for prediction')
+tf.compat.v1.app.flags.DEFINE_integer(
+    'num_samples_pred', 2000, 'Number of samples for mean and variance estimate for prediction')
 
 
 class LikelihoodSoftmax:
