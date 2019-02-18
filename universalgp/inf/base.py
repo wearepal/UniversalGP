@@ -23,7 +23,7 @@ class Inference(tf.keras.layers.Layer):
 
     def prediction(self, test_inputs):
         """Return prediction for given inputs"""
-        raise NotImplementedError("Implement `predict`")
+        raise NotImplementedError("Implement `prediction`")
 
     def call(self, inputs, **_):
         return self._apply(inputs)
