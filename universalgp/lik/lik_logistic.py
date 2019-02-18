@@ -32,15 +32,15 @@ class LikelihoodLogistic:
         """
         # Generate samples to estimate the expected value and variance of outputs.
         num_components = latent_means.shape[0]
-        num_points = tf.shape(latent_means)[1]
+        num_points = tf.shape(input=latent_means)[1]
         latent = (latent_means[:, tf.newaxis, ...] + tf.sqrt(latent_vars)[:, tf.newaxis, ...] *
-                  tf.random_normal([num_components, self.num_samples, num_points, 1]))
+                  tf.random.normal([num_components, self.num_samples, num_points, 1]))
         # Compute the logistic function
         # logistic = 1.0 / (1.0 + tf.exp(-latent))
         logistic = tf.nn.sigmoid(latent)
 
         # Estimate the expected value of the softmax and the variance through sampling.
-        pred_means = tf.reduce_mean(logistic, 1, keepdims=True)
-        pred_vars = tf.reduce_sum((logistic - pred_means) ** 2, 1) / (self.num_samples - 1.0)
+        pred_means = tf.reduce_mean(input_tensor=logistic, axis=1, keepdims=True)
+        pred_vars = tf.reduce_sum(input_tensor=(logistic - pred_means) ** 2, axis=1) / (self.num_samples - 1.0)
 
         return tf.squeeze(pred_means, 1), pred_vars

@@ -19,7 +19,7 @@ def sq_dist(point1, point2):
     """Compute the square distance between point1 and point2."""
     distance_vectors = dist(point1, point2)
 
-    squared_distance = tf.reduce_sum(distance_vectors**2, axis=-1)
+    squared_distance = tf.reduce_sum(input_tensor=distance_vectors**2, axis=-1)
 
     # distance = tf.linalg.norm(distance_vectors, ord=2, axis=-1)
     # squared_distance = distance**2
@@ -30,7 +30,7 @@ def sq_dist(point1, point2):
 
 def manhatten_dist(point1, point2):
     distance_vectors = dist(point1, point2)
-    distance = tf.linalg.norm(distance_vectors, ord=1, axis=-1)
+    distance = tf.linalg.norm(tensor=distance_vectors, ord=1, axis=-1)
     # squared_distance = tf.reduce_sum(tf.abs(distance_vectors), axis=-1)
 
     # this ensures that exp(-distance) will never get too small
@@ -40,7 +40,7 @@ def manhatten_dist(point1, point2):
 def euclidean_dist(point1, point2):
     distance_vectors = dist(point1, point2)
     # distance = tf.linalg.norm(distance_vectors, ord=2, axis=-1)
-    sq_distance = tf.reduce_sum(distance_vectors ** 2, axis=-1)
+    sq_distance = tf.reduce_sum(input_tensor=distance_vectors ** 2, axis=-1)
     distance = tf.sqrt(sq_distance + EPS)
 
     # this ensures that exp(-distance) will never get too small

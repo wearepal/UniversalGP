@@ -51,7 +51,7 @@ def get_optimizer(flags, global_step):
     drop_steps = flags['lr_drop_steps']
 
     if drop_steps > 0:
-        learning_rate = tf.train.piecewise_constant(global_step, [drop_steps], schedule)
+        learning_rate = tf.compat.v1.train.piecewise_constant(global_step, [drop_steps], schedule)
     else:
         learning_rate = flags['lr']
     return getattr(tf.train, flags['optimizer'])(learning_rate)

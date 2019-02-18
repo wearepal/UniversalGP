@@ -19,13 +19,13 @@ class Linear:
             args: dictionary with parameters
         """
         self.input_dim = input_dim
-        init_offset = tf.constant_initializer(args['lin_kern_offset'], dtype=tf.float32) if (
+        init_offset = tf.compat.v1.initializers.constant(args['lin_kern_offset'], dtype=tf.float32) if (
             'lin_kern_offset' in args) else None
-        init_sb = tf.constant_initializer(args['lin_kern_sb'], dtype=tf.float32) if (
+        init_sb = tf.compat.v1.initializers.constant(args['lin_kern_sb'], dtype=tf.float32) if (
             'lin_kern_sb' in args) else None
-        init_sv = tf.constant_initializer(args['lin_kern_sv'], dtype=tf.float32) if (
+        init_sv = tf.compat.v1.initializers.constant(args['lin_kern_sv'], dtype=tf.float32) if (
             'lin_kern_sv' in args) else None
-        with tf.variable_scope(name, "cov_lin_parameters"):
+        with tf.compat.v1.variable_scope(name, "cov_lin_parameters"):
             self.offset = variables.add_variable("offset", [input_dim], initializer=init_offset)
             self.sigma_b = variables.add_variable("sb", shape=[], initializer=init_sb)
             self.sigma_v = variables.add_variable("sv", shape=[], initializer=init_sv)
@@ -53,4 +53,4 @@ class Linear:
             Tensor of shape (batch_size)
         """
         offset_br = tf.reshape(self.offset, [1, self.input_dim])
-        return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum((points - offset_br)**2)
+        return self.sigma_b**2 + self.sigma_v**2 * tf.reduce_sum(input_tensor=(points - offset_br)**2)

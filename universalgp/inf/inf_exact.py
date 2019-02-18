@@ -71,22 +71,22 @@ class Exact(Inference):
         kx_star_x_star = self.cov[0].cov_func(inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
-        v = tf.matrix_triangular_solve(chol, kxx_star)
+        v = tf.linalg.triangular_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
-        var_f_star = tf.diag_part(kx_star_x_star - tf.reduce_sum(v ** 2, -2))
+        var_f_star = tf.linalg.tensor_diag_part(kx_star_x_star - tf.reduce_sum(input_tensor=v ** 2, axis=-2))
         pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
 
         return pred_means[:, tf.newaxis], pred_vars[:, tf.newaxis]
 
     def _build_interim_vals(self, train_inputs, train_outputs):
         # kxx (num_train, num_train)
-        kxx = self.cov[0].cov_func(train_inputs) + self.sn ** 2 * tf.eye(tf.shape(train_inputs)[-2])
+        kxx = self.cov[0].cov_func(train_inputs) + self.sn ** 2 * tf.eye(tf.shape(input=train_inputs)[-2])
 
-        jitter = JITTER * tf.eye(tf.shape(train_inputs)[-2])
+        jitter = JITTER * tf.eye(tf.shape(input=train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added
-        chol = tf.cholesky(kxx + jitter)
+        chol = tf.linalg.cholesky(kxx + jitter)
         # alpha = chol.T \ (chol \ train_outputs)
-        alpha = tf.cholesky_solve(chol, train_outputs)
+        alpha = tf.linalg.cholesky_solve(chol, train_outputs)
         return chol, alpha
 
     @staticmethod
@@ -97,8 +97,8 @@ class Exact(Inference):
         log_trace = util.log_cholesky_det(chol)
         #   tf.reduce_sum(tfm.log(tf.matrix_diag_part(chol)), -1)
         # log_marginal_likelihood (num_latent,)
-        num_train = tf.to_float(tf.shape(chol)[-1])
+        num_train = tf.cast(tf.shape(input=chol)[-1], dtype=tf.float32)
         log_marginal_likelihood = -0.5 * (quad_form + log_trace + num_train * tfm.log(np.pi))
         # Sum over num_latent in the end to get a scalar, this corresponds to mutliplying the
         # marginal likelihoods of all the latent functions
-        return tf.reduce_sum(log_marginal_likelihood)
+        return tf.reduce_sum(input_tensor=log_marginal_likelihood)

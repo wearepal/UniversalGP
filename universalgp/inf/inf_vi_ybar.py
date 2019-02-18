@@ -116,10 +116,10 @@ class VariationalYbar(VariationalWithS):
                                                   tf.stack((out_int, sens_attr), axis=-1))
             weighted_log_lik = log_debias_per_example + log_lik
             # logsumexp is numerically stable
-            log_cond_prob = tf.reduce_logsumexp(weighted_log_lik, axis=-1)
+            log_cond_prob = tf.reduce_logsumexp(input_tensor=weighted_log_lik, axis=-1)
         else:
             log_cond_prob = self.lik.log_cond_prob(outputs, latent_samples)
-        ell_by_component = tf.reduce_sum(log_cond_prob, axis=[1, 2])
+        ell_by_component = tf.reduce_sum(input_tensor=log_cond_prob, axis=[1, 2])
 
         # weighted sum of the components
         ell = util.mul_sum(weights, ell_by_component)

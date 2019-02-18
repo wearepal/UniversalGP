@@ -4,7 +4,7 @@ import tensorflow as tf
 from universalgp import util
 
 try:
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 except ValueError:
     pass
 

@@ -44,12 +44,12 @@ def _merge_and_separate(a, b, func):
         raise ValueError("Combination of ranks not supported")
 
     # move the first dimension to the end and then merge it with the last dimension
-    b_merged = tf.reshape(tf.transpose(b, perm_move_to_end), shape_merged)
+    b_merged = tf.reshape(tf.transpose(a=b, perm=perm_move_to_end), shape_merged)
     # apply function
     result = func(a, b_merged)
     # separate out the last dimension into what it was before the merging, then move the dimension
     # from the back to the front again
-    return tf.transpose(tf.reshape(result, shape_separated), perm_move_to_front)
+    return tf.transpose(a=tf.reshape(result, shape_separated), perm=perm_move_to_front)
 
 
 def matmul_br(a, b, transpose_a=False, transpose_b=False):
@@ -101,7 +101,7 @@ def cholesky_solve_br(chol, rhs):
     Returns:
         Solution
     """
-    return _merge_and_separate(chol, rhs, tf.cholesky_solve)
+    return _merge_and_separate(chol, rhs, tf.linalg.cholesky_solve)
 
 
 def broadcast(tensor, tensor_with_target_shape):
@@ -123,8 +123,8 @@ def broadcast(tensor, tensor_with_target_shape):
         tile_multiples = target_shape[0:-input_rank] + [1] * input_rank
     else:
         # the shapes are not fully specified. we have to work with tensors
-        target_shape = tf.shape(tensor_with_target_shape)
-        expand_dims_shape = tf.concat([[1] * (target_rank - input_rank), tf.shape(tensor)], axis=0)
+        target_shape = tf.shape(input=tensor_with_target_shape)
+        expand_dims_shape = tf.concat([[1] * (target_rank - input_rank), tf.shape(input=tensor)], axis=0)
         tile_multiples = tf.concat([target_shape[0:-input_rank], [1] * input_rank], axis=0)
     input_with_expanded_dims = tf.reshape(tensor, expand_dims_shape)
     return tf.tile(input_with_expanded_dims, tile_multiples)
@@ -136,7 +136,7 @@ def ceil_divide(dividend, divisor):
 
 
 def log_cholesky_det(chol):
-    return 2 * tf.reduce_sum(tfm.log(tfl.diag_part(chol)), axis=-1)
+    return 2 * tf.reduce_sum(input_tensor=tfm.log(tfl.diag_part(chol)), axis=-1)
 
 
 def mul_sum(a, b):

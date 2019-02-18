@@ -63,10 +63,10 @@ def main(_):
     """
     if FLAGS.tf_mode == 'graph':
         train_func = train_graph
-        tf.logging.set_verbosity(tf.logging.INFO)  # print logging information (e.g. the loss)
+        tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.INFO)  # print logging information (e.g. the loss)
     elif FLAGS.tf_mode == 'eager':
         train_func = train_eager
-        tf.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately)
+        tf.compat.v1.enable_eager_execution()  # enable Eager Execution (tensors are evaluated immediately)
     else:
         raise ValueError(f"Unknown tf_mode: \"{FLAGS.tf_mode}\"")
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary

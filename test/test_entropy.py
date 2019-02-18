@@ -11,7 +11,7 @@ import tensorflow as tf
 import universalgp
 
 try:
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 except ValueError:
     pass
 
@@ -104,6 +104,6 @@ def test_entropy1():
 
     inf = construct_inf(num_latents, num_components, 1)
     entropy_tf = inf._build_entropy(tf_constant(weights), tf_constant(means), tf_constant(chol_covars))
-    tf.reset_default_graph()
+    tf.compat.v1.reset_default_graph()
 
     np.testing.assert_allclose(entropy_tf.numpy(), entropy_np)

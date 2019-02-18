@@ -7,7 +7,7 @@ from universalgp import cov, lik
 from universalgp import inf as inference
 
 try:
-    tf.enable_eager_execution()
+    tf.compat.v1.enable_eager_execution()
 except ValueError:
     pass
 
