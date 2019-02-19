@@ -21,7 +21,7 @@ def construct_from_flags(flags, dataset, inducing_inputs):
                                       inducing_inputs)
 
 
-def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
+def construct_lik_and_cov(gp_obj, flags, lik_name, output_dim):
     """Construct the likelihood and all covariance functions from the given information
 
     Args:
@@ -32,11 +32,7 @@ def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
     Returns:
         a likelihood function and a list of covariance functions
     """
-    cov_funcs = []
-    for i in range(output_dim):
-        cov_func = getattr(cov, flags['cov'])(flags)
-        setattr(gp_obj, f"cov_{i}", cov_func)
-        cov_funcs.append(cov_func)
+    cov_funcs = [getattr(cov, flags['cov'])(flags) for i in range(output_dim)]
     lik_func = getattr(lik, lik_name)(flags)
     return lik_func, cov_funcs
 
