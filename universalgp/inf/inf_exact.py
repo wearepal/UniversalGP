@@ -4,6 +4,7 @@ Graph for exact inference.
 
 import numpy as np
 import tensorflow as tf
+from tensorflow import linalg as tfl
 from tensorflow import math as tfm
 from .. import util
 from .base import Inference
@@ -71,10 +72,10 @@ class Exact(Inference):
         kx_star_x_star = self.cov[0](inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
-        v = tf.linalg.triangular_solve(chol, kxx_star)
+        v = tfl.triangular_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
-        var_f_star = tf.linalg.tensor_diag_part(kx_star_x_star - tf.reduce_sum(input_tensor=v ** 2, axis=-2))
-        pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
+        var_f_star = tfl.tensor_diag_part(kx_star_x_star - tf.reduce_sum(input_tensor=v ** 2, axis=-2))
+        pred_means, pred_vars = self.lik(tf.squeeze(f_star_mean, -1), variances=var_f_star)
 
         return pred_means[:, tf.newaxis], pred_vars[:, tf.newaxis]
 
@@ -84,9 +85,9 @@ class Exact(Inference):
 
         jitter = JITTER * tf.eye(tf.shape(input=train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added
-        chol = tf.linalg.cholesky(kxx + jitter)
+        chol = tfl.cholesky(kxx + jitter)
         # alpha = chol.T \ (chol \ train_outputs)
-        alpha = tf.linalg.cholesky_solve(chol, train_outputs)
+        alpha = tfl.cholesky_solve(chol, train_outputs)
         return chol, alpha
 
     @staticmethod

@@ -6,13 +6,13 @@ This file is mainly for defining flags and choosing the right dataset.
 import sys
 import tensorflow as tf
 
-from universalgp import train_eager, datasets
+from universalgp import train, datasets
 
 FLAGS = tf.compat.v1.app.flags.FLAGS
 
 # ---GP flags---
-# tf.compat.v1.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
-tf.compat.v1.app.flags.DEFINE_string('data', 'sensitive_odds_example', 'Dataset to use')
+tf.compat.v1.app.flags.DEFINE_string('data', 'simple_example', 'Dataset to use')
+# tf.compat.v1.app.flags.DEFINE_string('data', 'sensitive_odds_example', 'Dataset to use')
 # tf.compat.v1.app.flags.DEFINE_string('data', 'mnist', 'Dataset to use')
 tf.compat.v1.app.flags.DEFINE_string('inf', 'Variational', 'Inference method')
 # tf.compat.v1.app.flags.DEFINE_string('inf', 'Exact', 'Inference method')
@@ -41,7 +41,7 @@ tf.compat.v1.app.flags.DEFINE_integer('chkpnt_steps', 5000,
                                       'How many steps between saving checkpoints')
 tf.compat.v1.app.flags.DEFINE_string(
     'save_dir', '', 'Directory where the checkpoints and summaries are saved (or \'\')')
-tf.compat.v1.app.flags.DEFINE_string('plot', '', 'Which function to use for plotting (or \'\')')
+tf.compat.v1.app.flags.DEFINE_string('plot', 'simple_1d', 'Which function to use for plotting (or \'\')')
 tf.compat.v1.app.flags.DEFINE_integer('logging_steps', 1, 'How many steps between logging the loss')
 tf.compat.v1.app.flags.DEFINE_string('gpus', '0', 'Which GPUs to use (should normally only be one)')
 tf.compat.v1.app.flags.DEFINE_string(
@@ -68,7 +68,7 @@ def main(_):
     args = {flag: getattr(FLAGS, flag) for flag in FLAGS}  # convert FLAGS to dictionary
     # take dataset function from the module `datasets` and execute it
     dataset = getattr(datasets, FLAGS.data)(args)
-    train_eager.train_gp(dataset, args)
+    train.train_gp(dataset, args)
 
 
 if __name__ == '__main__':

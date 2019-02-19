@@ -28,8 +28,8 @@ def sensitive_example(_):
     sensitive_statistics(ytrain, sensi_attr_train, ytest, sensi_attr_test)
 
     return Dataset(
-        train_fn=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
-        test_fn=to_tf_dataset(xtest, ytest, sensi_attr_test),
+        train=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
+        test=to_tf_dataset(xtest, ytest, sensi_attr_test),
         num_train=2 * num_train,
         input_dim=3,
         inducing_inputs=np.concatenate((xtrain[::num_train // num_inducing],

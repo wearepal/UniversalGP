@@ -126,16 +126,16 @@ def train_gp(dataset, args):
     optimizer = util.get_optimizer(args)
 
     # Restore from existing checkpoint
-    step_counter = optimizer.iterations
-    checkpoint = tf.train.Checkpoint(gp=gp, optimizer=optimizer, step_counter=step_counter)
+    checkpoint = tf.train.Checkpoint(gp=gp, optimizer=optimizer)
     checkpoint.restore(tf.train.latest_checkpoint(out_dir))
+    step_counter = optimizer.iterations
 
     step = 0
     # shuffle and repeat for the required number of epochs
-    train_data = dataset.train_fn().shuffle(50_000).repeat(args['eval_epochs']).batch(
+    train_data = dataset.train.shuffle(50_000).repeat(args['eval_epochs']).batch(
         args['batch_size'])
     # start with one evaluation
-    evaluate(gp, dataset.test_fn().batch(args['batch_size']), dataset.metric)
+    evaluate(gp, dataset.test.batch(args['batch_size']), dataset.metric)
     while step < args['train_steps']:
         start = time.time()
         # take *at most* (train_steps - step) batches so that we don't run longer than `train_steps`
@@ -144,7 +144,7 @@ def train_gp(dataset, args):
         step = step_counter.numpy()
         print(f"Train time for the last {args['eval_epochs']} epochs (global step {step}):"
               f" {end - start:0.2f}s")
-        evaluate(gp, dataset.test_fn().batch(args['batch_size']), dataset.metric)
+        evaluate(gp, dataset.test.batch(args['batch_size']), dataset.metric)
         # TODO: don't ignore the 'chkpnt_steps' flag
         ckpt_path = checkpoint.save(checkpoint_prefix)
         print(f"Saved checkpoint in '{ckpt_path}'")

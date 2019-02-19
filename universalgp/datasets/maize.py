@@ -22,8 +22,8 @@ def maize_yield(_):
     return Dataset(
         input_dim=8,
         output_dim=1,
-        train_fn=to_tf_dataset(xtrain, ytrain),
-        test_fn=to_tf_dataset(xtest, ytest),
+        train=to_tf_dataset(xtrain, ytrain),
+        test=to_tf_dataset(xtest, ytest),
         inducing_inputs=xtrain,
         num_train=len(ytrain),
         lik="LikelihoodGaussian",

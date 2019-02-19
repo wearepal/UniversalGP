@@ -27,8 +27,8 @@ def mnist(_):
     return Dataset(
         input_dim=28 * 28,
         output_dim=10,
-        train_fn=ds_train,
-        test_fn=ds_test,
+        train=ds_train,
+        test=ds_test,
         inducing_inputs=_init_z(data.train.images, NUM_INDUCING),
         num_train=data.train.num_examples,
         lik="LikelihoodSoftmax",

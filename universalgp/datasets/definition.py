@@ -2,7 +2,7 @@
 This file defines what a dataset should look like.
 """
 
-from typing import NamedTuple, Callable, Dict
+from typing import NamedTuple, Dict
 from collections import namedtuple
 import numpy as np
 import tensorflow as tf
@@ -16,8 +16,8 @@ class Dataset(NamedTuple):
 
     The dataset only has variables and no functions.
     """
-    train_fn: tf.data.Dataset  # function that returns training data
-    test_fn: tf.data.Dataset  # function that returns the test data
+    train: tf.data.Dataset  # training data set
+    test: tf.data.Dataset  # test data set
     num_train: int  # number of training instances
     inducing_inputs: np.ndarray  # initial values for the inducing inputs
     input_dim: int  # number of input dimensions

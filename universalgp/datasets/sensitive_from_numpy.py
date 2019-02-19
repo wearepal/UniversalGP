@@ -30,8 +30,8 @@ def sensitive_from_numpy(flags):
     inducing_inputs = _inducing_inputs(flags['num_inducing'], train, flags.get('s_as_input', False))
 
     return Dataset(
-        train_fn=to_tf_dataset(train.x, train.y, train.s),
-        test_fn=to_tf_dataset(test.x, test.y, test.s),
+        train=to_tf_dataset(train.x, train.y, train.s),
+        test=to_tf_dataset(test.x, test.y, test.s),
         input_dim=inducing_inputs.shape[1],
         # xtrain=train.x,
         # ytrain=train.y,
