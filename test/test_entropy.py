@@ -41,7 +41,7 @@ def construct_inf(num_latents, num_components, inducing_inputs):
     """Construct a very basic inference object"""
     return universalgp.inf.Variational(
         dict(num_components=num_components, optimize_inducing=True, num_samples=10,
-             diag_post=False, use_loo=False),
+             diag_post=False, cov="SquaredExponential"),
         'LikelihoodGaussian', num_latents, 1, inducing_inputs
     )
 

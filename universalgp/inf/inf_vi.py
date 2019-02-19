@@ -7,7 +7,7 @@ from tensorflow import math as tfm
 from tensorflow_probability import distributions as tfd
 import numpy as np
 from .. import util
-from .base import Inference
+from .base import Inference, VariableStore
 
 JITTER = 1e-2
 
@@ -23,16 +23,10 @@ tf.compat.v1.app.flags.DEFINE_boolean(
     'use_loo', False, 'Whether to use the LOO (leave one out) loss (for hyper parameters)')
 
 
-class Variational(Inference):
-    """
-    Defines inference for Variational Inference
-    """
-
+class Store(VariableStore):
     def build(self, input_shape):
         """Create a new variational inference object which will keep track of all variables."""
         input_dim = int(input_shape[1])
-        self.lik, self.cov = util.construct_lik_and_cov(self, self.args, self.lik_name, input_dim,
-                                                        self.output_dim)
         self.num_latents = self.output_dim
 
         # Initialize inducing inputs if they are provided
@@ -77,7 +71,7 @@ class Variational(Inference):
                 initializer=zeros)
         super().build(input_shape)
 
-    def _transform_variables(self):
+    def call(self, _):
         """Transorm variables that were stored in a more compact form.
 
         Doing it like this allows us to put certain constraints on the variables.
@@ -93,14 +87,34 @@ class Variational(Inference):
             # We note that we will always operate over the cholesky space internally.
             triangle = util.vec_to_tri(self.raw_covars)
             chol_covars = tfd.matrix_diag_transform(triangle, transform=tf.nn.softplus)
+        return weights, chol_covars, self.means, self.inducing_inputs
+
+
+class Variational(Inference):
+    """
+    Defines inference for Variational Inference
+    """
+    def __init__(self, args, lik_name, output_dim, num_train, inducing_inputs, **kwargs):
+        super().__init__(args, num_train)
+        self.num_latents = output_dim
+        self.store = Store(args, output_dim, num_train, inducing_inputs)
+        self.lik, self.cov = util.construct_lik_and_cov(self, args, lik_name, output_dim)
+
+    def _transform_variables(self, inputs=1):
+        """Transorm variables that were stored in a more compact form.
+
+        Doing it like this allows us to put certain constraints on the variables.
+        """
+        # Use softmax(raw_weights) to keep all weights normalized.
+        weights, chol_covars, means, inducing_inputs = self.store(inputs)
 
         # Build the matrices of covariances between inducing inputs.
-        kernel_mat = tf.stack([self.cov[i](self.inducing_inputs[i, :, :])
+        kernel_mat = tf.stack([self.cov[i](inducing_inputs[i, :, :])
                                for i in range(self.num_latents)], 0)
-        jitter = JITTER * tf.eye(tf.shape(input=self.inducing_inputs)[-2])
+        jitter = JITTER * tf.eye(tf.shape(input=inducing_inputs)[-2])
 
         kernel_chol = tfl.cholesky(kernel_mat + jitter)
-        return weights, chol_covars, kernel_chol
+        return weights, chol_covars, kernel_chol, means, inducing_inputs
 
     def inference(self, features, outputs, is_train):
         """Build graph for computing negative evidence lower bound and predictive mean and variance
@@ -112,13 +126,13 @@ class Variational(Inference):
             negative evidence lower bound and variables to train
         """
         # First transform all raw variables into their internal form.
-        weights, chol_covars, kernel_chol = self._transform_variables()
+        weights, chol_covars, kernel_chol, means, inducing_inputs = self._transform_variables(1)
 
         # Build the objective function.
-        entropy = self._build_entropy(weights, self.means, chol_covars)
-        cross_ent = self._build_cross_ent(weights, self.means, chol_covars, kernel_chol)
-        ell = self._build_ell(weights, self.means, chol_covars, self.inducing_inputs, kernel_chol,
-                              features, outputs, is_train)
+        entropy = self._build_entropy(weights, means, chol_covars)
+        cross_ent = self._build_cross_ent(weights, means, chol_covars, kernel_chol)
+        ell = self._build_ell(weights, means, chol_covars, inducing_inputs, kernel_chol, features,
+                              outputs, is_train)
         batch_size = tf.cast(tf.shape(input=outputs)[0], dtype=tf.float32)
         nelbo = -((batch_size / self.num_train) * (entropy + cross_ent) + ell)
 
@@ -126,8 +140,8 @@ class Variational(Inference):
                          cross_ent=(batch_size / self.num_train) * cross_ent, ell=ell)
         if self.args['use_loo']:
             # Compute LOO loss only when necessary
-            loo_loss = self._build_loo_loss(weights, self.means, chol_covars, self.inducing_inputs,
-                                            kernel_chol, features, outputs)
+            loo_loss = self._build_loo_loss(
+                weights, means, chol_covars, inducing_inputs, kernel_chol, features, outputs)
             return {**obj_funcs, 'NELBO': tf.squeeze(nelbo), 'LOO_VARIATIONAL': loo_loss,
                     'loss': tf.squeeze(nelbo) + loo_loss}
         return {**obj_funcs, 'loss': tf.squeeze(nelbo)}
@@ -151,10 +165,11 @@ class Variational(Inference):
             means and variances of the predictive distribution
         """
         # Transform all raw variables into their internal form.
-        weights, chol_covars, kernel_chol = self._transform_variables()
+        weights, chol_covars, kernel_chol, means, inducing_inputs = self._transform_variables(inputs)
 
-        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, self.inducing_inputs, inputs)
-        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, self.means,
+        kern_prods, kern_sums = self._build_interim_vals(kernel_chol, inducing_inputs,
+                                                         inputs)
+        sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, means,
                                                             chol_covars)
         pred_means, pred_vars = self.lik(sample_means, variances=sample_vars)
 
