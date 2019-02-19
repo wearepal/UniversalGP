@@ -6,6 +6,7 @@ Carl Edward Rasmussen and Christopher K. I. Williams
 The MIT Press, 2006. ISBN 0-262-18253-X. p116.
 """
 import tensorflow as tf
+from tensorflow import linalg as tfl
 from .. import util
 from .base import Inference
 
@@ -46,8 +47,8 @@ class Loo(Inference):
         with tf.control_dependencies(assignments):  # this ensures that the assigments are executed
             chol, alpha = self._build_interim_vals(inputs, outputs)
         # precision = inv(kxx)
-        precision = tf.linalg.cholesky_solve(chol, tf.eye(tf.shape(input=inputs)[-2]))
-        precision_diag = tf.linalg.diag_part(precision)
+        precision = tfl.cholesky_solve(chol, tf.eye(tf.shape(input=inputs)[-2]))
+        precision_diag = tfl.diag_part(precision)
 
         loo_fmu = outputs - alpha / precision_diag   # GMPL book eq. 5.12
         loo_fs2 = 1.0 / precision_diag               # GMPL book eq. 5.12
@@ -78,10 +79,10 @@ class Loo(Inference):
         kx_star_x_star = self.cov[0](inputs)
         # v (num_latent, num_train, num_test)
         # v = tf.matmul(tf.matrix_inverse(chol), kxx_star)
-        v = tf.linalg.triangular_solve(chol, kxx_star)
+        v = tfl.triangular_solve(chol, kxx_star)
         # var_f_star (same shape as Kx_star_x_star)
-        var_f_star = tf.linalg.tensor_diag_part(kx_star_x_star - tf.reduce_sum(input_tensor=v ** 2, axis=-2))
-        pred_means, pred_vars = self.lik.predict(tf.squeeze(f_star_mean, -1), var_f_star)
+        var_f_star = tfl.tensor_diag_part(kx_star_x_star - tf.reduce_sum(input_tensor=v ** 2, axis=-2))
+        pred_means, pred_vars = self.lik(tf.squeeze(f_star_mean, -1), variacnes=var_f_star)
 
         return pred_means, pred_vars
 
@@ -91,9 +92,9 @@ class Loo(Inference):
 
         jitter = JITTER * tf.eye(tf.shape(input=train_inputs)[-2])
         # chol (same size as kxx), add jitter has to be added
-        chol = tf.linalg.cholesky(kxx + jitter)
+        chol = tfl.cholesky(kxx + jitter)
         # alpha = chol.T \ (chol \ train_outputs)
-        alpha = tf.linalg.cholesky_solve(chol, train_outputs)
+        alpha = tfl.cholesky_solve(chol, train_outputs)
         return chol, alpha
 
     def _build_loo(self, train_outputs, loo_fmu, loo_fs2):

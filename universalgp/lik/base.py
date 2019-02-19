@@ -1,8 +1,8 @@
 """Base class of covariance functions"""
 import tensorflow as tf
 
-class Covariance(tf.keras.layers.Layer):
-    """Base class of covariance functions"""
+class Likelihood(tf.keras.layers.Layer):
+    """Base class of likelihood functions"""
     def __init__(self, args, **kwargs):
         """
         Args:

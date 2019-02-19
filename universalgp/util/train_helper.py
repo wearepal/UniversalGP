@@ -35,10 +35,9 @@ def construct_lik_and_cov(gp_obj, flags, lik_name, input_dim, output_dim):
     cov_funcs = []
     for i in range(output_dim):
         cov_func = getattr(cov, flags['cov'])(flags)
-        cov_func.build([input_dim])
         setattr(gp_obj, f"cov_{i}", cov_func)
         cov_funcs.append(cov_func)
-    lik_func = getattr(lik, lik_name)(gp_obj, flags)
+    lik_func = getattr(lik, lik_name)(flags)
     return lik_func, cov_funcs
 
 

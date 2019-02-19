@@ -2,6 +2,7 @@
 Variational inference for generic Gaussian process models
 """
 import tensorflow as tf
+from tensorflow import linalg as tfl
 from tensorflow import math as tfm
 from tensorflow_probability import distributions as tfd
 import numpy as np
@@ -98,7 +99,7 @@ class Variational(Inference):
                                for i in range(self.num_latents)], 0)
         jitter = JITTER * tf.eye(tf.shape(input=self.inducing_inputs)[-2])
 
-        kernel_chol = tf.linalg.cholesky(kernel_mat + jitter)
+        kernel_chol = tfl.cholesky(kernel_mat + jitter)
         return weights, chol_covars, kernel_chol
 
     def inference(self, features, outputs, is_train):
@@ -155,7 +156,7 @@ class Variational(Inference):
         kern_prods, kern_sums = self._build_interim_vals(kernel_chol, self.inducing_inputs, inputs)
         sample_means, sample_vars = self._build_sample_info(kern_prods, kern_sums, self.means,
                                                             chol_covars)
-        pred_means, pred_vars = self.lik.predict(sample_means, sample_vars)
+        pred_means, pred_vars = self.lik(sample_means, variances=sample_vars)
 
         # Compute the mean and variance of the gaussian mixture from their components.
         # weights = tf.expand_dims(tf.expand_dims(weights, 1), 1)
@@ -225,7 +226,7 @@ class Variational(Inference):
                 # Here we use the original component_covar directly
                 # TODO: Can we just stay in cholesky space somehow?
                 component_covar = util.mat_square(chol_covars)
-                chol_covars_sum = tf.linalg.cholesky(component_covar[tf.newaxis, ...] +
+                chol_covars_sum = tfl.cholesky(component_covar[tf.newaxis, ...] +
                                               component_covar[:, tf.newaxis, ...])
             # The class MultivariateNormalTriL only accepts cholesky decompositions of covariances
             variational_dist = tfd.MultivariateNormalTriL(means[tf.newaxis, ...], chol_covars_sum)
@@ -257,7 +258,7 @@ class Variational(Inference):
             # that chol_covars is diagonal. A solution most likely involves a custom tf op.
 
             # shape of trace: (num_components, num_latents)
-            trace = tf.linalg.trace(util.cholesky_solve_br(kernel_chol, tf.linalg.diag(chol_covars)))
+            trace = tfl.trace(util.cholesky_solve_br(kernel_chol, tfl.diag(chol_covars)))
         else:
             trace = tf.reduce_sum(input_tensor=util.mul_sum(util.cholesky_solve_br(kernel_chol, chol_covars),
                                                chol_covars), axis=-1)
@@ -341,10 +342,10 @@ class Variational(Inference):
         for i in range(self.num_latents):
             ind_train_kern = self.cov[i](inducing_inputs[i, :, :], point2=train_inputs)
             # Compute A = Kxz.Kzz^(-1) = (Kzz^(-1).Kzx)^T.
-            kern_prods[i] = tf.transpose(a=tf.linalg.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
+            kern_prods[i] = tf.transpose(a=tfl.cholesky_solve(kernel_chol[i, :, :], ind_train_kern))
             # We only need the diagonal components.
             kern_sums[i] = (self.cov[i].diag_cov_func(train_inputs) -
-                            util.mul_sum(kern_prods[i], tf.linalg.transpose(ind_train_kern)))
+                            util.mul_sum(kern_prods[i], tfl.transpose(ind_train_kern)))
 
         kern_prods = tf.stack(kern_prods, 0)
         kern_sums = tf.stack(kern_sums, 0)
@@ -387,5 +388,5 @@ class Variational(Inference):
             quad_form = util.mul_sum(util.matmul_br(kern_prods, full_covar), kern_prods)
         # shape: (num_components, num_latents, batch_size,1)
         sample_means = util.matmul_br(kern_prods, means[..., tf.newaxis])
-        sample_vars = tf.linalg.transpose(kern_sums + quad_form)  # (num_components, x, num_latents)
-        return tf.linalg.transpose(tf.squeeze(sample_means, -1)), sample_vars
+        sample_vars = tfl.transpose(kern_sums + quad_form)  # (num_components, x, num_latents)
+        return tfl.transpose(tf.squeeze(sample_means, -1)), sample_vars

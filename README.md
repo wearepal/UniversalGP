@@ -102,8 +102,8 @@ def my_dataset():
     # read data from files
     # ...
 
-    return Dataset(train_fn=lambda: train_set,
-                   test_fn=lambda: test_set,
+    return Dataset(train=lambda: train_set,
+                   test=lambda: test_set,
                    num_train=100,
                    input_dim=28,
                    inducing_inputs=inducing_inputs_numpy,

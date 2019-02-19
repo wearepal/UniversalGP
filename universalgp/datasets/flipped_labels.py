@@ -42,10 +42,10 @@ def flipped_labels(flags):
         input_dim = 2
 
     return Dataset(
-        train_fn=make_dataset({'input': xtrain.astype(np.float32), 'sensitive': strain.astype(np.float32),
-                               'ybar': ybartrain.astype(np.float32)}, ytrain.astype(np.float32)),
-        test_fn=make_dataset({'input': xtest.astype(np.float32), 'sensitive': stest.astype(np.float32),
-                              'ybar': ybartest.astype(np.float32)}, ytest.astype(np.float32)),
+        train=make_dataset({'input': xtrain.astype(np.float32), 'sensitive': strain.astype(np.float32),
+                            'ybar': ybartrain.astype(np.float32)}, ytrain.astype(np.float32)),
+        test=make_dataset({'input': xtest.astype(np.float32), 'sensitive': stest.astype(np.float32),
+                           'ybar': ybartest.astype(np.float32)}, ytest.astype(np.float32)),
         num_train=num_train,
         input_dim=input_dim,
         inducing_inputs=inducing_inputs,

@@ -25,8 +25,8 @@ def sensitive_odds_example(_):
     num_inducing = 200
 
     return Dataset(
-        train_fn=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
-        test_fn=to_tf_dataset(xtest, ytest, sensi_attr_test),
+        train=to_tf_dataset(xtrain, ytrain, sensi_attr_train),
+        test=to_tf_dataset(xtest, ytest, sensi_attr_test),
         num_train=4 * num_train,
         input_dim=2,
         inducing_inputs=xtrain[::num_train // num_inducing],

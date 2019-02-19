@@ -101,7 +101,7 @@ def cholesky_solve_br(chol, rhs):
     Returns:
         Solution
     """
-    return _merge_and_separate(chol, rhs, tf.linalg.cholesky_solve)
+    return _merge_and_separate(chol, rhs, tfl.cholesky_solve)
 
 
 def broadcast(tensor, tensor_with_target_shape):

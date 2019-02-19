@@ -112,7 +112,7 @@ class Mae(Metric):
         self.mean = tf.keras.metrics.Mean()
 
     def update(self, features, labels, pred_mean):
-        return self._return_and_store(self.mean(tf.abs(pred_mean - labels)))
+        self.mean(tf.abs(pred_mean - labels))
 
     def record(self):
         print(f"{self.name}: {self.mean.result()}")
@@ -128,8 +128,7 @@ class SoftAccuracy(Metric):
         self.accuracy = tf.keras.metrics.Accuracy()
 
     def update(self, features, labels, pred_mean):
-        return self._return_and_store(self.accuracy(tf.argmax(labels, axis=1),
-                                                    tf.argmax(pred_mean, axis=1)))
+        self.accuracy(tf.argmax(labels, axis=1), tf.argmax(pred_mean, axis=1))
 
     def record(self):
         print(f"{self.name}: {self.accuracy.result()}")
@@ -141,8 +140,7 @@ class LogisticAccuracy(SoftAccuracy):
     name = "logistic_accuracy"
 
     def update(self, features, labels, pred_mean):
-        return self._return_and_store(self.accuracy(tf.cast(labels, tf.int32),
-                                                    tf.cast(pred_mean > 0.5, tf.int32)))
+        self.accuracy(tf.cast(labels, tf.int32), tf.cast(pred_mean > 0.5, tf.int32))
 
 
 class LogisticAccuracyYbar(SoftAccuracy):
@@ -150,8 +148,7 @@ class LogisticAccuracyYbar(SoftAccuracy):
     name = "logistic_accuracy_ybar"
 
     def update(self, features, labels, pred_mean):
-        return self._return_and_store(self.accuracy(features['ybar'],
-                                                    tf.cast(pred_mean > 0.5, tf.float32)))
+        self.accuracy(features['ybar'], tf.cast(pred_mean > 0.5, tf.float32))
 
 
 class PredictionRateY1S0(Mae):
@@ -161,7 +158,7 @@ class PredictionRateY1S0(Mae):
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
                                 tf.where(tfm.equal(features['sensitive'], 0)))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionRateY1S1(Mae):
@@ -171,7 +168,7 @@ class PredictionRateY1S1(Mae):
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32),
                                 tf.where(tfm.equal(features['sensitive'], 1)))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseRateY1S0(Mae):
@@ -180,7 +177,7 @@ class BaseRateY1S0(Mae):
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 0)))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseRateY1S1(Mae):
@@ -189,7 +186,7 @@ class BaseRateY1S1(Mae):
 
     def update(self, features, labels, pred_mean):
         accepted = tf.gather_nd(labels, tf.where(tfm.equal(features['sensitive'], 1)))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYYbar1S0(Mae):
@@ -200,7 +197,7 @@ class PredictionOddsYYbar1S0(Mae):
         test_for_ybar1_s0 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYYbar1S1(Mae):
@@ -211,7 +208,7 @@ class PredictionOddsYYbar1S1(Mae):
         test_for_ybar1_s1 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_ybar1_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseOddsYYbar1S0(Mae):
@@ -222,7 +219,7 @@ class BaseOddsYYbar1S0(Mae):
         test_for_ybar1_s0 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseOddsYYbar1S1(Mae):
@@ -233,7 +230,7 @@ class BaseOddsYYbar1S1(Mae):
         test_for_ybar1_s1 = tfm.logical_and(tfm.equal(features['ybar'], 1),
                                             tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(labels, tf.where(test_for_ybar1_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYYbar0S0(Mae):
@@ -244,7 +241,7 @@ class PredictionOddsYYbar0S0(Mae):
         test_for_ybar0_s0 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYYbar0S1(Mae):
@@ -255,7 +252,7 @@ class PredictionOddsYYbar0S1(Mae):
         test_for_ybar0_s1 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_ybar0_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseOddsYYbar0S0(Mae):
@@ -266,7 +263,7 @@ class BaseOddsYYbar0S0(Mae):
         test_for_ybar0_s0 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class BaseOddsYYbar0S1(Mae):
@@ -277,7 +274,7 @@ class BaseOddsYYbar0S1(Mae):
         test_for_ybar0_s1 = tfm.logical_and(tfm.equal(features['ybar'], 0),
                                             tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(1 - labels, tf.where(test_for_ybar0_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYhatY1S0(Mae):
@@ -287,7 +284,7 @@ class PredictionOddsYhatY1S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_y1_s0 = tfm.logical_and(tfm.equal(labels, 1), tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYhatY1S1(Mae):
@@ -297,7 +294,7 @@ class PredictionOddsYhatY1S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_y1_s1 = tfm.logical_and(tfm.equal(labels, 1), tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(tf.cast(pred_mean > 0.5, tf.float32), tf.where(test_for_y1_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYhatY0S0(Mae):
@@ -307,7 +304,7 @@ class PredictionOddsYhatY0S0(Mae):
     def update(self, features, labels, pred_mean):
         test_for_y0_s0 = tfm.logical_and(tfm.equal(labels, 0), tfm.equal(features['sensitive'], 0))
         accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s0))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 class PredictionOddsYhatY0S1(Mae):
@@ -317,7 +314,7 @@ class PredictionOddsYhatY0S1(Mae):
     def update(self, features, labels, pred_mean):
         test_for_y0_s1 = tfm.logical_and(tfm.equal(labels, 0), tfm.equal(features['sensitive'], 1))
         accepted = tf.gather_nd(tf.cast(pred_mean < 0.5, tf.float32), tf.where(test_for_y0_s1))
-        return self._return_and_store(self.mean(accepted))
+        self.mean(accepted)
 
 
 def mask_for(features, **kwargs):
