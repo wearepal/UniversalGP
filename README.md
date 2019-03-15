@@ -2,11 +2,12 @@
 
 UniversalGP: A basic generic implementation for Gaussian process models
 
-The code was tested on Python 3.6 and Tensorflow 1.10.
+The code was tested on Python 3.6 and Tensorflow 2.0.
 
 ## Installation
 
-Dependencies: Tensorflow, SciPy, sklearn, matplotlib
+Dependencies: Tensorflow, Tensorflow Probability, Tensorflow Datasets,
+SciPy, sklearn, matplotlib
 
 After installing all dependencies clone the repository and do (inside 
 the top directory):
@@ -102,8 +103,8 @@ def my_dataset():
     # read data from files
     # ...
 
-    return Dataset(train=lambda: train_set,
-                   test=lambda: test_set,
+    return Dataset(train=train_set,
+                   test=test_set,
                    num_train=100,
                    input_dim=28,
                    inducing_inputs=inducing_inputs_numpy,
